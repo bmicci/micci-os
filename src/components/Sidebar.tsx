@@ -4,14 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
-  { href: "/financial", label: "Financial", icon: "💰" },
-  { href: "/goals", label: "Goals + Vision", icon: "🎯" },
-  { href: "/planner", label: "Planner", icon: "📅" },
-  { href: "/health", label: "Health", icon: "🏋️" },
+  { href: "/dashboard", label: "Dashboard", icon: "🏠", exact: true },
+  { href: "/financial", label: "Financial", icon: "💰", exact: false },
+  { href: "/goals", label: "Goals + Vision", icon: "🎯", exact: false },
+  { href: "/planner", label: "Planner", icon: "📅", exact: false },
+  { href: "/health", label: "Health", icon: "🏋️", exact: false },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+
+  function isActive(href: string, exact: boolean) {
+    return exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
+  }
 
   return (
     <>
@@ -56,8 +61,8 @@ export default function Sidebar() {
 
         {/* Nav */}
         <nav className="flex flex-col gap-1 px-3 py-4">
-          {NAV_ITEMS.map(({ href, label, icon }) => {
-            const active = pathname === href || pathname.startsWith(href + "/");
+          {NAV_ITEMS.map(({ href, label, icon, exact }) => {
+            const active = isActive(href, exact);
             return (
               <Link
                 key={href}
@@ -103,8 +108,8 @@ export default function Sidebar() {
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
-        {NAV_ITEMS.map(({ href, label, icon }) => {
-          const active = pathname === href || pathname.startsWith(href + "/");
+        {NAV_ITEMS.map(({ href, label, icon, exact }) => {
+          const active = isActive(href, exact);
           return (
             <Link
               key={href}

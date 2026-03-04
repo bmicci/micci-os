@@ -85,5 +85,5 @@ Always be direct and data-driven. Reference actual numbers from the data when an
     },
   })
 
-  return result.toDataStreamResponse()
+  return result.toTextStreamResponse()
 }

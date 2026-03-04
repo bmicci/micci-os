@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import DocumentUpload from '@/components/DocumentUpload'
+import GoalRow from '@/components/goals/GoalRow'
 
 export const metadata = { title: 'Goals + Vision — Micci OS' }
 
@@ -26,55 +27,9 @@ interface Goal {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-const STATUS_STYLES: Record<string, string> = {
-  active:    'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30',
-  completed: 'bg-green-500/20 text-green-300 border border-green-500/30',
-  paused:    'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30',
-  archived:  'bg-gray-500/20 text-gray-400 border border-gray-500/30',
-}
-
-const PRIORITY_STYLES: Record<number, string> = {
-  1: 'text-red-400 bg-red-500/10',
-  2: 'text-orange-400 bg-orange-500/10',
-  3: 'text-yellow-400 bg-yellow-500/10',
-  4: 'text-blue-400 bg-blue-500/10',
-  5: 'text-gray-400 bg-gray-500/10',
-}
-
-function fmtDate(d: string | null) {
-  if (!d) return null
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
 function isOverdue(d: string | null) {
   if (!d) return false
   return new Date(d) < new Date()
-}
-
-// ── Sub-components ─────────────────────────────────────────────────────────
-
-function GoalRow({ goal }: { goal: Goal }) {
-  const overdue = goal.status === 'active' && isOverdue(goal.target_date)
-  return (
-    <div className="flex items-start gap-3 py-3 border-b border-white/5 last:border-0 hover:bg-white/3 rounded px-2 -mx-2 transition-colors">
-      <span className={`text-[10px] font-bold rounded px-1.5 py-0.5 shrink-0 mt-0.5 ${PRIORITY_STYLES[goal.priority ?? 3]}`}>
-        P{goal.priority ?? 3}
-      </span>
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm leading-snug ${goal.status === 'completed' ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text-primary)]'}`}>
-          {goal.title}
-        </p>
-        {goal.target_date && (
-          <p className={`text-xs mt-0.5 ${overdue ? 'text-red-400' : 'text-[var(--text-muted)]'}`}>
-            {overdue ? '⚠ ' : ''}Due {fmtDate(goal.target_date)}
-          </p>
-        )}
-      </div>
-      <span className={`text-[10px] font-medium rounded px-2 py-0.5 shrink-0 capitalize ${STATUS_STYLES[goal.status]}`}>
-        {goal.status}
-      </span>
-    </div>
-  )
 }
 
 function CategoryCard({ category, goals }: { category: GoalCategory; goals: Goal[] }) {

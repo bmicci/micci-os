@@ -6,6 +6,7 @@ import DebtDonut from '@/components/financial/DebtDonut'
 import DeadlineTimeline, { type Deadline } from '@/components/financial/DeadlineTimeline'
 import SubscriptionBurn from '@/components/financial/SubscriptionBurn'
 import TaxSnapshot from '@/components/financial/TaxSnapshot'
+import BudgetBreakdown from '@/components/financial/BudgetBreakdown'
 import DocumentUpload from '@/components/DocumentUpload'
 
 export const metadata = { title: 'Financial — Micci OS' }
@@ -71,6 +72,7 @@ export default async function FinancialPage() {
     { data: accounts },
     { data: modules },
     { data: subscriptions },
+    { data: budgets },
   ] = await Promise.all([
     supabase
       .from('debt_accounts')
@@ -84,6 +86,10 @@ export default async function FinancialPage() {
       .from('subscriptions')
       .select('*')
       .eq('is_active', true),
+    supabase
+      .from('budget_categories')
+      .select('*')
+      .order('pct_of_total', { ascending: false }),
   ])
 
   // Compute days remaining server-side to avoid hydration mismatch
@@ -133,7 +139,10 @@ export default async function FinancialPage() {
         subscriptions={subscriptions}
       />
 
-      {/* ── Section 3: Module Tracker ── */}
+      {/* ── Section 3: Budget Breakdown ── */}
+      <BudgetBreakdown categories={budgets} />
+
+      {/* ── Section 4: Module Tracker ── */}
       <ModuleTracker modules={modules} />
 
       {/* ── Section 4: Debt Overview ── */}
