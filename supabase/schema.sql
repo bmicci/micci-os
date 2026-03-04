@@ -98,10 +98,11 @@ CREATE TABLE IF NOT EXISTS debt_accounts (
 CREATE TABLE IF NOT EXISTS budget_categories (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name            TEXT NOT NULL,
-  actual_2025     DECIMAL(10,2),
-  survival_target DECIMAL(10,2),
-  current_month   DECIMAL(10,2),
-  notes           TEXT,
+  monthly_actual  NUMERIC,
+  annual_actual   NUMERIC,
+  survival_budget NUMERIC,
+  pct_of_total    NUMERIC,
+  color           TEXT,
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
