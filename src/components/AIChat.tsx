@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useChat } from 'ai/react'
+import { useChat } from '@ai-sdk/react'
+import { DefaultChatTransport } from 'ai'
 import { usePathname } from 'next/navigation'
 
 type Section = 'financial' | 'goals' | 'planner' | 'health' | 'general'
@@ -24,19 +25,29 @@ const SECTION_LABELS: Record<Section, { label: string; icon: string }> = {
 
 export default function AIChat() {
   const [open, setOpen] = useState(false)
+  const [input, setInput] = useState('')
   const pathname = usePathname()
   const section = pathToSection(pathname)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, error } = useChat({
-    api: '/api/chat',
-    body: { section },
-    id: section, // separate conversation per section
+  const { messages, sendMessage, status, error } = useChat({
+    id: section,
+    transport: new DefaultChatTransport({ api: '/api/chat' }),
   })
+
+  const isLoading = status === 'submitted' || status === 'streaming'
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmed = input.trim()
+    if (!trimmed || isLoading) return
+    sendMessage({ text: trimmed })
+    setInput('')
+  }
 
   const sectionInfo = SECTION_LABELS[section]
 
@@ -147,10 +158,7 @@ export default function AIChat() {
                   {getStarters(section).map((q) => (
                     <button
                       key={q}
-                      onClick={() => {
-                        const event = { target: { value: q } } as React.ChangeEvent<HTMLInputElement>
-                        handleInputChange(event)
-                      }}
+                      onClick={() => setInput(q)}
                       className="text-xs px-3 py-2 rounded-lg text-left"
                       style={{
                         background: 'rgba(0,212,255,0.06)',
@@ -195,7 +203,9 @@ export default function AIChat() {
                     wordBreak: 'break-word',
                   }}
                 >
-                  {m.content}
+                  {m.parts?.map((p, i) =>
+                    p.type === 'text' ? <span key={i}>{p.text}</span> : null
+                  )}
                 </div>
               </div>
             ))}
@@ -240,7 +250,7 @@ export default function AIChat() {
           >
             <input
               value={input}
-              onChange={handleInputChange}
+              onChange={(e) => setInput(e.target.value)}
               placeholder={`Ask about ${sectionInfo.label.toLowerCase()}...`}
               disabled={isLoading}
               style={{

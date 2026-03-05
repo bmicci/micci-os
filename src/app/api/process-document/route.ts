@@ -6,7 +6,8 @@ async function extractText(buffer: Buffer, fileType: string): Promise<string> {
   switch (fileType) {
     case 'pdf': {
       // Dynamic import to avoid Next.js bundling issues with pdf-parse
-      const pdfParse = (await import('pdf-parse')).default
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pdfParse = ((await import('pdf-parse')) as any).default ?? (await import('pdf-parse'))
       const data = await pdfParse(buffer)
       return data.text
     }

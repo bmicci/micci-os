@@ -1,6 +1,7 @@
 import PlaceholderPage from '@/components/PlaceholderPage'
 import DocumentUpload from '@/components/DocumentUpload'
 
+export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Planner — Micci OS' }
 
 export default function PlannerPage() {
