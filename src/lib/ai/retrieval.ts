@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { generateEmbedding } from './embeddings'
 
-export type Section = 'financial' | 'goals' | 'planner' | 'health' | 'general'
+export type Section = 'financial' | 'goals' | 'planner' | 'health' | 'life-plan' | 'general'
 
 export interface RetrievedChunk {
   id: string
@@ -98,6 +98,30 @@ export async function getStructuredContext(section: Section): Promise<string> {
     if (schedule.data?.length) {
       context += `\n## Daily Schedule Template\n${JSON.stringify(schedule.data, null, 2)}`
     }
+  }
+
+  if (section === 'life-plan') {
+    const [{ data: states }, { data: custom }] = await Promise.all([
+      supabase.from('life_plan_goal_states').select('*'),
+      supabase.from('life_plan_custom_goals').select('*').order('created_at'),
+    ])
+
+    const totalGoals = 300 // approximate static count
+    const completedStatic = states?.length ?? 0
+    const completedCustom = custom?.filter((g: { completed: boolean }) => g.completed).length ?? 0
+    const totalCustom = custom?.length ?? 0
+
+    context += `\n## Life Plan Summary`
+    context += `\nStatic goals completed: ${completedStatic} of ~${totalGoals}`
+    context += `\nCustom goals: ${totalCustom} total, ${completedCustom} completed`
+
+    if (custom?.length) {
+      context += `\n\n## Custom / AI-Added Goals\n${JSON.stringify(custom, null, 2)}`
+    }
+
+    context += `\n\n## Life Plan Sections: Health & Fitness, Business & Career, Relationships & Romance, Family & Friends, Finance, Home & Lifestyle, Fun & Recreation, Memberships & Access, Personal Development, Spiritual`
+    context += `\n## Timeframes tracked: Age 40 (1 year), Age 45 (5 years), Age 50 (10 years), Age 60 (20 years)`
+    context += `\n## Foundation: Vision → "A successful marriage, CIO/CDO by 45, CEO by 50, Forbes cover, Governor" | Purpose → "Business visionary to world leader"`
   }
 
   if (section === 'planner') {

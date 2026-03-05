@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { useChat } from 'ai/react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
 
-type Section = 'financial' | 'goals' | 'planner' | 'health' | 'general'
+type Section = 'financial' | 'goals' | 'planner' | 'health' | 'life-plan' | 'general'
+type Role = 'user' | 'assistant'
+interface Message { id: string; role: Role; content: string }
 
 function pathToSection(pathname: string): Section {
   if (pathname.startsWith('/financial')) return 'financial'
-  if (pathname.startsWith('/goals')) return 'goals'
+  if (pathname.startsWith('/goals')) return 'life-plan'
   if (pathname.startsWith('/planner')) return 'planner'
   if (pathname.startsWith('/health')) return 'health'
   return 'general'
@@ -17,6 +18,7 @@ function pathToSection(pathname: string): Section {
 const SECTION_LABELS: Record<Section, { label: string; icon: string }> = {
   financial: { label: 'Financial', icon: '💰' },
   goals: { label: 'Goals', icon: '🎯' },
+  'life-plan': { label: 'Life Plan', icon: '🗺️' },
   planner: { label: 'Planner', icon: '📅' },
   health: { label: 'Health', icon: '🏋️' },
   general: { label: 'General', icon: '🤖' },
@@ -26,17 +28,69 @@ export default function AIChat() {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
   const section = pathToSection(pathname)
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  const { messages, input, handleInputChange, handleSubmit, isLoading, error } = useChat({
-    api: '/api/chat',
-    body: { section },
-    id: section, // separate conversation per section
-  })
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  const handleSubmit = useCallback(async (text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed || isLoading) return
+
+    setError(null)
+    setInput('')
+
+    const userMsg: Message = { id: crypto.randomUUID(), role: 'user', content: trimmed }
+    const assistantId = crypto.randomUUID()
+    const assistantMsg: Message = { id: assistantId, role: 'assistant', content: '' }
+
+    setMessages((prev) => [...prev, userMsg, assistantMsg])
+    setIsLoading(true)
+
+    abortRef.current = new AbortController()
+
+    try {
+      const history = [...messages, userMsg].map(({ role, content }) => ({ role, content }))
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history, section }),
+        signal: abortRef.current.signal,
+      })
+
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`)
+      }
+
+      const reader = response.body!.getReader()
+      const decoder = new TextDecoder()
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value, { stream: true })
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, content: m.content + chunk } : m
+          )
+        )
+      }
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        setError((err as Error).message || 'Something went wrong')
+        setMessages((prev) => prev.filter((m) => m.id !== assistantId))
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [isLoading, messages, section])
 
   const sectionInfo = SECTION_LABELS[section]
 
@@ -147,10 +201,7 @@ export default function AIChat() {
                   {getStarters(section).map((q) => (
                     <button
                       key={q}
-                      onClick={() => {
-                        const event = { target: { value: q } } as React.ChangeEvent<HTMLInputElement>
-                        handleInputChange(event)
-                      }}
+                      onClick={() => handleSubmit(q)}
                       className="text-xs px-3 py-2 rounded-lg text-left"
                       style={{
                         background: 'rgba(0,212,255,0.06)',
@@ -195,12 +246,12 @@ export default function AIChat() {
                     wordBreak: 'break-word',
                   }}
                 >
-                  {m.content}
+                  {m.content || (m.role === 'assistant' && isLoading ? '…' : '')}
                 </div>
               </div>
             ))}
 
-            {isLoading && (
+            {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
               <div className="flex items-center gap-2 pl-1">
                 <div className="flex gap-1">
                   {[0, 1, 2].map((i) => (
@@ -225,7 +276,7 @@ export default function AIChat() {
 
             {error && (
               <p className="text-xs px-3 py-2 rounded-lg" style={{ color: '#ff6b6b', background: 'rgba(255,107,107,0.08)' }}>
-                Error: {error.message}
+                Error: {error}
               </p>
             )}
 
@@ -234,15 +285,21 @@ export default function AIChat() {
 
           {/* Input */}
           <form
-            onSubmit={handleSubmit}
+            onSubmit={(e) => { e.preventDefault(); handleSubmit(input) }}
             className="flex items-center gap-2 px-4 py-3"
             style={{ borderTop: '1px solid rgba(0,212,255,0.1)', flexShrink: 0 }}
           >
             <input
               value={input}
-              onChange={handleInputChange}
+              onChange={(e) => setInput(e.target.value)}
               placeholder={`Ask about ${sectionInfo.label.toLowerCase()}...`}
               disabled={isLoading}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSubmit(input)
+                }
+              }}
               style={{
                 flex: 1,
                 background: 'rgba(255,255,255,0.04)',
@@ -298,6 +355,12 @@ function getStarters(section: Section): string[] {
       'What are my top active goals?',
       'How many goals do I have per category?',
       'What goals are due soon?',
+    ],
+    'life-plan': [
+      'Summarize my Age 40 goals across all sections.',
+      'What are my top career goals for the next 5 years?',
+      'What custom goals have I added recently?',
+      'How far along am I overall on my life plan?',
     ],
     planner: [
       "What does my morning routine look like?",
