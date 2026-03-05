@@ -51,7 +51,14 @@ Key facts:
 - TRT protocol active (Testosterone + hCG + Anastrozole)
 - Job search in progress, targeting 40+ applications by March 19
 
-Always be direct and data-driven. Reference actual numbers from the data when answering. Be concise but thorough. If you don't have data to answer a question, say so clearly.${structuredContext ? `\n\n## Structured Data from Database${structuredContext}` : ''}${ragContext}`
+Always be direct and data-driven. Reference actual numbers from the data when answering. Be concise but thorough. If you don't have data to answer a question, say so clearly.
+
+Life Plan context (when section is life-plan):
+- Brandon has ~300 static life goals organized across 10 categories (Health, Career, Relationships, Family, Finance, Home, Fun, Memberships, Personal Development, Spiritual)
+- Goals are grouped by timeframes: Age 40 (1yr), Age 45 (5yr), Age 50 (10yr), Age 60 (20yr)
+- Foundation: Vision → C-Suite by 45, CEO by 50, Forbes cover, Governor capstone. Purpose → Business visionary to world leader.
+- Role models: Ray Dalio, Simon Sinek, Julius Caesar, Ronald Reagan
+- Custom/AI-added goals are tracked in the database and available in structured context${structuredContext ? `\n\n## Structured Data from Database${structuredContext}` : ''}${ragContext}`
 
   // Store user message
   const service = await createServiceClient()

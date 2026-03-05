@@ -3,13 +3,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
 
-type Section = 'financial' | 'goals' | 'planner' | 'health' | 'general'
+type Section = 'financial' | 'goals' | 'planner' | 'health' | 'life-plan' | 'general'
 type Role = 'user' | 'assistant'
 interface Message { id: string; role: Role; content: string }
 
 function pathToSection(pathname: string): Section {
   if (pathname.startsWith('/financial')) return 'financial'
-  if (pathname.startsWith('/goals')) return 'goals'
+  if (pathname.startsWith('/goals')) return 'life-plan'
   if (pathname.startsWith('/planner')) return 'planner'
   if (pathname.startsWith('/health')) return 'health'
   return 'general'
@@ -18,6 +18,7 @@ function pathToSection(pathname: string): Section {
 const SECTION_LABELS: Record<Section, { label: string; icon: string }> = {
   financial: { label: 'Financial', icon: '💰' },
   goals: { label: 'Goals', icon: '🎯' },
+  'life-plan': { label: 'Life Plan', icon: '🗺️' },
   planner: { label: 'Planner', icon: '📅' },
   health: { label: 'Health', icon: '🏋️' },
   general: { label: 'General', icon: '🤖' },
@@ -354,6 +355,12 @@ function getStarters(section: Section): string[] {
       'What are my top active goals?',
       'How many goals do I have per category?',
       'What goals are due soon?',
+    ],
+    'life-plan': [
+      'Summarize my Age 40 goals across all sections.',
+      'What are my top career goals for the next 5 years?',
+      'What custom goals have I added recently?',
+      'How far along am I overall on my life plan?',
     ],
     planner: [
       "What does my morning routine look like?",
