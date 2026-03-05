@@ -6,14 +6,13 @@ export const metadata = { title: 'Life Plan — Micci OS' }
 export default async function GoalsPage() {
   const supabase = await createClient()
 
-  const [{ data: goalStates }, { data: customGoals }] = await Promise.all([
-    supabase.from('life_plan_goal_states').select('*'),
-    supabase.from('life_plan_custom_goals').select('*').order('created_at'),
+  const [{ data: sections }, { data: goals }] = await Promise.all([
+    supabase.from('life_plan_sections').select('*').order('sort_order'),
+    supabase.from('life_plan_goals').select('*').order('sort_order'),
   ])
 
   return (
     <div className="px-6 md:px-10 py-8">
-      {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold gradient-text mb-1">🗺️ Life Plan</h1>
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -22,8 +21,8 @@ export default async function GoalsPage() {
       </div>
 
       <LifePlanClient
-        initialGoalStates={goalStates ?? []}
-        initialCustomGoals={customGoals ?? []}
+        initialSections={sections ?? []}
+        initialGoals={goals ?? []}
       />
     </div>
   )

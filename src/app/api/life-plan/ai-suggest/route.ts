@@ -2,22 +2,39 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { anthropic } from '@ai-sdk/anthropic'
 import { generateText } from 'ai'
-import { SECTIONS } from '@/lib/life-plan-data'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { section_id, timeframe, category_header, prompt, existing_goals } = await request.json()
+  const { section_id, timeframe, category_header, prompt } = await request.json()
 
-  const section = SECTIONS.find(s => s.id === section_id)
-  if (!section) return NextResponse.json({ error: 'Invalid section' }, { status: 400 })
+  // Fetch section metadata + existing goals from DB
+  const [{ data: section }, { data: existingGoals }] = await Promise.all([
+    supabase.from('life_plan_sections').select('*').eq('id', section_id).single(),
+    supabase
+      .from('life_plan_goals')
+      .select('goal_text')
+      .eq('section_id', section_id)
+      .eq('timeframe', timeframe)
+      .order('sort_order'),
+  ])
 
-  const tfData = section.timeframes?.[timeframe]
-  const timeframeLabel = tfData?.label ?? `Age ${timeframe}`
+  if (!section) return NextResponse.json({ error: 'Section not found' }, { status: 404 })
 
-  const systemPrompt = `You are Brandon's personal life coach helping him refine his master life plan goals.
+  const sectionName: string = section.name
+  const tfLabels: Record<string, string> = {
+    '40': 'Age 40 (1 Year)',
+    '45': 'Age 45 (5 Years)',
+    '50': 'Age 50 (10 Years)',
+    '60': 'Age 60 (20 Years)',
+    'all': 'All Ages',
+    'pinned': 'Pinned / Top Priority',
+  }
+  const timeframeLabel = tfLabels[timeframe] ?? `Age ${timeframe}`
+
+  const systemPrompt = `You are Brandon's personal life coach helping him build his master life plan.
 
 Brandon's profile:
 - 39-year-old executive, leaving JPMC March 19 2026
@@ -28,24 +45,24 @@ Brandon's profile:
 - Purpose: "To go from business visionary to world leader—creating technologies that transform how we live, then rising to global influence to unite nations and build a better future."
 
 You are suggesting goals for:
-- Section: ${section.name}
+- Section: ${sectionName}
 - Timeframe: ${timeframeLabel}
 ${category_header ? `- Category: ${category_header}` : ''}
 
 Existing goals in this area:
-${existing_goals?.join('\n') ?? 'None'}
+${existingGoals?.map(g => `- ${g.goal_text}`).join('\n') ?? 'None yet'}
 
 Rules:
-- Return ONLY a JSON array of 3–5 concise goal strings
+- Return ONLY a JSON array of 3-5 concise goal strings, nothing else
 - Each goal should be specific, actionable, and ambitious but achievable
-- Match the tone and style of existing goals
+- Match the tone and style of existing goals (short, punchy phrases)
 - Do not duplicate existing goals
-- Keep each goal to 1–2 sentences max
+- Keep each goal to 1-2 sentences max
 - Align with Brandon's overall vision and values`
 
   const userMsg = prompt
-    ? `User wants to add: "${prompt}". Suggest 3–5 specific goal variations based on this request, formatted as a JSON array.`
-    : `Suggest 3–5 new goals for ${section.name} at the ${timeframeLabel} timeframe. Return a JSON array of strings.`
+    ? `User wants to add goals related to: "${prompt}". Suggest 3-5 specific goal variations, formatted as a JSON array of strings only.`
+    : `Suggest 3-5 new goals for ${sectionName} at the ${timeframeLabel} timeframe. Return a JSON array of strings only.`
 
   try {
     const { text } = await generateText({
@@ -55,7 +72,7 @@ Rules:
       maxOutputTokens: 512,
     })
 
-    const match = text.match(/\[[\s\S]*\]/)
+    const match = text.match(/\[[\s\S]*?\]/)
     if (!match) throw new Error('No JSON array in response')
 
     const suggestions: string[] = JSON.parse(match[0])

@@ -11,14 +11,16 @@ export async function PATCH(
 
   const { id } = await params
   const body = await request.json()
-  const allowed = ['goal_text', 'completed', 'category_header', 'timeframe']
+
+  // Allow patching any goal (seeded or user-added)
+  const allowed = ['goal_text', 'completed', 'category_header', 'timeframe', 'timeframe_label']
   const patch: Record<string, unknown> = {}
   for (const key of allowed) {
     if (key in body) patch[key] = body[key]
   }
 
   const { data, error } = await supabase
-    .from('life_plan_custom_goals')
+    .from('life_plan_goals')
     .update(patch)
     .eq('id', id)
     .select()
@@ -37,7 +39,7 @@ export async function DELETE(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const { error } = await supabase.from('life_plan_custom_goals').delete().eq('id', id)
+  const { error } = await supabase.from('life_plan_goals').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }
