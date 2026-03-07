@@ -9,6 +9,7 @@ import TaxSnapshot from '@/components/financial/TaxSnapshot'
 import BudgetBreakdown from '@/components/financial/BudgetBreakdown'
 import DocumentUpload from '@/components/DocumentUpload'
 
+export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Financial — Micci OS' }
 
 // ── Hardcoded deadlines (dates don't change) ──────────────────────────────

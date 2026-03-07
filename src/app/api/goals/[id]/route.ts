@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-const VALID_STATUSES = ['active', 'completed', 'paused', 'archived'] as const
-const VALID_PRIORITIES = [1, 2, 3, 4, 5] as const
-
+// PATCH /api/goals/[id]  — update title/description or toggle completed
 export async function PATCH(
-  request: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
@@ -16,41 +14,42 @@ export async function PATCH(
   }
 
   const { id } = await params
-  const body = await request.json()
-  const { status, priority } = body as { status?: string; priority?: number }
+  const body = await req.json()
 
-  const update: Record<string, unknown> = {}
-
-  if (status !== undefined) {
-    if (!VALID_STATUSES.includes(status as typeof VALID_STATUSES[number])) {
-      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
-    }
-    update.status = status
-    if (status === 'completed') update.completed_at = new Date().toISOString()
-    if (status !== 'completed') update.completed_at = null
+  const updates: Record<string, unknown> = {}
+  if ('title' in body) updates.title = body.title
+  if ('description' in body) updates.description = body.description
+  if ('completed' in body) {
+    updates.completed = body.completed
+    updates.completed_at = body.completed ? new Date().toISOString() : null
   }
-
-  if (priority !== undefined) {
-    if (!VALID_PRIORITIES.includes(priority as typeof VALID_PRIORITIES[number])) {
-      return NextResponse.json({ error: 'Invalid priority' }, { status: 400 })
-    }
-    update.priority = priority
-  }
-
-  if (Object.keys(update).length === 0) {
-    return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
-  }
+  updates.updated_at = new Date().toISOString()
 
   const { data, error } = await supabase
     .from('goals')
-    .update(update)
+    .update(updates)
     .eq('id', id)
     .select()
     .single()
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ goal: data })
+}
+
+// DELETE /api/goals/[id]
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  return NextResponse.json(data)
+  const { id } = await params
+  const { error } = await supabase.from('goals').delete().eq('id', id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
 }

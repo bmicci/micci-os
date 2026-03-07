@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import DocumentUpload from '@/components/DocumentUpload'
 
+export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Health — Micci OS' }
 
 // ── Types ──────────────────────────────────────────────────────────────────

@@ -5,10 +5,11 @@ import { chunkText, generateEmbeddings } from '@/lib/ai/embeddings'
 async function extractText(buffer: Buffer, fileType: string): Promise<string> {
   switch (fileType) {
     case 'pdf': {
-      const { PDFParse } = await import('pdf-parse')
-      const parser = new PDFParse({ data: buffer })
-      const result = await parser.getText()
-      return result.text
+      // Dynamic import to avoid Next.js bundling issues with pdf-parse
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pdfParse = ((await import('pdf-parse')) as any).default ?? (await import('pdf-parse'))
+      const data = await pdfParse(buffer)
+      return data.text
     }
 
     case 'xlsx':
