@@ -18,6 +18,7 @@ interface Props {
   defaultTimeframe?: string
   defaultTimeframeLabel?: string
   defaultCategoryHeader?: string | null
+  defaultGoalText?: string
   onAdd: (sectionId: string, timeframe: string, timeframeLabel: string, categoryHeader: string | null, goalText: string, aiGenerated: boolean) => Promise<void>
   onClose: () => void
 }
@@ -28,13 +29,14 @@ export default function AddGoalModal({
   defaultTimeframe = '40',
   defaultTimeframeLabel = 'Age 40 (1 Year)',
   defaultCategoryHeader = null,
+  defaultGoalText = '',
   onAdd,
   onClose,
 }: Props) {
   const [sectionId, setSectionId] = useState(defaultSectionId)
   const [timeframe, setTimeframe] = useState(defaultTimeframe)
   const [categoryHeader, setCategoryHeader] = useState(defaultCategoryHeader ?? '')
-  const [goalText, setGoalText] = useState('')
+  const [goalText, setGoalText] = useState(defaultGoalText)
   const [aiPrompt, setAiPrompt] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [aiLoading, setAiLoading] = useState(false)

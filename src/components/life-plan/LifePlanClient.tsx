@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { FOUNDATION_DATA, RITUALS_DATA, SECTIONS } from '@/lib/life-plan-data'
 import AddGoalModal from './AddGoalModal'
 
@@ -25,7 +25,7 @@ export interface DBGoal {
   sort_order: number
 }
 
-type View = 'foundation' | 'goals' | 'timeline' | 'vision'
+type View = 'foundation' | 'goals' | 'timeline' | 'vision' | 'backlog'
 
 interface Props {
   initialSections: DBSection[]
@@ -62,6 +62,7 @@ export default function LifePlanClient({ initialSections, initialGoals }: Props)
   const [goals, setGoals] = useState<DBGoal[]>(initialGoals)
   const [showAddModal, setShowAddModal] = useState(false)
   const [addTarget, setAddTarget] = useState<{ sectionId: string; timeframe: string; timeframeLabel: string; categoryHeader: string | null } | null>(null)
+  const [preFillText, setPreFillText] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
 
@@ -195,7 +196,7 @@ export default function LifePlanClient({ initialSections, initialGoals }: Props)
         {/* Top nav + filters */}
         <div className="flex items-center gap-2 flex-wrap mb-5">
           <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: 'var(--card-border)', background: 'var(--card-bg)' }}>
-            {([['foundation', '🧭 Foundation'], ['goals', '🎯 Goals'], ['timeline', '📅 Timeline'], ['vision', '🌟 Vision Board']] as [View, string][]).map(([v, label]) => (
+            {([['foundation', '🧭 Foundation'], ['goals', '🎯 Goals'], ['timeline', '📅 Timeline'], ['vision', '🌟 Vision Board'], ['backlog', '📋 Backlog']] as [View, string][]).map(([v, label]) => (
               <button key={v} onClick={() => setActiveView(v)}
                 className="px-4 py-2 text-sm font-medium transition-all"
                 style={{ background: activeView === v ? 'var(--accent-cyan)' : 'transparent', color: activeView === v ? '#000' : 'var(--text-secondary)' }}>
@@ -247,6 +248,17 @@ export default function LifePlanClient({ initialSections, initialGoals }: Props)
         )}
 
         {activeView === 'vision' && <VisionView />}
+
+        {activeView === 'backlog' && (
+          <BacklogView
+            sections={initialSections}
+            onPromote={(text, sectionId) => {
+              setPreFillText(text)
+              setAddTarget({ sectionId, timeframe: '40', timeframeLabel: 'Age 40 (1 Year)', categoryHeader: null })
+              setShowAddModal(true)
+            }}
+          />
+        )}
       </div>
 
       {/* ── Add goal modal ───────────────────────────────────── */}
@@ -257,8 +269,9 @@ export default function LifePlanClient({ initialSections, initialGoals }: Props)
           defaultTimeframe={addTarget?.timeframe ?? '40'}
           defaultTimeframeLabel={addTarget?.timeframeLabel ?? 'Age 40 (1 Year)'}
           defaultCategoryHeader={addTarget?.categoryHeader ?? null}
+          defaultGoalText={preFillText}
           onAdd={handleAddGoal}
-          onClose={() => { setShowAddModal(false); setAddTarget(null) }}
+          onClose={() => { setShowAddModal(false); setAddTarget(null); setPreFillText('') }}
         />
       )}
     </div>
@@ -864,6 +877,211 @@ function FoundCard({ title, icon, accent, children }: { title: string; icon: str
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h3>
       </div>
       {children}
+    </div>
+  )
+}
+
+// ── BACKLOG VIEW ───────────────────────────────────────────────
+interface BacklogGoal {
+  id: string
+  title: string
+  description: string | null
+  section: string
+  timeframe: string
+  completed: boolean
+  created_at: string
+}
+
+const BACKLOG_SECTION_MAP: Record<string, string> = {
+  career: 'career', financial: 'finance', health: 'health',
+  relationships: 'relationships', home: 'home', travel: 'fun',
+  mental: 'personal-dev', learning: 'personal-dev', wellness: 'health',
+  creative: 'fun', legal: 'finance', style: 'personal-dev',
+  legacy: 'spiritual', family: 'family', memberships: 'memberships',
+  spiritual: 'spiritual',
+}
+
+const TF_BADGE_COLORS: Record<string, string> = {
+  daily: '#00d4ff', weekly: '#1e90ff', monthly: '#7b5ea7', yearly: '#2ecc71',
+}
+
+function BacklogView({ sections, onPromote }: {
+  sections: DBSection[]
+  onPromote: (text: string, sectionId: string) => void
+}) {
+  const [goals, setGoals] = useState<BacklogGoal[]>([])
+  const [loading, setLoading] = useState(true)
+  const [tfFilter, setTfFilter] = useState('all')
+  const [sectionFilter, setSectionFilter] = useState('all')
+
+  useEffect(() => {
+    fetch('/api/goals?limit=200')
+      .then(r => r.json())
+      .then(data => {
+        setGoals(Array.isArray(data) ? data : (data.goals ?? []))
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  async function toggleGoal(id: string) {
+    const g = goals.find(g => g.id === id)
+    if (!g) return
+    const next = !g.completed
+    setGoals(prev => prev.map(g => g.id === id ? { ...g, completed: next } : g))
+    await fetch(`/api/goals/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ completed: next }),
+    })
+  }
+
+  async function deleteGoal(id: string) {
+    setGoals(prev => prev.filter(g => g.id !== id))
+    await fetch(`/api/goals/${id}`, { method: 'DELETE' })
+  }
+
+  const uniqueSections = [...new Set(goals.map(g => g.section))].sort()
+
+  const filtered = goals.filter(g => {
+    if (tfFilter !== 'all' && g.timeframe !== tfFilter) return false
+    if (sectionFilter !== 'all' && g.section !== sectionFilter) return false
+    return true
+  })
+
+  const grouped = filtered.reduce((acc, g) => {
+    if (!acc[g.section]) acc[g.section] = []
+    acc[g.section].push(g)
+    return acc
+  }, {} as Record<string, BacklogGoal[]>)
+
+  if (loading) return (
+    <div className="flex justify-center py-16">
+      <div className="flex gap-1">
+        {[0, 1, 2].map(i => (
+          <div key={i} className="w-2 h-2 rounded-full animate-bounce"
+            style={{ background: 'var(--accent-cyan)', animationDelay: `${i * 0.15}s` }} />
+        ))}
+      </div>
+    </div>
+  )
+
+  return (
+    <div>
+      <div className="mb-5 p-4 rounded-xl border" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          Goals from the original goal-tracking system — short-horizon tasks by timeframe.
+          Use <strong style={{ color: 'var(--accent-cyan)' }}>→ Life Plan</strong> to promote any goal into your main life plan.
+        </p>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2 mb-5">
+        <div className="flex gap-1 flex-wrap">
+          {(['all', 'daily', 'weekly', 'monthly', 'yearly'] as const).map(tf => (
+            <button key={tf} onClick={() => setTfFilter(tf)}
+              className="px-3 py-1.5 rounded-full text-xs font-medium border transition-all capitalize"
+              style={{
+                background: tfFilter === tf ? 'var(--accent-cyan)' : 'transparent',
+                color: tfFilter === tf ? '#000' : 'var(--text-secondary)',
+                borderColor: tfFilter === tf ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.1)',
+              }}>
+              {tf}
+            </button>
+          ))}
+        </div>
+        <select value={sectionFilter} onChange={e => setSectionFilter(e.target.value)}
+          className="ml-auto rounded-lg px-3 py-1.5 text-xs border"
+          style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)' }}>
+          <option value="all">All Sections</option>
+          {uniqueSections.map(s => (
+            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          ))}
+        </select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-16" style={{ color: 'var(--text-muted)' }}>
+          {goals.length === 0
+            ? 'No backlog goals found. The original goals table may be empty.'
+            : 'No goals match this filter.'}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {Object.entries(grouped).map(([section, sGoals]) => (
+            <div key={section}>
+              <h3 className="text-xs uppercase tracking-widest mb-2 capitalize"
+                style={{ color: 'var(--text-muted)' }}>
+                {section} <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span> {sGoals.length}
+              </h3>
+              <div className="space-y-2">
+                {sGoals.map(g => {
+                  const badgeColor = TF_BADGE_COLORS[g.timeframe] ?? '#888'
+                  return (
+                    <div key={g.id}
+                      className="flex items-start gap-3 p-3 rounded-xl border transition-all"
+                      style={{
+                        background: 'var(--card-bg)',
+                        borderColor: 'var(--card-border)',
+                        opacity: g.completed ? 0.5 : 1,
+                      }}>
+                      {/* Checkbox */}
+                      <button onClick={() => toggleGoal(g.id)}
+                        className="w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all"
+                        style={{
+                          borderColor: g.completed ? '#2ecc71' : 'rgba(255,255,255,0.2)',
+                          background: g.completed ? '#2ecc71' : 'transparent',
+                        }}>
+                        {g.completed && <span className="text-[9px] text-black font-bold">✓</span>}
+                      </button>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm leading-snug"
+                          style={{ color: 'var(--text-primary)', textDecoration: g.completed ? 'line-through' : 'none' }}>
+                          {g.title}
+                        </p>
+                        {g.description && (
+                          <p className="text-xs mt-0.5 leading-snug" style={{ color: 'var(--text-muted)' }}>
+                            {g.description}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full capitalize"
+                          style={{
+                            background: `${badgeColor}22`,
+                            color: badgeColor,
+                            border: `1px solid ${badgeColor}44`,
+                          }}>
+                          {g.timeframe}
+                        </span>
+                        <button
+                          onClick={() => onPromote(g.title, BACKLOG_SECTION_MAP[g.section] ?? 'health')}
+                          className="text-[11px] px-2.5 py-1 rounded-lg font-medium transition-all"
+                          style={{
+                            background: 'rgba(0,212,255,0.1)',
+                            color: 'var(--accent-cyan)',
+                            border: '1px solid rgba(0,212,255,0.2)',
+                          }}>
+                          → Life Plan
+                        </button>
+                        <button onClick={() => deleteGoal(g.id)}
+                          className="text-[11px] w-6 h-6 rounded-lg flex items-center justify-center transition-all hover:bg-white/10"
+                          style={{ color: 'var(--text-muted)' }}>
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
