@@ -17,11 +17,17 @@ export async function POST(request: NextRequest) {
   const { messages, section = 'general' } = await request.json()
   const userMessage: string = messages[messages.length - 1]?.content ?? ''
 
-  // Retrieve relevant document chunks (RAG)
-  const chunks = await retrieveRelevantChunks(userMessage, section as Section, 8, 0.5)
+  // Retrieve relevant document chunks (RAG) — graceful fallback if table missing
+  let chunks: Awaited<ReturnType<typeof retrieveRelevantChunks>> = []
+  try {
+    chunks = await retrieveRelevantChunks(userMessage, section as Section, 8, 0.5)
+  } catch { /* document_chunks table may not exist yet */ }
 
-  // Fetch structured data from relevant tables
-  const structuredContext = await getStructuredContext(section as Section)
+  // Fetch structured data — graceful fallback
+  let structuredContext = ''
+  try {
+    structuredContext = await getStructuredContext(section as Section)
+  } catch { /* structured context tables may not exist yet */ }
 
   // Build context string
   const today = new Date().toLocaleDateString('en-US', {
@@ -60,37 +66,63 @@ Life Plan context (when section is life-plan):
 - Role models: Ray Dalio, Simon Sinek, Julius Caesar, Ronald Reagan
 - Custom/AI-added goals are tracked in the database and available in structured context${structuredContext ? `\n\n## Structured Data from Database${structuredContext}` : ''}${ragContext}`
 
-  // Store user message
-  const service = await createServiceClient()
-  await service.from('chat_messages').insert({
-    user_id: user.id,
-    section,
-    role: 'user',
-    content: userMessage,
-  })
+  // Store user message — graceful fallback if table missing
+  let service: Awaited<ReturnType<typeof createServiceClient>> | null = null
+  try {
+    service = await createServiceClient()
+    await service.from('chat_messages').insert({
+      user_id: user.id,
+      section,
+      role: 'user',
+      content: userMessage,
+    })
+  } catch { /* chat_messages table may not exist yet */ }
 
-  // Stream response
+  // Stream response — manually pipe textStream to catch errors
   const result = streamText({
-    model: anthropic('claude-sonnet-4-5'),
+    model: anthropic('claude-sonnet-4-6'),
     system: systemPrompt,
     messages,
+    onError: ({ error }) => {
+      console.error('[chat/route] streamText error:', error)
+    },
     onFinish: async ({ text }) => {
-      // Store assistant response with sources
-      const sources = chunks.map((c) => ({
-        document_id: c.document_id,
-        content_preview: c.content.slice(0, 120),
-        similarity: c.similarity,
-      }))
-
-      await service.from('chat_messages').insert({
-        user_id: user.id,
-        section,
-        role: 'assistant',
-        content: text,
-        sources,
-      })
+      if (!service) return
+      try {
+        const sources = chunks.map((c) => ({
+          document_id: c.document_id,
+          content_preview: c.content.slice(0, 120),
+          similarity: c.similarity,
+        }))
+        await service.from('chat_messages').insert({
+          user_id: user.id,
+          section,
+          role: 'assistant',
+          content: text,
+          sources,
+        })
+      } catch { /* graceful fallback */ }
     },
   })
 
-  return result.toTextStreamResponse()
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const text of result.textStream) {
+          controller.enqueue(encoder.encode(text))
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Stream error'
+        console.error('[chat/route] textStream error:', err)
+        controller.enqueue(encoder.encode(`\n\n⚠️ ${msg}`))
+      } finally {
+        controller.close()
+      }
+    },
+  })
+
+  return new Response(stream, {
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  })
 }

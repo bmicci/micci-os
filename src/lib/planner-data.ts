@@ -3,7 +3,7 @@
 
 export type CatKey =
   | 'sleep' | 'fitness' | 'recovery' | 'job' | 'heloc'
-  | 'legal' | 'health' | 'admin' | 'wellness' | 'personal'
+  | 'legal' | 'health' | 'admin' | 'wellness' | 'personal' | 'tax'
 
 export interface CatConfig {
   label: string
@@ -64,6 +64,7 @@ export const CAT: Record<CatKey, CatConfig> = {
   admin:    { label: 'Admin/Claims',     icon: '📋' },
   wellness: { label: 'Wellness',         icon: '🧘' },
   personal: { label: 'Personal',         icon: '☀️' },
+  tax:      { label: 'Tax/IRS',          icon: '🧾' },
 }
 
 export const CC: Record<CatKey, string> = {
@@ -77,6 +78,7 @@ export const CC: Record<CatKey, string> = {
   admin:    '#f472b6',
   wellness: '#a78bfa',
   personal: '#a1a1aa',
+  tax:      '#e879f9',
 }
 
 // ── 33-day schedule ────────────────────────────────────────
@@ -320,32 +322,34 @@ export const DAYS: Day[] = [
   // WEEK 3 — DEADLINE COUNTDOWN (Mar 9–15)
   // ═══════════════════════════════════════════
   {
-    date: 'Mon, Mar 9', week: 3, tag: 'Deadline Countdown',
-    theme: '10 days to March 19. Full job search + deadline tasks. TRT: Testosterone injection (Week 2).',
+    date: 'Mon, Mar 9', week: 3, tag: 'IRS Call Day',
+    theme: '10 days to March 19. Call IRS at 7 AM (less hold time). TRT: Testosterone injection (Week 2).',
     blocks: [
-      { t: '7:00 AM', cat: 'sleep',    task: 'Wake up — sunlight, hydrate' },
-      { t: '7:15',    cat: 'wellness', task: 'Meditation + journaling' },
-      { t: '7:30',    cat: 'recovery', task: 'Morning stretch (15-20 min)' },
-      { t: '7:45',    cat: 'health',   task: '💉 TRT: Testosterone injection (Week 2)' },
-      { t: '8:00',    cat: 'fitness',  task: 'Gym: Heavy legs — squats, deadlifts, hip thrusts (60 min)' },
-      { t: '9:15',    cat: 'personal', task: 'Breakfast' },
+      { t: '6:45 AM', cat: 'sleep',    task: 'Wake up early — sunlight, hydrate (IRS call at 7:00)' },
+      { t: '7:00',    cat: 'tax',      task: '📞 IRS Call: 1-800-829-1040 (45 min) — 2024 taxes owed. Ask about payment plans, installment agreement. Write down: reference #, rep name, payment timeline, next steps.' },
+      { t: '7:45',    cat: 'personal', task: 'Breakfast' },
+      { t: '8:00',    cat: 'wellness', task: 'Meditation + journaling' },
+      { t: '8:15',    cat: 'recovery', task: 'Morning stretch (15-20 min)' },
+      { t: '8:30',    cat: 'health',   task: '💉 TRT: Testosterone injection (Week 2)' },
+      { t: '8:45',    cat: 'fitness',  task: 'Gym: Heavy legs — squats, deadlifts, hip thrusts (60 min)' },
       { t: '10:00',   cat: 'job',      task: 'Deep work: Apply to 5+ roles' },
       { t: '12:00',   cat: 'job',      task: 'Recruiter follow-ups + cold outreach' },
       { t: '12:45',   cat: 'personal', task: 'Lunch' },
       { t: '1:30',    cat: 'job',      task: 'LinkedIn engagement + networking' },
-      { t: '2:30',    cat: 'health',   task: 'Benefits check: MRA/FSA spending, medical appts status' },
+      { t: '2:30',    cat: 'admin',    task: '⚠️ INSURANCE RENEWAL (RENEWS MAR 9): Shop auto + home insurance — get 3 quotes. Compare Lemonade, GEICO, Progressive, Allstate. Note: renewal is TODAY so decide quickly.' },
       { t: '3:15',    cat: 'heloc',    task: 'HELOC: Status update — any decisions?' },
-      { t: '4:00',    cat: 'fitness',  task: 'Outdoor walk (30-45 min)' },
+      { t: '3:45',    cat: 'health',   task: 'Benefits check: MRA/FSA spending, medical appts status' },
+      { t: '4:15',    cat: 'fitness',  task: 'Outdoor walk (30-45 min)' },
       { t: '5:00',    cat: 'personal', task: 'Free time' },
       { t: '6:00',    cat: 'personal', task: 'Dinner' },
-      { t: '7:00',    cat: 'personal', task: 'Free time' },
+      { t: '7:00',    cat: 'tax',      task: '🧾 Tax: Archive IRS call — reference #, rep name, payment timeline, any docs requested. File notes.' },
       { t: '10:00',   cat: 'sleep',    task: 'Wind down' },
       { t: '11:00',   cat: 'sleep',    task: 'Lights out' },
     ],
   },
   {
-    date: 'Tue, Mar 10', week: 3, tag: 'Job Search + Benefits',
-    theme: 'Applications + benefits push. ClassPass yoga evening.',
+    date: 'Tue, Mar 10', week: 3, tag: 'Job Search + Tax Docs',
+    theme: 'Applications + benefits push. Compile 2024 income docs for IRS. ClassPass yoga evening.',
     blocks: [
       { t: '7:00 AM', cat: 'sleep',    task: 'Wake up — sunlight, hydrate' },
       { t: '7:15',    cat: 'wellness', task: 'Meditation + journaling' },
@@ -353,7 +357,7 @@ export const DAYS: Day[] = [
       { t: '8:00',    cat: 'fitness',  task: 'Gym: Heavy push — bench, OHP, incline DB (60 min)' },
       { t: '9:15',    cat: 'personal', task: 'Breakfast' },
       { t: '10:00',   cat: 'job',      task: 'Apply to 3-5 roles' },
-      { t: '11:30',   cat: 'job',      task: 'Interview prep for any scheduled calls' },
+      { t: '11:30',   cat: 'tax',      task: '🧾 Tax: Compile 2024 income docs (30-45 min) — gather W-2s, 1099s, income statements. Create digital folder: Income / Deductions / Business. Have ready in case IRS requests.' },
       { t: '12:30',   cat: 'personal', task: 'Lunch' },
       { t: '1:15',    cat: 'health',   task: 'Final medical appointments — schedule or confirm' },
       { t: '2:00',    cat: 'admin',    task: 'JPMC docs: download anything remaining' },
@@ -367,8 +371,8 @@ export const DAYS: Day[] = [
     ],
   },
   {
-    date: 'Wed, Mar 11', week: 3, tag: 'Outreach + Admin',
-    theme: 'Job outreach, admin cleanup, HELOC/legal check-in.',
+    date: 'Wed, Mar 11', week: 3, tag: 'Outreach + Tax Docs',
+    theme: 'Job outreach, admin cleanup, HELOC/legal check-in. Compile 2024 deduction docs.',
     blocks: [
       { t: '7:00 AM', cat: 'sleep',    task: 'Wake up — sunlight, hydrate' },
       { t: '7:15',    cat: 'wellness', task: 'Meditation + journaling' },
@@ -376,13 +380,13 @@ export const DAYS: Day[] = [
       { t: '8:00',    cat: 'fitness',  task: 'Gym: Heavy pull — rows, pull-ups, face pulls, curls (60 min)' },
       { t: '9:15',    cat: 'personal', task: 'Breakfast' },
       { t: '10:00',   cat: 'job',      task: 'Apply to 5 roles' },
-      { t: '11:30',   cat: 'job',      task: 'Cold outreach: 5 hiring managers at target companies' },
+      { t: '11:30',   cat: 'tax',      task: '🧾 Tax: Compile 2024 deduction docs (30-45 min) — receipts, invoices, charitable donations, mortgage interest. Scan/organize by category. IRS will ask for specifics if needed.' },
       { t: '12:30',   cat: 'personal', task: 'Lunch' },
       { t: '1:15',    cat: 'heloc',    task: 'HELOC: Push for final decisions' },
       { t: '2:00',    cat: 'legal',    task: 'BoA: Attorney engagement — next steps' },
-      { t: '2:45',    cat: 'admin',    task: 'Admin cleanup: close any remaining loops' },
+      { t: '2:45',    cat: 'job',      task: 'Cold outreach: 5 hiring managers at target companies' },
       { t: '3:30',    cat: 'fitness',  task: 'Outdoor walk (30 min)' },
-      { t: '4:15',    cat: 'personal', task: 'Free time' },
+      { t: '4:15',    cat: 'admin',    task: 'Admin cleanup: close any remaining loops' },
       { t: '6:00',    cat: 'personal', task: 'Dinner' },
       { t: '7:00',    cat: 'personal', task: 'Free time' },
       { t: '10:00',   cat: 'sleep',    task: 'Wind down' },
@@ -390,8 +394,8 @@ export const DAYS: Day[] = [
     ],
   },
   {
-    date: 'Thu, Mar 12', week: 3, tag: 'Networking + Pilates',
-    theme: 'Network, interview prep, Pilates. TRT: hCG + Anastrozole today.',
+    date: 'Thu, Mar 12', week: 3, tag: 'File 2022 Refund + Pilates',
+    theme: 'File 2022 tax refund/amended return in the morning. Network, interview prep, Pilates. TRT: hCG + Anastrozole.',
     blocks: [
       { t: '7:00 AM', cat: 'sleep',    task: 'Wake up — sunlight, hydrate' },
       { t: '7:15',    cat: 'wellness', task: 'Meditation + journaling' },
@@ -399,11 +403,11 @@ export const DAYS: Day[] = [
       { t: '7:45',    cat: 'health',   task: '💉 TRT: hCG injection + Anastrozole 1 mg' },
       { t: '8:00',    cat: 'fitness',  task: 'Gym: Legs + core — front squats, RDLs, lunges, planks (60 min)' },
       { t: '9:15',    cat: 'personal', task: 'Breakfast' },
-      { t: '10:00',   cat: 'job',      task: 'Network: Follow up on warm leads, reach out to 5-10 contacts' },
-      { t: '11:30',   cat: 'job',      task: 'Apply to 3-5 roles' },
+      { t: '9:45',    cat: 'tax',      task: '🧾 Tax: File 2022 refund claim or Form 1040-X amended return (1-2 hrs). Submit via IRS e-file (preferred) or mail. Document: submission date, confirmation #, timeline (8-12 weeks to process). Keep copy for records.' },
+      { t: '11:30',   cat: 'job',      task: 'Network: Follow up on warm leads, reach out to 5-10 contacts' },
       { t: '12:30',   cat: 'personal', task: 'Lunch' },
-      { t: '1:15',    cat: 'job',      task: 'Interview prep — STAR examples, pitch refinement' },
-      { t: '2:30',    cat: 'job',      task: 'LinkedIn: Engage with 10+ posts' },
+      { t: '1:15',    cat: 'job',      task: 'Apply to 3-5 roles' },
+      { t: '2:30',    cat: 'job',      task: 'Interview prep — STAR examples, pitch refinement' },
       { t: '3:45',    cat: 'fitness',  task: 'Outdoor walk (30 min)' },
       { t: '5:00',    cat: 'fitness',  task: '🧘 ClassPass: Evening Pilates' },
       { t: '6:15',    cat: 'personal', task: 'Dinner' },
@@ -490,6 +494,7 @@ export const DAYS: Day[] = [
       { t: '7:45',    cat: 'health',   task: '💉 TRT: Testosterone injection (Week 3)' },
       { t: '8:00',    cat: 'fitness',  task: 'Gym: Heavy legs — squats, deadlifts, hip thrusts (60 min)' },
       { t: '9:15',    cat: 'personal', task: 'Breakfast' },
+      { t: '9:45',    cat: 'tax',      task: '🧾 Tax: Check email for any IRS responses (5 min). Flag immediately if present. Property tax: email hired professional for status update (5 min).' },
       { t: '10:00',   cat: 'admin',    task: 'JPMC final push: Download all remaining docs, certs, pay stubs' },
       { t: '11:00',   cat: 'health',   task: 'Final Rx refills — 90-day supplies while insurance active' },
       { t: '12:00',   cat: 'personal', task: 'Lunch' },
@@ -626,8 +631,9 @@ export const DAYS: Day[] = [
       { t: '8:15',    cat: 'wellness', task: 'Meditation + gratitude journal' },
       { t: '8:30',    cat: 'recovery', task: 'Extended stretch (20-30 min)' },
       { t: '9:00',    cat: 'health',   task: '💉 TRT: hCG injection' },
+      { t: '9:10',    cat: 'tax',      task: '🧾 Tax weekly check-in (10 min): Email property tax professional for status. Check IRS responses. Monitor 2022 refund at IRS "Where\'s My Refund".' },
       { t: '9:15',    cat: 'personal', task: 'Breakfast' },
-      { t: '10:00',   cat: 'personal', task: 'Post-JPMC planning: New daily structure, priorities, budget review' },
+      { t: '10:00',   cat: 'personal', task: 'Post-JPMC sprint planning: Mar 23-31 priorities, new daily structure, budget review' },
       { t: '11:00',   cat: 'job',      task: 'Pipeline review — what\'s hot, what needs follow-up?' },
       { t: '12:00',   cat: 'personal', task: 'Lunch' },
       { t: '12:45',   cat: 'legal',    task: 'BoA: Attorney engagement — next steps post-employment' },
@@ -784,6 +790,7 @@ export const DAYS: Day[] = [
       { t: '8:15',    cat: 'wellness', task: 'Meditation + gratitude journal' },
       { t: '8:30',    cat: 'recovery', task: 'Extended stretch (20-30 min)' },
       { t: '9:00',    cat: 'health',   task: '💉 TRT: hCG injection' },
+      { t: '9:10',    cat: 'tax',      task: '🧾 Tax weekly check-in (10 min): Check IRS responses, monitor 2022 refund ("Where\'s My Refund"), property tax professional status. File weekly unemployment claim (Texas Workforce Commission, ~10 min).' },
       { t: '9:15',    cat: 'personal', task: 'Breakfast' },
       { t: '10:00',   cat: 'personal', task: 'Monthly review: What worked, what didn\'t, April planning' },
       { t: '11:00',   cat: 'job',      task: 'Pipeline review — where do things stand?' },
@@ -923,6 +930,72 @@ export const SUCCESS: string[] = [
   'Lifting 5x/week + 2 ClassPass classes established',
   'Daily stretch + weekly massage/sauna habit built',
   'No loose admin anxiety loops',
+]
+
+// ── Milestones / critical deadlines ────────────────────────
+
+export interface Milestone {
+  label: string
+  shortLabel: string
+  icon: string
+  isoDate: string        // YYYY-MM-DD for countdown calculation
+  urgency: 'critical' | 'high' | 'medium' | 'low'
+  note: string
+  week?: number          // schedule week to jump to on click
+  dayIdx?: number        // day index within that week
+}
+
+export const MILESTONES: Milestone[] = [
+  {
+    label: 'HELOC Close + JPMC Last Day',
+    shortLabel: 'HELOC / JPMC',
+    icon: '🔴',
+    isoDate: '2026-03-19',
+    urgency: 'critical',
+    note: 'Must close HELOC while still employed at JPMC',
+    week: 4,
+    dayIdx: 2,
+  },
+  {
+    label: 'DCAD Protest Deadline',
+    shortLabel: 'DCAD Protest',
+    icon: '🏠',
+    isoDate: '2026-05-15',
+    urgency: 'high',
+    note: 'File at ifile.dallascad.org — dispute $850K valuation',
+  },
+  {
+    label: 'Best Buy Promo Expires',
+    shortLabel: 'Best Buy',
+    icon: '💳',
+    isoDate: '2026-06-27',
+    urgency: 'high',
+    note: '$1,312 — $339 deferred interest if missed',
+  },
+  {
+    label: 'Chase 0% Promos Expire',
+    shortLabel: 'Chase Promos',
+    icon: '💳',
+    isoDate: '2026-12-01',
+    urgency: 'medium',
+    note: '$36,427 — pay from HELOC as buckets expire Jul–Dec',
+  },
+  {
+    label: 'Roth Conversion Deadline',
+    shortLabel: 'Roth Window',
+    icon: '💰',
+    isoDate: '2026-12-31',
+    urgency: 'medium',
+    note: 'Low-income year — convert up to $23K at 22% bracket',
+  },
+  {
+    label: 'Citi Diamond 0% Expires',
+    shortLabel: 'Citi Diamond',
+    icon: '💳',
+    isoDate: '2027-06-18',
+    urgency: 'low',
+    note: '$12,476 — longest runway, pay from HELOC by Jun 2027',
+  },
 ]
 
 // ── Derived helpers ────────────────────────────────────────

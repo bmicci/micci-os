@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { FOUNDATION_DATA, RITUALS_DATA } from '@/lib/life-plan-data'
+import { FOUNDATION_DATA, RITUALS_DATA, SECTIONS } from '@/lib/life-plan-data'
 import AddGoalModal from './AddGoalModal'
 
 // ── Types ──────────────────────────────────────────────────────
@@ -477,17 +477,274 @@ function TimelineView({ sections, goals, onToggle }: { sections: DBSection[]; go
 }
 
 // ── VISION VIEW ───────────────────────────────────────────────
-function VisionView() {
+const ROLE_MODEL_TAGS: Record<string, string> = {
+  'Ray Dalio': 'Principles · Wealth · Vision',
+  'Simon Sinek': 'Leadership · Purpose · Influence',
+  'Julius Caesar': 'Ambition · Strategy · Power',
+  'Ronald Reagan': 'Communication · Conviction · Legacy',
+}
+
+const AREA_ICONS: Record<string, string> = {
+  health: '🏋️', career: '💼', relationships: '💍', family: '👨‍👩‍👧',
+  finance: '📈', home: '🏡', fun: '✈️', 'personal-dev': '🎓',
+  spiritual: '✝️', memberships: '🔑',
+}
+
+const MILESTONES = [
+  { age: '40', year: '2026 · Year One', items: [
+    { label: 'Health', text: 'Complete 75 Hard; 190 lbs; visible abs' },
+    { label: 'Career', text: 'VP role; $300–400K comp; keynotes' },
+    { label: 'Romance', text: 'Find her; engaged by year-end' },
+    { label: 'Finance', text: 'Net worth $450–500K' },
+    { label: 'Growth', text: 'MIT Sloan; Wharton; Spanish' },
+    { label: 'Faith', text: 'Home parish; first retreat' },
+  ]},
+  { age: '45', year: '2031 · Five Years', items: [
+    { label: 'Career', text: 'SVP/EVP or C-Suite; $500K–$1M' },
+    { label: 'Family', text: 'Married; 2–3 kids; Italy wedding' },
+    { label: 'Finance', text: 'Net worth $2–2.5M; debt-free' },
+    { label: 'Home', text: 'Large home with pool & gym' },
+    { label: 'Growth', text: 'Top 10 MBA; TEDx talk' },
+    { label: 'Travel', text: 'SE Asia; African Safari' },
+  ]},
+  { age: '50', year: '2036 · Ten Years', items: [
+    { label: 'Career', text: 'C-Suite Fortune 500; $1–3M+' },
+    { label: 'Legacy', text: 'Book published; Davos; Forbes cover' },
+    { label: 'Finance', text: 'Net worth $6–8M; $10–15K passive/mo' },
+    { label: 'Home', text: 'Dream home; vacation properties' },
+    { label: 'Family', text: 'Foundation started; $500K+/yr giving' },
+    { label: 'Faith', text: 'Holy Land pilgrimage; parish leader' },
+  ]},
+  { age: '60', year: '2046 · Twenty Years', items: [
+    { label: 'Career', text: 'Governor candidate; CEO/boards' },
+    { label: 'Finance', text: 'Net worth $15–25M; financially free' },
+    { label: 'Legacy', text: 'Household name; Forbes lists' },
+    { label: 'Family', text: 'Patriarch; family compound' },
+    { label: 'Philanthropy', text: 'Named foundation; $1M+/yr giving' },
+    { label: 'Faith', text: 'Papal audience; endowed gift to Church' },
+  ]},
+]
+
+const BUCKET_LIST = [
+  'SE Asia — Thailand, Vietnam, Indonesia, Cambodia',
+  'Egypt — Pyramids, Nile, ancient history',
+  'Machu Picchu — Hike the Inca Trail',
+  'Viking River Cruise — France & Germany with parents',
+  'African Safari — Kenya, Tanzania, or South Africa',
+]
+
+const SIGNATURE_EVENTS = [
+  'F1 Monaco Grand Prix (PRIORITY)',
+  'Super Bowl',
+  'The Masters',
+  'US Open Tennis (NYC)',
+  'Kentucky Derby',
+]
+
+function GoldSectionHeader({ eyebrow, heading }: { eyebrow: string; heading: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center rounded-2xl border"
-      style={{ background: 'var(--card-bg)', borderColor: 'rgba(201,168,76,0.3)', minHeight: 400 }}>
-      <div className="text-6xl mb-4">🌟</div>
-      <h2 className="text-3xl font-bold mb-2" style={{ fontFamily: 'var(--font-geist-sans)', color: '#e8c97a' }}>Vision Board</h2>
-      <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)', maxWidth: 400 }}>
-        A visual representation of the life being built. Upload images, aspirational visuals, and tangible manifestations of every goal.
-      </p>
-      <div className="border-t border-dashed pt-6 w-full max-w-md" style={{ borderColor: 'rgba(201,168,76,0.2)' }}>
-        <p className="text-xs uppercase tracking-widest font-semibold" style={{ color: '#c9a84c', letterSpacing: '0.15em' }}>Coming Soon — Phase 2</p>
+    <div className="mb-5">
+      <div className="text-[11px] uppercase tracking-widest mb-1" style={{ color: 'rgba(201,168,76,0.6)' }}>{eyebrow}</div>
+      <h2 className="text-xl font-bold" style={{ color: '#e8c97a', fontFamily: 'var(--font-geist-sans)' }}>{heading}</h2>
+      <div className="w-12 h-0.5 mt-2" style={{ background: 'rgba(201,168,76,0.4)' }} />
+    </div>
+  )
+}
+
+function VisionView() {
+  const fd = FOUNDATION_DATA
+  const rd = RITUALS_DATA
+
+  return (
+    <div className="space-y-12 pb-10">
+
+      {/* HERO */}
+      <div className="relative overflow-hidden rounded-2xl border text-center py-12 px-8"
+        style={{ background: 'linear-gradient(135deg, rgba(201,168,76,0.08) 0%, rgba(201,168,76,0.03) 100%)', borderColor: 'rgba(201,168,76,0.3)' }}>
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 60% 40%, rgba(201,168,76,0.08) 0%, transparent 70%)' }} />
+        <div className="relative">
+          <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl font-bold"
+            style={{ background: 'rgba(201,168,76,0.15)', border: '2px solid rgba(201,168,76,0.4)', color: '#e8c97a' }}>B</div>
+          <div className="text-[11px] uppercase tracking-widest mb-2" style={{ color: 'rgba(201,168,76,0.6)' }}>Vision Board · 2026 &amp; Beyond</div>
+          <h1 className="text-4xl font-bold mb-1" style={{ color: '#e8c97a', fontFamily: 'var(--font-geist-sans)' }}>Brandon Micci</h1>
+          <p className="text-sm mb-5" style={{ color: 'rgba(201,168,76,0.6)' }}>Visionary · Leader · Builder</p>
+          <div className="w-16 h-px mx-auto mb-6" style={{ background: 'rgba(201,168,76,0.4)' }} />
+          <p className="text-sm leading-relaxed mb-6 max-w-2xl mx-auto" style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>{fd.vision}</p>
+          <div className="inline-block px-5 py-3 rounded-xl mb-6" style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)' }}>
+            <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'rgba(201,168,76,0.5)' }}>Life&apos;s Purpose &amp; Mission</div>
+            <p className="text-sm" style={{ color: '#e8c97a', fontStyle: 'italic' }}>{fd.purpose}</p>
+          </div>
+          <div>
+            <span className="text-lg font-bold" style={{ color: '#C9A84C' }}>Dream Big.</span>
+            <span className="text-lg mx-3" style={{ color: 'var(--text-muted)' }}>Work Hard.</span>
+            <span className="text-lg font-bold" style={{ color: '#C9A84C' }}>Stay Humble.</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ROLE MODELS */}
+      <div>
+        <GoldSectionHeader eyebrow="Who I Aspire To Emulate" heading="Role Models" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {fd.roleModels.map(rm => (
+            <div key={rm} className="p-4 rounded-xl border text-center"
+              style={{ background: 'rgba(201,168,76,0.06)', borderColor: 'rgba(201,168,76,0.2)' }}>
+              <div className="text-base font-semibold mb-1" style={{ color: '#e8c97a' }}>{rm}</div>
+              <div className="text-xs" style={{ color: 'rgba(201,168,76,0.5)' }}>{ROLE_MODEL_TAGS[rm] ?? ''}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* LIFE GOALS GRID */}
+      <div>
+        <GoldSectionHeader eyebrow="The Blueprint" heading="Life Goals" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {SECTIONS.filter(s => !s.isVision).map(s => (
+            <div key={s.id} className="p-4 rounded-xl border relative overflow-hidden"
+              style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+              <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: s.colorHex }} />
+              <div className="flex items-center gap-2 mb-2">
+                <span style={{ fontSize: 18 }}>{AREA_ICONS[s.id] ?? '🎯'}</span>
+                <span className="text-sm font-semibold" style={{ color: s.colorHex }}>{s.name}</span>
+              </div>
+              <div className="text-[10px] uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
+                {s.allAges && !s.timeframes ? 'All Ages' : 'Ages 40–60'}
+              </div>
+              <div className="space-y-1">
+                {s.timeframes && (['40', '45', '50', '60'] as const).map(tf => {
+                  const tfData = s.timeframes![tf]
+                  if (!tfData) return null
+                  const firstGoal = tfData.categories[0]?.goals[0]
+                  return firstGoal ? (
+                    <div key={tf} className="flex gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      <span className="flex-shrink-0 font-semibold" style={{ color: s.colorHex }}>Age {tf}:</span>
+                      <span>{firstGoal.length > 55 ? firstGoal.slice(0, 53) + '…' : firstGoal}</span>
+                    </div>
+                  ) : null
+                })}
+                {!s.timeframes && s.pinned?.slice(0, 1).map((p, i) => (
+                  <div key={i} className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {p.goals.slice(0, 3).map((g, gi) => <div key={gi} className="py-0.5">• {g.length > 55 ? g.slice(0, 53) + '…' : g}</div>)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* MILESTONE TIMELINE */}
+      <div>
+        <GoldSectionHeader eyebrow="The Journey Ahead" heading="Major Milestones" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {MILESTONES.map((m, i) => (
+            <div key={m.age} className="p-4 rounded-xl border"
+              style={{ background: i === 0 ? 'rgba(201,168,76,0.06)' : 'var(--card-bg)', borderColor: i === 0 ? 'rgba(201,168,76,0.3)' : 'var(--card-border)' }}>
+              <div className="text-3xl font-bold mb-0.5" style={{ color: '#C9A84C', fontFamily: 'var(--font-geist-sans)' }}>{m.age}</div>
+              <div className="text-[11px] mb-3" style={{ color: 'rgba(201,168,76,0.5)' }}>{m.year}</div>
+              <div className="space-y-1.5">
+                {m.items.map(item => (
+                  <div key={item.label} className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    <span className="font-semibold" style={{ color: '#C9A84C' }}>{item.label} — </span>
+                    {item.text}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* AFFIRMATIONS */}
+      <div>
+        <GoldSectionHeader eyebrow="Daily Declarations" heading="Affirmations" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {rd.affirmations.map((a, i) => (
+            <div key={i} className="flex gap-3 p-4 rounded-xl border"
+              style={{ background: 'rgba(201,168,76,0.04)', borderColor: 'rgba(201,168,76,0.15)' }}>
+              <span className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold"
+                style={{ background: 'rgba(201,168,76,0.18)', color: '#C9A84C' }}>
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <span className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{a}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* PASSIONS */}
+      <div>
+        <GoldSectionHeader eyebrow="What Energizes Me" heading="Passions &amp; Flow" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {([
+            ['Activities That Energize Me', fd.passions.energize],
+            ['Topics I Could Talk About for Hours', fd.passions.talkAbout],
+            ['How I Recharge', fd.passions.recharge],
+            ['When I Feel Most Like Myself', fd.passions.mostMyself],
+          ] as [string, string[]][]).map(([label, items]) => (
+            <div key={label} className="p-4 rounded-xl border" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+              <div className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#C9A84C' }}>{label}</div>
+              <div className="flex flex-wrap gap-2">
+                {items.map(p => (
+                  <span key={p} className="px-2.5 py-1 rounded-full text-xs border"
+                    style={{ background: 'rgba(201,168,76,0.06)', borderColor: 'rgba(201,168,76,0.15)', color: 'var(--text-secondary)' }}>
+                    {p}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* BUCKET LIST */}
+      <div>
+        <GoldSectionHeader eyebrow="Must-Do Before 60" heading="Bucket List &amp; Signature Events" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-5 rounded-xl border" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+            <div className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#7209B7' }}>TOP 5 BUCKET LIST TRIPS</div>
+            {BUCKET_LIST.map((item, i) => (
+              <div key={i} className="flex gap-3 py-2.5 border-b text-sm last:border-0"
+                style={{ borderColor: 'rgba(255,255,255,0.04)', color: 'var(--text-secondary)' }}>
+                <span className="text-[10px] font-bold mt-0.5 flex-shrink-0" style={{ color: '#7209B7' }}>0{i + 1}</span>
+                {item}
+              </div>
+            ))}
+          </div>
+          <div className="p-5 rounded-xl border" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+            <div className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#7209B7' }}>SIGNATURE EVENTS</div>
+            {SIGNATURE_EVENTS.map((item, i) => (
+              <div key={i} className="flex gap-3 py-2.5 border-b text-sm last:border-0"
+                style={{ borderColor: 'rgba(255,255,255,0.04)', color: 'var(--text-secondary)' }}>
+                <span className="text-[10px] font-bold mt-0.5 flex-shrink-0" style={{ color: '#7209B7' }}>0{i + 1}</span>
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* REMINDERS */}
+      <div>
+        <GoldSectionHeader eyebrow="Daily Anchors" heading="Things to Remember" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {rd.reminders.map((r, i) => (
+            <div key={i} className="flex gap-3 px-4 py-3 rounded-xl"
+              style={{ background: 'rgba(42,157,143,0.05)', border: '1px solid rgba(42,157,143,0.15)', borderLeft: '3px solid rgba(42,157,143,0.5)' }}>
+              <span className="text-[10px] font-bold w-4 flex-shrink-0 mt-0.5" style={{ color: '#2A9D8F' }}>{i + 1}</span>
+              <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{r}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="py-8 text-center rounded-2xl border" style={{ borderColor: 'rgba(201,168,76,0.2)', background: 'rgba(201,168,76,0.04)' }}>
+        <p className="text-xl font-bold" style={{ color: '#e8c97a', letterSpacing: '0.05em', fontFamily: 'var(--font-geist-sans)' }}>
+          — Dream Big. Work Hard. Stay Humble. —
+        </p>
+        <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>This document is a living roadmap. Review monthly. Update as you grow.</p>
       </div>
     </div>
   )
