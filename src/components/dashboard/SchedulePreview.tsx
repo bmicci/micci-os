@@ -32,7 +32,12 @@ const DOT: Record<string, string> = {
 }
 
 function parseTime(slot: string): number {
-  // Format: "7:00 AM" or "10:30 PM"
+  // Handle 24-hour "HH:MM" format (e.g., "06:00", "14:20")
+  const parts = slot.split(':').map(Number)
+  if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+    return parts[0] * 60 + parts[1]
+  }
+  // Fallback: "7:00 AM" format
   const m = slot.match(/(\d+):(\d+)\s*(AM|PM)/i)
   if (!m) return 0
   let h = parseInt(m[1])

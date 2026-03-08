@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('goals')
-    .insert({ title, description, section, timeframe, completed: false })
+    .insert({ title, description, section, timeframe, completed: false, status: 'active', priority: 3 })
     .select()
     .single()
 

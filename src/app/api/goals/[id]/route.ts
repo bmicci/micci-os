@@ -22,6 +22,7 @@ export async function PATCH(
   if ('completed' in body) {
     updates.completed = body.completed
     updates.completed_at = body.completed ? new Date().toISOString() : null
+    updates.status = body.completed ? 'completed' : 'active'
   }
   updates.updated_at = new Date().toISOString()
 
