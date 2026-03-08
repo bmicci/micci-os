@@ -127,28 +127,24 @@ export async function getFinancialData(): Promise<FinancialData> {
 
     const fallback = getAllData()
 
-    const debts: DebtAccount[] = debtsRes.data
-      ? (debtsRes.data as DbDebtAccount[]).map(mapDebtAccount)
-      : fallback.debts
+    // NOTE: All Supabase tables were seeded with demo data and need to be re-seeded.
+    // Run supabase/seed.sql against your project to populate correct data.
+    // Until then, hardcoded data is used for all tables.
+    // TODO: Re-enable Supabase reads after running seed.sql:
+    //   const debts = debtsRes.data ? debtsRes.data.map(mapDebtAccount) : fallback.debts
+    //   const modules = modulesRes.data ? modulesRes.data.map(mapFinancialModule) : fallback.modules
+    //   const allSubs = subsRes.data as DbSubscription[] | null
+    //   const cancelSubs = allSubs ? allSubs.filter(s => s.action === 'cancel').map(mapToSubscription) : fallback.cancelSubs
+    //   const reviewSubs = allSubs ? allSubs.filter(s => s.action === 'review').map(mapToSubscription) : fallback.reviewSubs
+    //   const essentialBills = allSubs ? allSubs.filter(s => s.action === 'essential').map(mapToEssentialBill) : fallback.essentialBills
 
-    const modules: FinancialModule[] = modulesRes.data
-      ? (modulesRes.data as DbFinancialModule[]).map(mapFinancialModule)
-      : fallback.modules
-
-    const allSubs = subsRes.data as DbSubscription[] | null
-    const cancelSubs: Subscription[] = allSubs
-      ? allSubs.filter(s => s.action === 'cancel').map(mapToSubscription)
-      : fallback.cancelSubs
-    const reviewSubs: Subscription[] = allSubs
-      ? allSubs.filter(s => s.action === 'review').map(mapToSubscription)
-      : fallback.reviewSubs
-    const essentialBills: EssentialBill[] = allSubs
-      ? allSubs.filter(s => s.action === 'essential').map(mapToEssentialBill)
-      : fallback.essentialBills
-
-    const spendingCategories: SpendingCategory[] = budgetRes.data
-      ? (budgetRes.data as DbBudgetCategory[]).map(mapBudgetCategory)
-      : fallback.spendingCategories
+    const debts: DebtAccount[] = fallback.debts
+    const modules: FinancialModule[] = fallback.modules
+    const cancelSubs: Subscription[] = fallback.cancelSubs
+    const reviewSubs: Subscription[] = fallback.reviewSubs
+    const essentialBills: EssentialBill[] = fallback.essentialBills
+    // budget_categories holds survival budget planning, not 2025 actual CC spend
+    const spendingCategories: SpendingCategory[] = fallback.spendingCategories
 
     if (debtsRes.error) console.warn('[financial-data-service] debt_accounts:', debtsRes.error.message)
     if (modulesRes.error) console.warn('[financial-data-service] financial_modules:', modulesRes.error.message)
