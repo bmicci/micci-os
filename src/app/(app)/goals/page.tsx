@@ -28,15 +28,18 @@ const TIMEFRAMES: { key: Timeframe; label: string }[] = [
 ];
 
 const SECTIONS = [
-  { key: "career", label: "Career", icon: "💼" },
+  { key: "career", label: "Career & Income", icon: "💼" },
   { key: "financial", label: "Financial", icon: "💰" },
   { key: "health", label: "Health & Fitness", icon: "🏋️" },
-  { key: "learning", label: "Learning & Growth", icon: "📚" },
+  { key: "mental", label: "Mental & Emotional", icon: "🧠" },
   { key: "relationships", label: "Relationships", icon: "🤝" },
-  { key: "wellness", label: "Mental Wellness", icon: "🧘" },
+  { key: "learning", label: "Learning & Growth", icon: "📚" },
+  { key: "wellness", label: "Wellness & Recovery", icon: "🧘" },
   { key: "home", label: "Home & Living", icon: "🏠" },
   { key: "travel", label: "Travel & Adventure", icon: "✈️" },
   { key: "creative", label: "Creative Projects", icon: "🎨" },
+  { key: "legal", label: "Legal & Admin", icon: "⚖️" },
+  { key: "style", label: "Style & Identity", icon: "✨" },
   { key: "legacy", label: "Legacy & Impact", icon: "🌟" },
 ];
 
