@@ -158,14 +158,14 @@ export const DEBTS: DebtAccount[] = [
 
 export const MODULES: FinancialModule[] = [
   {
-    id: 1, name: 'Spending Analysis', status: 'done', pct: 90,
+    id: 1, name: 'Spending Analysis', status: 'progress', pct: 90,
     desc: 'Full 2025 spending breakdown — 1,615 transactions across AmEx Gold, AmEx Platinum, Chase 9313.',
     docsHave: ['AmEx Gold 2025 full-year transactions', 'AmEx Platinum 2025 full-year transactions', 'Chase Prime Visa 9313 full-year', 'Property tax statement 2025', 'Pay stubs (Feb 2026, Jan 2026)', 'JPMC W-2 2024 & 2025'],
     docsMissing: ['Apple Card full year', 'Chase checking full year'],
     actions: ['✅ 1,615 transactions loaded and categorized', '✅ Survival budget sheet built', '✅ 20-year wealth projections added', 'Confirm JPMC severance amount with HR'],
   },
   {
-    id: 2, name: 'Subscription Audit', status: 'done', pct: 90,
+    id: 2, name: 'Subscription Audit', status: 'progress', pct: 90,
     desc: 'Scanned 1,615 transactions — identified 102 recurring merchants, 6 immediate cancels ($87/mo).',
     docsHave: ['AmEx Gold 2025 full-year transactions', 'AmEx Platinum 2025 full-year', 'Chase Prime Visa 2025 full-year', 'Module_2_Subscription_Audit.xlsx'],
     docsMissing: ['Confirm Paddle.net identity', 'Apple Card full year'],
