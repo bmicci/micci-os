@@ -110,17 +110,17 @@ INSERT INTO debt_accounts (name, account_type, balance, interest_rate, minimum_p
 -- BUDGET CATEGORIES (10 categories)
 -- ============================================================
 
-INSERT INTO budget_categories (name, actual_2025, survival_target, current_month, notes) VALUES
-  ('Housing',        2800.00, 2800.00, 2800.00, 'Fixed rent — no flex'),
-  ('Food & Groceries', 620.00, 350.00, 290.00, 'Cook at home, cut DoorDash'),
-  ('Transportation', 480.00,  300.00,  260.00,  'Gas + car insurance + occasional Uber'),
-  ('Utilities',       295.00, 250.00,  240.00,  'Electricity + internet + phone'),
-  ('Health & Medical', 180.00, 100.00,  90.00,  'Copays + prescriptions; COBRA cost separate'),
-  ('Fitness',         250.00, 180.00,  160.00,  'Gym + ClassPass; reduce if needed'),
-  ('Entertainment',   310.00, 100.00,   80.00,  'Cut aggressively — streaming audits'),
-  ('Subscriptions',   420.00, 200.00,  195.00,  'Post-cancel audit brings this down'),
-  ('Personal Care',   120.00,  80.00,   75.00,  'Haircut + skincare basics'),
-  ('Misc / Buffer',   200.00, 100.00,   50.00,  'Unexpected expenses buffer')
+INSERT INTO budget_categories (name, monthly_actual, survival_budget) VALUES
+  ('Housing',          2800.00, 2800.00),
+  ('Food & Groceries',  620.00,  350.00),
+  ('Transportation',    480.00,  300.00),
+  ('Utilities',         295.00,  250.00),
+  ('Health & Medical',  180.00,  100.00),
+  ('Fitness',           250.00,  180.00),
+  ('Entertainment',     310.00,  100.00),
+  ('Subscriptions',     420.00,  200.00),
+  ('Personal Care',     120.00,   80.00),
+  ('Misc / Buffer',     200.00,  100.00)
 ;
 
 -- ============================================================
@@ -149,49 +149,49 @@ INSERT INTO goal_categories (name, icon, color, description) VALUES
 
 -- Career & Income
 WITH cat AS (SELECT id FROM goal_categories WHERE name = 'Career & Income')
-INSERT INTO goals (category_id, title, priority, status, target_date) VALUES
-  ((SELECT id FROM cat), 'Submit 40+ job applications by March 19', 1, 'active', '2026-03-19'),
-  ((SELECT id FROM cat), 'Land 5+ recruiter conversations before March 19', 1, 'active', '2026-03-19'),
-  ((SELECT id FROM cat), 'Ace Goldman Sachs interview process', 1, 'active', NULL),
-  ((SELECT id FROM cat), 'Ace RealPage interview process', 1, 'active', NULL),
-  ((SELECT id FROM cat), 'Request 3–5 LinkedIn recommendations from JPMC colleagues', 2, 'active', '2026-03-15'),
-  ((SELECT id FROM cat), 'Download all JPMC documents (pay stubs, W-2s, reviews, 401k)', 2, 'active', '2026-03-19'),
-  ((SELECT id FROM cat), 'File for Texas unemployment on March 19 or 20', 2, 'active', '2026-03-20'),
-  ((SELECT id FROM cat), 'Complete all JPMC certifications before last day', 2, 'active', '2026-03-19'),
-  ((SELECT id FROM cat), 'Update LinkedIn profile and resume for 2026', 3, 'active', '2026-03-01');
+INSERT INTO goals (category_id, title, section, timeframe, completed, priority, status, target_date) VALUES
+  ((SELECT id FROM cat), 'Submit 40+ job applications by March 19', 'career', 'monthly', false, 1, 'active', '2026-03-19'),
+  ((SELECT id FROM cat), 'Land 5+ recruiter conversations before March 19', 'career', 'monthly', false, 1, 'active', '2026-03-19'),
+  ((SELECT id FROM cat), 'Ace Goldman Sachs interview process', 'career', 'monthly', false, 1, 'active', NULL),
+  ((SELECT id FROM cat), 'Ace RealPage interview process', 'career', 'monthly', false, 1, 'active', NULL),
+  ((SELECT id FROM cat), 'Request 3–5 LinkedIn recommendations from JPMC colleagues', 'career', 'weekly', false, 2, 'active', '2026-03-15'),
+  ((SELECT id FROM cat), 'Download all JPMC documents (pay stubs, W-2s, reviews, 401k)', 'career', 'weekly', false, 2, 'active', '2026-03-19'),
+  ((SELECT id FROM cat), 'File for Texas unemployment on March 19 or 20', 'career', 'monthly', false, 2, 'active', '2026-03-20'),
+  ((SELECT id FROM cat), 'Complete all JPMC certifications before last day', 'career', 'weekly', false, 2, 'active', '2026-03-19'),
+  ((SELECT id FROM cat), 'Update LinkedIn profile and resume for 2026', 'career', 'monthly', false, 3, 'active', '2026-03-01');
 
 -- Financial
 WITH cat AS (SELECT id FROM goal_categories WHERE name = 'Financial')
-INSERT INTO goals (category_id, title, priority, status, target_date) VALUES
-  ((SELECT id FROM cat), 'Secure Texas CU HELOC at 6.85%', 1, 'active', '2026-04-01'),
-  ((SELECT id FROM cat), 'Resolve BofA legal dispute through Hyatt Legal Plan', 1, 'active', NULL),
-  ((SELECT id FROM cat), 'Roll JPMC 401k to IRA (Empower) by April 30', 2, 'active', '2026-04-30'),
-  ((SELECT id FROM cat), 'Make COBRA vs marketplace decision by March 19', 1, 'active', '2026-03-19'),
-  ((SELECT id FROM cat), 'Spend all MRA/FSA balances before March 19', 1, 'active', '2026-03-19'),
-  ((SELECT id FROM cat), 'Cancel 6 subscriptions this week', 2, 'active', '2026-03-07'),
-  ((SELECT id FROM cat), 'Audit and cut budget to survival target levels', 2, 'active', '2026-03-15'),
-  ((SELECT id FROM cat), 'Pay off Discover It card ($320) first — snowball', 3, 'active', '2026-04-30');
+INSERT INTO goals (category_id, title, section, timeframe, completed, priority, status, target_date) VALUES
+  ((SELECT id FROM cat), 'Secure Texas CU HELOC at 6.85%', 'financial', 'monthly', false, 1, 'active', '2026-04-01'),
+  ((SELECT id FROM cat), 'Resolve BofA legal dispute through Hyatt Legal Plan', 'financial', 'monthly', false, 1, 'active', NULL),
+  ((SELECT id FROM cat), 'Roll JPMC 401k to IRA (Empower) by April 30', 'financial', 'monthly', false, 2, 'active', '2026-04-30'),
+  ((SELECT id FROM cat), 'Make COBRA vs marketplace decision by March 19', 'financial', 'monthly', false, 1, 'active', '2026-03-19'),
+  ((SELECT id FROM cat), 'Spend all MRA/FSA balances before March 19', 'financial', 'weekly', false, 1, 'active', '2026-03-19'),
+  ((SELECT id FROM cat), 'Cancel 6 subscriptions this week', 'financial', 'weekly', false, 2, 'active', '2026-03-07'),
+  ((SELECT id FROM cat), 'Audit and cut budget to survival target levels', 'financial', 'monthly', false, 2, 'active', '2026-03-15'),
+  ((SELECT id FROM cat), 'Pay off Discover It card ($320) first — snowball', 'financial', 'monthly', false, 3, 'active', '2026-04-30');
 
 -- Health & Fitness
 WITH cat AS (SELECT id FROM goal_categories WHERE name = 'Health & Fitness')
-INSERT INTO goals (category_id, title, priority, status, target_date) VALUES
-  ((SELECT id FROM cat), 'Maintain heavy lift schedule 5x/week Mon–Fri', 1, 'active', NULL),
-  ((SELECT id FROM cat), 'Daily outdoor walk minimum 30 minutes', 1, 'active', NULL),
-  ((SELECT id FROM cat), 'ClassPass 2x/week (Tue + Thu 5–6 PM)', 2, 'active', NULL),
-  ((SELECT id FROM cat), 'Schedule physical + blood work before March 19', 1, 'active', '2026-03-19'),
-  ((SELECT id FROM cat), 'Schedule dentist appointment before March 19', 2, 'active', '2026-03-19'),
-  ((SELECT id FROM cat), 'Schedule dermatology appointment before March 19', 2, 'active', '2026-03-19'),
-  ((SELECT id FROM cat), 'Schedule eye exam before March 19', 2, 'active', '2026-03-19'),
-  ((SELECT id FROM cat), 'Refill all prescriptions to 90-day supply before March 19', 1, 'active', '2026-03-19');
+INSERT INTO goals (category_id, title, section, timeframe, completed, priority, status, target_date) VALUES
+  ((SELECT id FROM cat), 'Maintain heavy lift schedule 5x/week Mon–Fri', 'health', 'weekly', false, 1, 'active', NULL),
+  ((SELECT id FROM cat), 'Daily outdoor walk minimum 30 minutes', 'health', 'daily', false, 1, 'active', NULL),
+  ((SELECT id FROM cat), 'ClassPass 2x/week (Tue + Thu 5–6 PM)', 'health', 'weekly', false, 2, 'active', NULL),
+  ((SELECT id FROM cat), 'Schedule physical + blood work before March 19', 'health', 'monthly', false, 1, 'active', '2026-03-19'),
+  ((SELECT id FROM cat), 'Schedule dentist appointment before March 19', 'health', 'monthly', false, 2, 'active', '2026-03-19'),
+  ((SELECT id FROM cat), 'Schedule dermatology appointment before March 19', 'health', 'monthly', false, 2, 'active', '2026-03-19'),
+  ((SELECT id FROM cat), 'Schedule eye exam before March 19', 'health', 'monthly', false, 2, 'active', '2026-03-19'),
+  ((SELECT id FROM cat), 'Refill all prescriptions to 90-day supply before March 19', 'health', 'weekly', false, 1, 'active', '2026-03-19');
 
 -- Wellness & Recovery
 WITH cat AS (SELECT id FROM goal_categories WHERE name = 'Wellness & Recovery')
-INSERT INTO goals (category_id, title, priority, status, target_date) VALUES
-  ((SELECT id FROM cat), 'Lock in 8 hours sleep nightly (11 PM → 7 AM)', 1, 'active', NULL),
-  ((SELECT id FROM cat), 'Weekly massage 1–2x (weekends)', 2, 'active', NULL),
-  ((SELECT id FROM cat), 'IR sauna 1x/week Saturday PM', 2, 'active', NULL),
-  ((SELECT id FROM cat), 'Daily morning stretch (non-negotiable)', 1, 'active', NULL),
-  ((SELECT id FROM cat), 'Meditation + journaling each morning', 3, 'active', NULL);
+INSERT INTO goals (category_id, title, section, timeframe, completed, priority, status, target_date) VALUES
+  ((SELECT id FROM cat), 'Lock in 8 hours sleep nightly (11 PM → 7 AM)', 'wellness', 'daily', false, 1, 'active', NULL),
+  ((SELECT id FROM cat), 'Weekly massage 1–2x (weekends)', 'wellness', 'weekly', false, 2, 'active', NULL),
+  ((SELECT id FROM cat), 'IR sauna 1x/week Saturday PM', 'wellness', 'weekly', false, 2, 'active', NULL),
+  ((SELECT id FROM cat), 'Daily morning stretch (non-negotiable)', 'wellness', 'daily', false, 1, 'active', NULL),
+  ((SELECT id FROM cat), 'Meditation + journaling each morning', 'wellness', 'daily', false, 3, 'active', NULL);
 
 -- ============================================================
 -- SUPPLEMENTS (40 supplements)

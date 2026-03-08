@@ -1,24 +1,9 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-
-function createClient() {
-  const cookieStore = cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.then(s => s.getAll()) },
-        setAll() {},
-      },
-    }
-  )
-}
 
 // GET /api/goals?timeframe=weekly&section=career&page=1&limit=10
 export async function GET(req: NextRequest) {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { searchParams } = new URL(req.url)
 
   const timeframe = searchParams.get('timeframe')
@@ -44,7 +29,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/goals
 export async function POST(req: NextRequest) {
-  const supabase = createClient()
+  const supabase = await createClient()
   const body = await req.json()
 
   const { title, description, section, timeframe } = body
