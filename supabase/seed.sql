@@ -35,11 +35,11 @@ INSERT INTO debt_accounts (name, account_type, balance, interest_rate, minimum_p
 TRUNCATE TABLE financial_modules RESTART IDENTITY CASCADE;
 
 INSERT INTO financial_modules (name, category, status, progress, description, details) VALUES
-  ('Spending Analysis', 'Analysis', 'in_progress', 90,
+  ('Spending Analysis', 'Analysis', 'complete', 100,
    'Full 2025 spending breakdown — 1,615 transactions across AmEx Gold, AmEx Platinum, Chase 9313.',
    '{"docsHave":["AmEx Gold 2025 full-year transactions","AmEx Platinum 2025 full-year transactions","Chase Prime Visa 9313 full-year","Property tax statement 2025","Pay stubs (Feb 2026, Jan 2026)","JPMC W-2 2024 & 2025"],"docsMissing":["Apple Card full year","Chase checking full year"],"actions":["✅ 1,615 transactions loaded and categorized","✅ Survival budget sheet built","✅ 20-year wealth projections added","Confirm JPMC severance amount with HR"]}'
   ),
-  ('Subscription Audit', 'Analysis', 'in_progress', 90,
+  ('Subscription Audit', 'Analysis', 'complete', 100,
    'Scanned 1,615 transactions — identified 102 recurring merchants, 6 immediate cancels ($87/mo).',
    '{"docsHave":["AmEx Gold 2025 full-year transactions","AmEx Platinum 2025 full-year","Chase Prime Visa 2025 full-year","Module_2_Subscription_Audit.xlsx"],"docsMissing":["Confirm Paddle.net identity","Apple Card full year"],"actions":["✅ 102 recurring merchants identified","✅ 6 services flagged for cancel — $87.03/mo","Cancel Credit Sesame, Paramount+, Cloaked, GoPro, Pressed Juicery, Zips this week","Evaluate LifeTime Fitness downgrade — $228/mo to $25/mo"]}'
   ),

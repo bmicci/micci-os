@@ -103,6 +103,19 @@ function mapToEssentialBill(row: DbSubscription): EssentialBill {
   }
 }
 
+// Canonical module order — matches M1–M9 numbering
+const MODULE_ORDER: Record<string, number> = {
+  'Spending Analysis': 1,
+  'Subscription Audit': 2,
+  'Tax Prep': 3,
+  'Debt Inventory & HELOC': 4,
+  '401(k) Review': 5,
+  'Property Tax Protest (DCAD)': 6,
+  'IRS Balance Resolution': 7,
+  'Savings & Wealth Plan': 8,
+  'Estate Planning': 9,
+}
+
 // ── Main fetch ────────────────────────────────────────────────────────────────
 
 export async function getFinancialData(): Promise<FinancialData> {
@@ -116,7 +129,7 @@ export async function getFinancialData(): Promise<FinancialData> {
   try {
     const [debtsRes, modulesRes, subsRes] = await Promise.all([
       supabase.from('debt_accounts').select('*').order('balance', { ascending: true }),
-      supabase.from('financial_modules').select('*').order('name'),
+      supabase.from('financial_modules').select('*'),
       supabase.from('subscriptions').select('*').eq('is_active', true),
     ])
 
@@ -129,9 +142,12 @@ export async function getFinancialData(): Promise<FinancialData> {
         : fallback.debts
 
     // Modules — use Supabase if available and non-empty, otherwise fallback
+    // Sort by canonical M1–M9 order (not alphabetical)
     const modules: FinancialModule[] =
       modulesRes.data && modulesRes.data.length > 0
-        ? modulesRes.data.map(mapFinancialModule)
+        ? [...modulesRes.data]
+            .sort((a, b) => (MODULE_ORDER[a.name] ?? 99) - (MODULE_ORDER[b.name] ?? 99))
+            .map(mapFinancialModule)
         : fallback.modules
 
     // Subscriptions — split by action
