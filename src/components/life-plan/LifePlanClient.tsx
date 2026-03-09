@@ -510,7 +510,7 @@ const MILESTONES = [
     { label: 'Romance', text: 'Find her; engaged by year-end' },
     { label: 'Finance', text: 'Net worth $450–500K' },
     { label: 'Growth', text: 'MIT Sloan; Wharton; Spanish' },
-    { label: 'Faith', text: 'Home parish; first retreat' },
+    { label: 'Faith', text: 'Home parish; Camino de Santiago' },
   ]},
   { age: '45', year: '2031 · Five Years', items: [
     { label: 'Career', text: 'SVP/EVP or C-Suite; $500K–$1M' },
@@ -538,20 +538,22 @@ const MILESTONES = [
   ]},
 ]
 
-const BUCKET_LIST = [
-  'SE Asia — Thailand, Vietnam, Indonesia, Cambodia',
-  'Egypt — Pyramids, Nile, ancient history',
-  'Machu Picchu — Hike the Inca Trail',
-  'Viking River Cruise — France & Germany with parents',
-  'African Safari — Kenya, Tanzania, or South Africa',
-]
-
-const SIGNATURE_EVENTS = [
-  'F1 Monaco Grand Prix (PRIORITY)',
-  'Super Bowl',
-  'The Masters',
-  'US Open Tennis (NYC)',
-  'Kentucky Derby',
+const BUCKET_LIST: { title: string; desc: string }[] = [
+  { title: 'SE Asia', desc: 'Thailand, Vietnam, Indonesia, Cambodia' },
+  { title: 'Egypt', desc: 'Pyramids, Nile River, ancient history deep dive' },
+  { title: 'Machu Picchu', desc: 'Hike the full Inca Trail' },
+  { title: 'Viking River Cruise', desc: 'France & Germany with my parents' },
+  { title: 'African Safari', desc: 'Kenya, Tanzania, or South Africa' },
+  { title: 'F1 Monaco Grand Prix', desc: 'Priority experience — VIP access' },
+  { title: 'Camino de Santiago', desc: 'Walk the full pilgrimage route in Spain' },
+  { title: 'Propose in Italy', desc: 'The moment — the dream destination' },
+  { title: 'Charter a Yacht', desc: 'Family vacation at sea' },
+  { title: 'Rent a Villa in Italy', desc: 'Extended family gathering — the ultimate host' },
+  { title: 'Forbes / Fortune Cover', desc: 'A milestone of business recognition' },
+  { title: 'Ring the Bell on Wall Street', desc: 'Celebrate a company milestone' },
+  { title: 'TED Main Stage', desc: 'From TEDx → the global stage' },
+  { title: 'Restore a Classic Car with Dad', desc: 'Do this while we still can' },
+  { title: 'Porsche Experience / Race Track', desc: 'Drive a Porsche on the Nürburgring' },
 ]
 
 function GoldSectionHeader({ eyebrow, heading }: { eyebrow: string; heading: string }) {
@@ -609,6 +611,24 @@ function VisionView() {
         </div>
       </div>
 
+      {/* CORE VALUES */}
+      <div>
+        <GoldSectionHeader eyebrow="What Drives Everything" heading="Core Values" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {fd.coreValues.map((v, i) => (
+            <div key={v.name} className="p-5 rounded-xl border relative overflow-hidden transition-all"
+              style={{ background: 'rgba(201,168,76,0.04)', borderColor: 'rgba(201,168,76,0.15)' }}>
+              <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: 'linear-gradient(90deg, #C9A84C, transparent)' }} />
+              <div className="text-5xl font-black leading-none mb-2 select-none" style={{ color: 'rgba(201,168,76,0.1)' }}>
+                {String(i + 1).padStart(2, '0')}
+              </div>
+              <div className="text-base font-bold mb-1.5" style={{ color: '#e8c97a', fontFamily: 'var(--font-geist-sans)' }}>{v.name}</div>
+              <div className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{v.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* LIFE GOALS GRID */}
       <div>
         <GoldSectionHeader eyebrow="The Blueprint" heading="Life Goals" />
@@ -624,24 +644,29 @@ function VisionView() {
               <div className="text-[10px] uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
                 {s.allAges && !s.timeframes ? 'All Ages' : 'Ages 40–60'}
               </div>
-              <div className="space-y-1">
+              <ul className="space-y-1.5" style={{ listStyle: 'none', padding: 0 }}>
                 {s.timeframes && (['40', '45', '50', '60'] as const).map(tf => {
                   const tfData = s.timeframes![tf]
                   if (!tfData) return null
-                  const firstGoal = tfData.categories[0]?.goals[0]
-                  return firstGoal ? (
-                    <div key={tf} className="flex gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      <span className="flex-shrink-0 font-semibold" style={{ color: s.colorHex }}>Age {tf}:</span>
-                      <span>{firstGoal.length > 55 ? firstGoal.slice(0, 53) + '…' : firstGoal}</span>
-                    </div>
+                  const summary = tfData.categories[0]?.goals.slice(0, 3).join('; ')
+                  return summary ? (
+                    <li key={tf} className="text-xs relative" style={{ color: 'var(--text-secondary)', paddingLeft: 14 }}>
+                      <span className="absolute left-0 top-0.5 text-[10px]" style={{ color: s.colorHex }}>→</span>
+                      <span className="font-medium" style={{ color: 'rgba(240,246,255,0.75)' }}>Age {tf}:</span>{' '}
+                      {summary}
+                    </li>
                   ) : null
                 })}
-                {!s.timeframes && s.pinned?.slice(0, 1).map((p, i) => (
-                  <div key={i} className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    {p.goals.slice(0, 3).map((g, gi) => <div key={gi} className="py-0.5">• {g.length > 55 ? g.slice(0, 53) + '…' : g}</div>)}
-                  </div>
-                ))}
-              </div>
+                {!s.timeframes && (s.allAges ?? s.pinned ?? []).slice(0, 1).map((group, i) => {
+                  const goals = ('goals' in group ? group.goals : 'items' in group ? group.items : []) ?? []
+                  return goals.slice(0, 4).map((g, gi) => (
+                    <li key={`${i}-${gi}`} className="text-xs relative" style={{ color: 'var(--text-secondary)', paddingLeft: 14 }}>
+                      <span className="absolute left-0 top-0.5 text-[10px]" style={{ color: s.colorHex }}>→</span>
+                      {(g as string).length > 60 ? (g as string).slice(0, 58) + '…' : g as string}
+                    </li>
+                  ))
+                })}
+              </ul>
             </div>
           ))}
         </div>
@@ -672,15 +697,12 @@ function VisionView() {
       {/* AFFIRMATIONS */}
       <div>
         <GoldSectionHeader eyebrow="Daily Declarations" heading="Affirmations" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {rd.affirmations.map((a, i) => (
-            <div key={i} className="flex gap-3 p-4 rounded-xl border"
-              style={{ background: 'rgba(201,168,76,0.04)', borderColor: 'rgba(201,168,76,0.15)' }}>
-              <span className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold"
-                style={{ background: 'rgba(201,168,76,0.18)', color: '#C9A84C' }}>
-                {String(i + 1).padStart(2, '0')}
-              </span>
-              <span className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{a}</span>
+            <div key={i} className="p-4 rounded-r-xl border transition-all"
+              style={{ background: 'rgba(201,168,76,0.03)', borderColor: 'rgba(201,168,76,0.15)', borderLeftWidth: 3, borderLeftColor: '#8a6f2e' }}>
+              <div className="text-[11px] font-bold mb-1.5 tracking-wide" style={{ color: '#8a6f2e' }}>{String(i + 1).padStart(2, '0')}</div>
+              <span className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>{a}</span>
             </div>
           ))}
         </div>
@@ -713,40 +735,34 @@ function VisionView() {
 
       {/* BUCKET LIST */}
       <div>
-        <GoldSectionHeader eyebrow="Must-Do Before 60" heading="Bucket List &amp; Signature Events" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-5 rounded-xl border" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-            <div className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#7209B7' }}>TOP 5 BUCKET LIST TRIPS</div>
-            {BUCKET_LIST.map((item, i) => (
-              <div key={i} className="flex gap-3 py-2.5 border-b text-sm last:border-0"
-                style={{ borderColor: 'rgba(255,255,255,0.04)', color: 'var(--text-secondary)' }}>
-                <span className="text-[10px] font-bold mt-0.5 flex-shrink-0" style={{ color: '#7209B7' }}>0{i + 1}</span>
-                {item}
+        <GoldSectionHeader eyebrow="Before I Leave This Earth" heading="Bucket List" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {BUCKET_LIST.map((item, i) => (
+            <div key={i} className="flex items-start gap-3 p-4 rounded-xl border transition-all"
+              style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+              <span className="text-3xl font-black leading-none flex-shrink-0 w-9"
+                style={{ color: 'rgba(201,168,76,0.2)', fontFamily: 'var(--font-geist-sans)' }}>
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <div>
+                <div className="text-sm font-semibold mb-0.5" style={{ color: 'var(--text-primary)' }}>{item.title}</div>
+                <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>{item.desc}</div>
               </div>
-            ))}
-          </div>
-          <div className="p-5 rounded-xl border" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-            <div className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#7209B7' }}>SIGNATURE EVENTS</div>
-            {SIGNATURE_EVENTS.map((item, i) => (
-              <div key={i} className="flex gap-3 py-2.5 border-b text-sm last:border-0"
-                style={{ borderColor: 'rgba(255,255,255,0.04)', color: 'var(--text-secondary)' }}>
-                <span className="text-[10px] font-bold mt-0.5 flex-shrink-0" style={{ color: '#7209B7' }}>0{i + 1}</span>
-                {item}
-              </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* REMINDERS */}
       <div>
-        <GoldSectionHeader eyebrow="Daily Anchors" heading="Things to Remember" />
+        <GoldSectionHeader eyebrow="When Things Get Hard" heading="Things to Remember" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {rd.reminders.map((r, i) => (
-            <div key={i} className="flex gap-3 px-4 py-3 rounded-xl"
-              style={{ background: 'rgba(42,157,143,0.05)', border: '1px solid rgba(42,157,143,0.15)', borderLeft: '3px solid rgba(42,157,143,0.5)' }}>
-              <span className="text-[10px] font-bold w-4 flex-shrink-0 mt-0.5" style={{ color: '#2A9D8F' }}>{i + 1}</span>
-              <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{r}</span>
+            <div key={i} className="px-5 py-4 rounded-xl border transition-all"
+              style={{ background: 'rgba(201,168,76,0.03)', borderColor: 'rgba(201,168,76,0.12)' }}>
+              <p className="text-base leading-relaxed" style={{ fontStyle: 'italic', color: 'rgba(240,246,255,0.75)' }}>
+                &ldquo;{r}&rdquo;
+              </p>
             </div>
           ))}
         </div>
