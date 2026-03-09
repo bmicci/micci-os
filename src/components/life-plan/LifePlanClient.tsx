@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { FOUNDATION_DATA, RITUALS_DATA, SECTIONS } from '@/lib/life-plan-data'
 import AddGoalModal from './AddGoalModal'
+import VisionBoardView from '@/components/goals/VisionBoardView'
 
 // ── Types ──────────────────────────────────────────────────────
 export interface DBSection {
@@ -60,6 +61,7 @@ export default function LifePlanClient({ initialSections, initialGoals }: Props)
   const [activeView, setActiveView] = useState<View>('goals')
   const [searchQuery, setSearchQuery] = useState('')
   const [goals, setGoals] = useState<DBGoal[]>(initialGoals)
+  const [visionSubTab, setVisionSubTab] = useState<'overview' | 'board'>('overview')
   const [showAddModal, setShowAddModal] = useState(false)
   const [addTarget, setAddTarget] = useState<{ sectionId: string; timeframe: string; timeframeLabel: string; categoryHeader: string | null } | null>(null)
   const [preFillText, setPreFillText] = useState('')
@@ -247,7 +249,25 @@ export default function LifePlanClient({ initialSections, initialGoals }: Props)
           <TimelineView sections={initialSections} goals={goals} onToggle={toggleGoal} />
         )}
 
-        {activeView === 'vision' && <VisionView />}
+        {activeView === 'vision' && (
+          <div>
+            {/* Sub-tabs */}
+            <div className="flex gap-1 mb-6 p-1 rounded-xl w-fit" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              {([['overview', '📋 Overview'], ['board', '🖼️ Vision Board']] as const).map(([tab, label]) => (
+                <button key={tab} onClick={() => setVisionSubTab(tab)}
+                  className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
+                  style={{
+                    background: visionSubTab === tab ? 'rgba(201,168,76,0.2)' : 'transparent',
+                    color: visionSubTab === tab ? '#e8c97a' : 'var(--text-secondary)',
+                    border: visionSubTab === tab ? '1px solid rgba(201,168,76,0.4)' : '1px solid transparent',
+                  }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {visionSubTab === 'overview' ? <VisionView /> : <VisionBoardView />}
+          </div>
+        )}
 
         {activeView === 'backlog' && (
           <BacklogView
