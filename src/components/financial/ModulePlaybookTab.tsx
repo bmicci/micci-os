@@ -1,19 +1,119 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import type { FinancialModule } from '@/lib/financial-data'
 import { getModuleCounts } from '@/lib/financial-data'
+import { updateModuleProgress } from '@/app/actions/financial'
 import KPICard from './KPICard'
+import DocumentUpload from '@/components/DocumentUpload'
 
 const statusStyle: Record<string, { bg: string; color: string }> = {
-  done: { bg: 'rgba(34,197,94,0.15)', color: '#22c55e' },
+  done:     { bg: 'rgba(34,197,94,0.15)',  color: '#22c55e' },
   progress: { bg: 'rgba(59,130,246,0.15)', color: '#3b82f6' },
-  pending: { bg: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' },
-  urgent: { bg: 'rgba(239,68,68,0.15)', color: '#ef4444' },
+  pending:  { bg: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' },
+  urgent:   { bg: 'rgba(239,68,68,0.15)',  color: '#ef4444' },
+}
+
+const STATUS_OPTIONS: { value: FinancialModule['status']; label: string }[] = [
+  { value: 'done',     label: '✅ Done' },
+  { value: 'progress', label: '🔄 In Progress' },
+  { value: 'urgent',   label: '🚨 Urgent' },
+  { value: 'pending',  label: '⏳ Pending' },
+]
+
+function EditRow({
+  module,
+  onClose,
+}: {
+  module: FinancialModule
+  onClose: () => void
+}) {
+  const [status, setStatus] = useState(module.status)
+  const [pct, setPct] = useState(module.pct)
+  const [error, setError] = useState('')
+  const [isPending, startTransition] = useTransition()
+
+  function save() {
+    if (!module.supabaseId) {
+      setError('No Supabase ID — edit the source data directly.')
+      return
+    }
+    startTransition(async () => {
+      const result = await updateModuleProgress(module.supabaseId!, status, pct)
+      if (result.error) {
+        setError(result.error)
+      } else {
+        onClose()
+      }
+    })
+  }
+
+  return (
+    <div
+      className="flex flex-wrap items-center gap-2 px-5 py-3"
+      style={{ background: 'rgba(0,212,255,0.04)', borderTop: '1px solid rgba(0,212,255,0.1)' }}
+      onClick={e => e.stopPropagation()}
+    >
+      {/* Status picker */}
+      <select
+        value={status}
+        onChange={e => setStatus(e.target.value as FinancialModule['status'])}
+        className="text-[12px] rounded-lg px-2 py-1.5 outline-none"
+        style={{
+          background: 'rgba(255,255,255,0.07)',
+          border: '1px solid rgba(0,212,255,0.2)',
+          color: 'var(--text-primary)',
+        }}
+      >
+        {STATUS_OPTIONS.map(o => (
+          <option key={o.value} value={o.value} style={{ background: '#0a0e27' }}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+
+      {/* Progress */}
+      <div className="flex items-center gap-1.5">
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={5}
+          value={pct}
+          onChange={e => setPct(Number(e.target.value))}
+          className="w-24 accent-cyan-400"
+        />
+        <span className="text-[12px] w-8 text-right" style={{ color: 'var(--text-secondary)' }}>
+          {pct}%
+        </span>
+      </div>
+
+      {/* Actions */}
+      <button
+        onClick={save}
+        disabled={isPending}
+        className="text-[11px] font-bold px-3 py-1 rounded-lg transition-opacity"
+        style={{ background: 'var(--accent-gradient)', color: '#fff', opacity: isPending ? 0.6 : 1 }}
+      >
+        {isPending ? 'Saving…' : 'Save'}
+      </button>
+      <button
+        onClick={onClose}
+        className="text-[11px] px-2 py-1 rounded-lg"
+        style={{ color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)' }}
+      >
+        Cancel
+      </button>
+      {error && (
+        <span className="text-[11px]" style={{ color: '#ef4444' }}>{error}</span>
+      )}
+    </div>
+  )
 }
 
 export default function ModulePlaybookTab({ modules }: { modules: FinancialModule[] }) {
   const [openId, setOpenId] = useState<number | null>(null)
+  const [editId, setEditId] = useState<number | null>(null)
   const counts = getModuleCounts(modules)
   const totalDocs = modules.reduce((s, m) => s + m.docsHave.length, 0)
   const totalDocsNeeded = modules.reduce((s, m) => s + m.docsHave.length + m.docsMissing.length, 0)
@@ -22,9 +122,9 @@ export default function ModulePlaybookTab({ modules }: { modules: FinancialModul
     <div className="space-y-5">
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KPICard label="Complete" value={String(counts.complete)} note="Modules fully done" accent="green" />
+        <KPICard label="Complete"    value={String(counts.complete)}  note="Modules fully done"  accent="green" />
         <KPICard label="In Progress" value={String(counts.inProgress)} note="Active work" />
-        <KPICard label="Pending" value={String(counts.pending)} note="Not yet started" accent="amber" />
+        <KPICard label="Pending"     value={String(counts.pending)}   note="Not yet started"    accent="amber" />
         <KPICard label="Docs Collected" value={`${totalDocs}`} note={`of ~${totalDocsNeeded} total needed`} />
       </div>
 
@@ -32,13 +132,16 @@ export default function ModulePlaybookTab({ modules }: { modules: FinancialModul
       <div className="space-y-3">
         {modules.map((m) => {
           const isOpen = openId === m.id
+          const isEditing = editId === m.id
           const s = statusStyle[m.status]
 
           return (
             <div key={m.id} className="glass-card overflow-hidden">
               {/* Header (clickable) */}
               <button
-                onClick={() => setOpenId(isOpen ? null : m.id)}
+                onClick={() => {
+                  if (!isEditing) setOpenId(isOpen ? null : m.id)
+                }}
                 className="w-full flex items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-white/[0.02]"
               >
                 <div
@@ -61,6 +164,19 @@ export default function ModulePlaybookTab({ modules }: { modules: FinancialModul
                 >
                   {m.pct}%
                 </span>
+                {/* Edit button */}
+                <button
+                  onClick={e => {
+                    e.stopPropagation()
+                    setEditId(isEditing ? null : m.id)
+                    if (!isEditing) setOpenId(m.id)
+                  }}
+                  className="text-[12px] px-2 py-0.5 rounded-lg shrink-0 transition-colors hover:bg-white/10"
+                  style={{ color: isEditing ? 'var(--accent-cyan)' : 'var(--text-muted)' }}
+                  title="Edit status & progress"
+                >
+                  ✏️
+                </button>
                 <span
                   className="text-[14px] transition-transform shrink-0"
                   style={{ color: 'var(--text-muted)', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
@@ -68,6 +184,11 @@ export default function ModulePlaybookTab({ modules }: { modules: FinancialModul
                   ▾
                 </span>
               </button>
+
+              {/* Inline edit row */}
+              {isEditing && (
+                <EditRow module={m} onClose={() => setEditId(null)} />
+              )}
 
               {/* Expandable body */}
               {isOpen && (
@@ -129,6 +250,17 @@ export default function ModulePlaybookTab({ modules }: { modules: FinancialModul
             </div>
           )
         })}
+      </div>
+
+      {/* Document Upload */}
+      <div className="glass-card p-5">
+        <div className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
+          📎 Upload Financial Documents
+        </div>
+        <p className="text-[12px] mb-4" style={{ color: 'var(--text-secondary)' }}>
+          Upload tax forms, statements, and receipts. Files are embedded for AI search via the chat panel.
+        </p>
+        <DocumentUpload section="financial" />
       </div>
     </div>
   )

@@ -12,6 +12,7 @@ import {
   type Subscription,
   type EssentialBill,
   getAllData,
+  MODULES,
   DEADLINES,
   ACTION_ITEMS,
   PROMOS,
@@ -73,15 +74,18 @@ function mapModuleStatus(dbStatus: string): FinancialModule['status'] {
 }
 
 function mapFinancialModule(row: DbFinancialModule, index: number): FinancialModule {
+  // Use hardcoded module details as fallback when Supabase details column is null/empty
+  const fallback = MODULES.find(m => m.name === row.name) ?? MODULES[index]
   return {
     id: index + 1,
+    supabaseId: row.id,
     name: row.name,
     status: mapModuleStatus(row.status),
     pct: row.progress,
-    desc: row.description ?? '',
-    docsHave: row.details?.docsHave ?? [],
-    docsMissing: row.details?.docsMissing ?? [],
-    actions: row.details?.actions ?? [],
+    desc: row.description ?? fallback?.desc ?? '',
+    docsHave: row.details?.docsHave?.length ? row.details.docsHave : (fallback?.docsHave ?? []),
+    docsMissing: row.details?.docsMissing?.length ? row.details.docsMissing : (fallback?.docsMissing ?? []),
+    actions: row.details?.actions?.length ? row.details.actions : (fallback?.actions ?? []),
   }
 }
 
