@@ -322,8 +322,8 @@ export const DAYS: Day[] = [
   // WEEK 3 — DEADLINE COUNTDOWN (Mar 9–15)
   // ═══════════════════════════════════════════
   {
-    date: 'Mon, Mar 9', week: 3, tag: 'IRS Call Day',
-    theme: '10 days to March 19. Call IRS at 7 AM (less hold time). TRT: Testosterone injection (Week 2).',
+    date: 'Mon, Mar 9', week: 3, tag: 'IRS Call + Celestica Interview',
+    theme: '10 days to March 19. IRS call at 7 AM. TRT injection. Celestica interview at 1:30 PM.',
     blocks: [
       { t: '6:45 AM', cat: 'sleep',    task: 'Wake up early — sunlight, hydrate (IRS call at 7:00)' },
       { t: '7:00',    cat: 'tax',      task: '📞 IRS Call: 1-800-829-1040 (45 min) — 2024 taxes owed. Ask about payment plans, installment agreement. Write down: reference #, rep name, payment timeline, next steps.' },
@@ -332,10 +332,11 @@ export const DAYS: Day[] = [
       { t: '8:15',    cat: 'recovery', task: 'Morning stretch (15-20 min)' },
       { t: '8:30',    cat: 'health',   task: '💉 TRT: Testosterone injection (Week 2)' },
       { t: '8:45',    cat: 'fitness',  task: 'Gym: Heavy legs — squats, deadlifts, hip thrusts (60 min)' },
-      { t: '10:00',   cat: 'job',      task: 'Deep work: Apply to 5+ roles' },
+      { t: '9:50',    cat: 'health',   task: '🏥 Submit physical paperwork to doctor' },
+      { t: '10:15',   cat: 'job',      task: 'Deep work: Apply to 5+ roles' },
       { t: '12:00',   cat: 'job',      task: 'Recruiter follow-ups + cold outreach' },
       { t: '12:45',   cat: 'personal', task: 'Lunch' },
-      { t: '1:30',    cat: 'job',      task: 'LinkedIn engagement + networking' },
+      { t: '1:30',    cat: 'job',      task: '📞 Interview: Celestica' },
       { t: '2:30',    cat: 'admin',    task: '⚠️ INSURANCE RENEWAL (RENEWS MAR 9): Shop auto + home insurance — get 3 quotes. Compare Lemonade, GEICO, Progressive, Allstate. Note: renewal is TODAY so decide quickly.' },
       { t: '3:15',    cat: 'heloc',    task: 'HELOC: Status update — any decisions?' },
       { t: '3:45',    cat: 'health',   task: 'Benefits check: MRA/FSA spending, medical appts status' },
@@ -417,8 +418,8 @@ export const DAYS: Day[] = [
     ],
   },
   {
-    date: 'Fri, Mar 13', week: 3, tag: 'Pipeline Review',
-    theme: 'Close loops. Review pipeline. 6 days to March 19.',
+    date: 'Fri, Mar 13', week: 3, tag: 'Pipeline Review + McKesson Interview',
+    theme: 'Close loops. McKesson interview at 3:30 PM. 6 days to March 19.',
     blocks: [
       { t: '7:00 AM', cat: 'sleep',    task: 'Wake up — sunlight, hydrate' },
       { t: '7:15',    cat: 'wellness', task: 'Meditation + journaling' },
@@ -431,8 +432,9 @@ export const DAYS: Day[] = [
       { t: '12:30',   cat: 'personal', task: 'Lunch' },
       { t: '1:15',    cat: 'legal',    task: 'BoA: Attorney status check' },
       { t: '2:00',    cat: 'job',      task: 'Apply to 3 roles' },
-      { t: '3:00',    cat: 'fitness',  task: 'Outdoor walk (30-45 min)' },
-      { t: '4:00',    cat: 'personal', task: 'Free time' },
+      { t: '2:45',    cat: 'fitness',  task: 'Outdoor walk (30 min)' },
+      { t: '3:30',    cat: 'job',      task: '📞 Interview: McKesson' },
+      { t: '4:30',    cat: 'personal', task: 'Post-interview notes — capture key takeaways, follow-up items' },
       { t: '5:30',    cat: 'personal', task: 'Dinner' },
       { t: '7:00',    cat: 'personal', task: 'Reward night — out, socialize' },
       { t: '10:30',   cat: 'sleep',    task: 'Wind down (Fri flex)' },
@@ -891,8 +893,8 @@ export const MAR19: ChecklistItem[] = [
   { c: 'health', t: 'Physical + blood work (Fri Feb 20 @ 10 AM)' },
   { c: 'health', t: 'Schedule dentist' },
   { c: 'health', t: 'Schedule dermatology' },
-  { c: 'health', t: 'Schedule eye exam' },
   { c: 'health', t: 'Refill prescriptions — 90-day supplies' },
+  { c: 'health', t: 'Submit physical paperwork to doctor' },
   { c: 'health', t: 'MRA balance — spend on eligible health items' },
   { c: 'health', t: 'FSA balance — stock up on OTC' },
   { c: 'health', t: 'COBRA details + marketplace quotes' },
@@ -900,7 +902,6 @@ export const MAR19: ChecklistItem[] = [
   { c: 'admin',  t: 'Book Hyatt Legal Plan consultation(s)' },
   { c: 'admin',  t: 'Call Empower — 401(k) forfeiture in writing' },
   { c: 'admin',  t: 'Severance team: bonus discrepancy ($5K)' },
-  { c: 'admin',  t: 'Complete JPMC learning/certifications' },
   { c: 'admin',  t: 'Request 3-5 LinkedIn recommendations' },
   { c: 'admin',  t: 'File unemployment March 19 or 20' },
 ]
