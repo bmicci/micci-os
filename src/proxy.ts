@@ -46,8 +46,10 @@ export async function proxy(request: NextRequest) {
 
   if (user && pathname === '/login') {
     const redirectTo = request.nextUrl.searchParams.get('redirectTo') || '/financial'
+    // Validate redirectTo is a safe local path (prevent open redirect)
+    const isLocalPath = redirectTo.startsWith('/') && !redirectTo.startsWith('//') && !redirectTo.includes('://')
     const url = request.nextUrl.clone()
-    url.pathname = redirectTo
+    url.pathname = isLocalPath ? redirectTo : '/financial'
     url.searchParams.delete('redirectTo')
     return NextResponse.redirect(url)
   }

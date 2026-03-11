@@ -68,6 +68,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Document not found' }, { status: 404 })
   }
 
+  // Verify the authenticated user owns this document
+  if (doc.user_id !== user.id) {
+    return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+  }
+
   if (doc.is_processed) {
     return NextResponse.json({ message: 'Already processed', document: doc })
   }

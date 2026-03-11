@@ -33,7 +33,10 @@ export async function PATCH(
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('Goal update error:', error)
+    return NextResponse.json({ error: 'Failed to update goal' }, { status: 500 })
+  }
   return NextResponse.json({ goal: data })
 }
 
@@ -51,6 +54,9 @@ export async function DELETE(
 
   const { id } = await params
   const { error } = await supabase.from('goals').delete().eq('id', id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('Goal delete error:', error)
+    return NextResponse.json({ error: 'Failed to delete goal' }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }

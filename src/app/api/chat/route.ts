@@ -1,7 +1,7 @@
 import { anthropic } from '@ai-sdk/anthropic'
 import { streamText } from 'ai'
 import { NextRequest } from 'next/server'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { retrieveRelevantChunks, getStructuredContext, type Section } from '@/lib/ai/retrieval'
 
 export const maxDuration = 60
@@ -67,10 +67,9 @@ Life Plan context (when section is life-plan):
 - Custom/AI-added goals are tracked in the database and available in structured context${structuredContext ? `\n\n## Structured Data from Database${structuredContext}` : ''}${ragContext}`
 
   // Store user message — graceful fallback if table missing
-  let service: Awaited<ReturnType<typeof createServiceClient>> | null = null
+  // Use the regular client so RLS enforces ownership
   try {
-    service = await createServiceClient()
-    await service.from('chat_messages').insert({
+    await supabase.from('chat_messages').insert({
       user_id: user.id,
       section,
       role: 'user',
@@ -87,14 +86,13 @@ Life Plan context (when section is life-plan):
       console.error('[chat/route] streamText error:', error)
     },
     onFinish: async ({ text }) => {
-      if (!service) return
       try {
         const sources = chunks.map((c) => ({
           document_id: c.document_id,
           content_preview: c.content.slice(0, 120),
           similarity: c.similarity,
         }))
-        await service.from('chat_messages').insert({
+        await supabase.from('chat_messages').insert({
           user_id: user.id,
           section,
           role: 'assistant',
