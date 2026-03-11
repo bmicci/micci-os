@@ -7,11 +7,14 @@ import { createClient } from '@/lib/supabase/client'
 
 const ROOMS = [
   { id: 'living-room',    label: 'Living Room',     icon: '🛋️',  color: '#E76F51' },
+  { id: 'dining-room',    label: 'Dining Room',     icon: '🍽️',  color: '#A0522D' },
   { id: 'office',         label: 'Office',           icon: '💼',  color: '#0077B6' },
   { id: 'entertainment',  label: 'Entertainment',    icon: '🎬',  color: '#7209B7' },
   { id: 'bedroom',        label: 'Bedroom',          icon: '🛏️',  color: '#E63946' },
+  { id: 'guest-room',     label: 'Guest Room',       icon: '🛌',  color: '#6A4C93' },
   { id: 'master-bath',    label: 'Master Bath',      icon: '🚿',  color: '#2A9D8F' },
   { id: 'kitchen',        label: 'Kitchen',          icon: '🍳',  color: '#F4A261' },
+  { id: 'staircase',      label: 'Staircase',        icon: '🪜',  color: '#4A90D9' },
   { id: 'patio',          label: 'Patio',            icon: '🌿',  color: '#2D6A4F' },
   { id: 'rooftop',        label: 'Rooftop',          icon: '🌆',  color: '#4361EE' },
   { id: 'upstairs',       label: 'Upstairs',         icon: '🧱',  color: '#C1121F' },
@@ -49,6 +52,8 @@ const SEED_IDEAS: HouseIdea[] = [
   { id: 'h-pa-1', room: 'patio',         title: 'Patio furniture',        notes: 'Outdoor seating set, dining table, maybe a fire pit or fire table',   status: 'idea' },
   // Rooftop
   { id: 'h-rt-1', room: 'rooftop',       title: 'Rooftop lounge area',    notes: 'Lounge furniture, outdoor rug, string lights, maybe a grill',         status: 'idea' },
+  // Staircase
+  { id: 'h-st-1', room: 'staircase',     title: 'Blue & gold blown glass bowls', notes: 'Decorative blown glass bowls in blue and gold along the staircase', status: 'idea' },
   // Upstairs
   { id: 'h-up-1', room: 'upstairs',      title: 'Lego display case',      notes: 'Dedicated shelving or lit display cabinet for completed Lego sets',    status: 'idea' },
   { id: 'h-up-2', room: 'upstairs',      title: 'Legos mounted on wall',  notes: 'Wall-mounted framed displays for select sets',                        status: 'idea' },
