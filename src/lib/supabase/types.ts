@@ -53,3 +53,17 @@ export interface DbBudgetCategory {
   color: string | null
   created_at: string
 }
+
+export interface ScheduleBlock {
+  id: string
+  day_date: string
+  week: number
+  time_label: string
+  cat: string
+  task: string
+  sort_order: number
+  static_key: string | null
+  is_deleted: boolean
+  created_at: string
+  updated_at: string
+}

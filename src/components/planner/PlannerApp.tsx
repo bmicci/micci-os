@@ -9,7 +9,10 @@ import ChecklistTab from './ChecklistTab'
 import RulesTab from './RulesTab'
 import BacklogTab from './BacklogTab'
 import AgendaTab from './AgendaTab'
-import { DAYS, MAR19, MILESTONES } from '@/lib/planner-data'
+import BlockEditModal from './BlockEditModal'
+import { DAYS, MAR19, MILESTONES, CatKey, getDaysForWeek } from '@/lib/planner-data'
+import { ScheduleBlock } from '@/lib/supabase/types'
+import { MergedBlock, mergeBlocks } from '@/lib/planner-utils'
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -24,6 +27,14 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'rules',     label: 'Rules'     },
   { id: 'backlog',   label: 'Backlog'   },
 ]
+
+interface ModalState {
+  open: boolean
+  block: MergedBlock | null   // null = adding new
+  dayDate: string
+  week: number
+  dayIdx: number
+}
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -42,7 +53,7 @@ const URGENCY_COLORS = {
   low:      { bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.20)', badge: '#6b7280', text: '#9ca3af' },
 }
 
-// ── Supabase client (anon — RLS disabled on schedule_completions) ──
+// ── Supabase client (anon — RLS disabled) ──
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -55,25 +66,34 @@ function getSupabase() {
 
 interface Props {
   initialCompletions: string[]
+  initialCustomBlocks: ScheduleBlock[]
 }
 
-export default function PlannerApp({ initialCompletions }: Props) {
+export default function PlannerApp({ initialCompletions, initialCustomBlocks }: Props) {
   const [completions, setCompletions] = useState<Set<string>>(new Set(initialCompletions))
+  const [customBlocks, setCustomBlocks] = useState<ScheduleBlock[]>(initialCustomBlocks)
   const [week, setWeek]     = useState(2)
   const [dayIdx, setDayIdx] = useState(5)
   const [tab, setTab]       = useState<TabId>('schedule')
   const [scheduleViewMode, setScheduleViewMode] = useState<'day' | 'week'>('day')
+  const [modal, setModal] = useState<ModalState>({
+    open: false, block: null, dayDate: '', week: 2, dayIdx: 0,
+  })
+  const [saving, setSaving] = useState(false)
 
   // ── Derived stats ─────────────────────────────────────────
 
-  const currentWeekDays = DAYS.filter(d => d.week === week)
-  const currentDay      = currentWeekDays[dayIdx] ?? currentWeekDays[0]
-  const done  = currentDay?.blocks.filter((_, i) => completions.has(`${week}-${dayIdx}-${i}`)).length ?? 0
-  const total = currentDay?.blocks.length ?? 0
+  const wDays = getDaysForWeek(week)
+  const currentDay = wDays[dayIdx] ?? wDays[0]
+  const merged = currentDay
+    ? mergeBlocks(currentDay, week, dayIdx, customBlocks)
+    : []
+  const done  = merged.filter(b => completions.has(b.completionKey)).length
+  const total = merged.length
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0
   const checklistDone = MAR19.filter((_, i) => completions.has(`cl-${i}`)).length
 
-  // ── Navigate to a specific day (from milestone chip click) ──
+  // ── Navigate to a specific day ──
 
   const navigateTo = useCallback((targetWeek: number, targetDayIdx: number) => {
     setWeek(targetWeek)
@@ -85,7 +105,6 @@ export default function PlannerApp({ initialCompletions }: Props) {
 
   const toggle = useCallback((key: string) => {
     const supabase = getSupabase()
-
     setCompletions(prev => {
       const next = new Set(prev)
       if (next.has(key)) {
@@ -97,6 +116,165 @@ export default function PlannerApp({ initialCompletions }: Props) {
       }
       return next
     })
+  }, [])
+
+  // ── CRUD: Add / Edit block ────────────────────────────────
+
+  const openAddModal = useCallback((targetWeek: number, targetDayIdx: number, dayDate: string) => {
+    setModal({ open: true, block: null, dayDate, week: targetWeek, dayIdx: targetDayIdx })
+  }, [])
+
+  const openEditModal = useCallback((block: MergedBlock, dayDate: string, targetWeek: number, targetDayIdx: number) => {
+    setModal({ open: true, block, dayDate, week: targetWeek, dayIdx: targetDayIdx })
+  }, [])
+
+  const closeModal = useCallback(() => {
+    setModal(m => ({ ...m, open: false }))
+  }, [])
+
+  const handleSave = useCallback(async (data: { time_label: string; cat: CatKey; task: string }) => {
+    setSaving(true)
+    try {
+      if (modal.block) {
+        // Editing existing block
+        const { block } = modal
+        if (block.isCustom || block.isStaticOverride) {
+          // Update DB row
+          const res = await fetch(`/api/planner/blocks/${block.dbId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          })
+          const json = await res.json()
+          if (json.block) {
+            setCustomBlocks(prev => prev.map(b => b.id === block.dbId ? json.block : b))
+          }
+        } else {
+          // Override a static block → create new DB row with static_key
+          const wDays = getDaysForWeek(modal.week)
+          const staticDay = wDays[modal.dayIdx]
+          const staticBlockIdx = staticDay?.blocks.findIndex((_, i) => `static-${modal.week}-${modal.dayIdx}-${i}` === block.id)
+          const staticKey = staticBlockIdx !== undefined && staticBlockIdx >= 0
+            ? `${modal.week}-${modal.dayIdx}-${staticBlockIdx}`
+            : undefined
+
+          const res = await fetch('/api/planner/blocks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              day_date: modal.dayDate,
+              week: modal.week,
+              time_label: data.time_label,
+              cat: data.cat,
+              task: data.task,
+              sort_order: block.sort_order,
+              static_key: staticKey ?? null,
+            }),
+          })
+          const json = await res.json()
+          if (json.block) {
+            setCustomBlocks(prev => [...prev, json.block])
+          }
+        }
+      } else {
+        // Adding new block — compute sort_order as max+100
+        const wDays = getDaysForWeek(modal.week)
+        const staticDay = wDays[modal.dayIdx]
+        const existing = staticDay
+          ? mergeBlocks(staticDay, modal.week, modal.dayIdx, customBlocks)
+          : []
+        const maxOrder = existing.length > 0
+          ? Math.max(...existing.map(b => b.sort_order))
+          : 0
+
+        const res = await fetch('/api/planner/blocks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            day_date: modal.dayDate,
+            week: modal.week,
+            time_label: data.time_label,
+            cat: data.cat,
+            task: data.task,
+            sort_order: maxOrder + 100,
+            static_key: null,
+          }),
+        })
+        const json = await res.json()
+        if (json.block) {
+          setCustomBlocks(prev => [...prev, json.block])
+        }
+      }
+    } finally {
+      setSaving(false)
+      closeModal()
+    }
+  }, [modal, customBlocks, closeModal])
+
+  // ── CRUD: Delete block ────────────────────────────────────
+
+  const handleDelete = useCallback(async (block: MergedBlock) => {
+    if (block.isCustom || block.isStaticOverride) {
+      // Soft-delete DB row
+      await fetch(`/api/planner/blocks/${block.dbId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_deleted: true }),
+      })
+      setCustomBlocks(prev => prev.map(b => b.id === block.dbId ? { ...b, is_deleted: true } : b))
+    } else {
+      // Mark static block as deleted via new DB row
+      const res = await fetch('/api/planner/blocks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          day_date: block.staticKey ? modal.dayDate : '',
+          week: modal.week,
+          time_label: block.time_label,
+          cat: block.cat,
+          task: block.task,
+          sort_order: block.sort_order,
+          static_key: block.staticKey ?? null,
+          is_deleted: true,
+        }),
+      })
+      const json = await res.json()
+      if (json.block) {
+        setCustomBlocks(prev => [...prev, json.block])
+      }
+    }
+  }, [modal])
+
+  // ── CRUD: Reorder blocks ──────────────────────────────────
+
+  const handleReorder = useCallback(async (reordered: MergedBlock[]) => {
+    // Assign new sort_order: (index + 1) * 100
+    const updates = reordered.map((b, i) => ({ ...b, sort_order: (i + 1) * 100 }))
+
+    // Update local state optimistically
+    setCustomBlocks(prev => {
+      const next = [...prev]
+      for (const b of updates) {
+        if (b.dbId) {
+          const idx = next.findIndex(c => c.id === b.dbId)
+          if (idx >= 0) next[idx] = { ...next[idx], sort_order: b.sort_order }
+        }
+      }
+      return next
+    })
+
+    // Persist to DB (only blocks with dbId)
+    await Promise.all(
+      updates
+        .filter(b => b.dbId)
+        .map(b =>
+          fetch(`/api/planner/blocks/${b.dbId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sort_order: b.sort_order }),
+          }),
+        ),
+    )
   }, [])
 
   // ── Render ───────────────────────────────────────────────
@@ -207,10 +385,15 @@ export default function PlannerApp({ initialCompletions }: Props) {
             week={week}
             dayIdx={dayIdx}
             completions={completions}
+            customBlocks={customBlocks}
             setWeek={setWeek}
             setDayIdx={setDayIdx}
             toggle={toggle}
             onViewModeChange={setScheduleViewMode}
+            onAddBlock={openAddModal}
+            onEditBlock={openEditModal}
+            onDeleteBlock={handleDelete}
+            onReorderBlocks={handleReorder}
           />
         )}
         {tab === 'agenda'    && <AgendaTab completions={completions} toggle={toggle} />}
@@ -220,6 +403,16 @@ export default function PlannerApp({ initialCompletions }: Props) {
         {tab === 'rules'     && <RulesTab />}
         {tab === 'backlog'   && <BacklogTab />}
       </div>
+
+      {/* ── Edit Modal ── */}
+      {modal.open && (
+        <BlockEditModal
+          block={modal.block}
+          dayDate={modal.dayDate}
+          onSave={saving ? () => {} : handleSave}
+          onClose={closeModal}
+        />
+      )}
     </div>
   )
 }
