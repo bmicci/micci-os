@@ -111,6 +111,104 @@ function EditRow({
   )
 }
 
+function DocTracker({ modules }: { modules: FinancialModule[] }) {
+  const [openModId, setOpenModId] = useState<number | null>(null)
+  const totalHave = modules.reduce((s, m) => s + m.docsHave.length, 0)
+  const totalMissing = modules.reduce((s, m) => s + m.docsMissing.length, 0)
+  const total = totalHave + totalMissing
+  const pct = total === 0 ? 0 : Math.round((totalHave / total) * 100)
+  const modulesWithMissing = modules.filter(m => m.docsMissing.length > 0)
+
+  return (
+    <div className="glass-card p-5">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+          📋 Document Tracker
+        </div>
+        <div className="flex items-center gap-3 text-[12px]">
+          <span style={{ color: '#22c55e' }}>✓ {totalHave} collected</span>
+          <span style={{ color: 'var(--text-muted)' }}>·</span>
+          <span style={{ color: '#f59e0b' }}>○ {totalMissing} needed</span>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-[6px] rounded-full overflow-hidden mb-4" style={{ background: 'rgba(255,255,255,0.08)' }}>
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #22c55e, #00d4ff)' }}
+        />
+      </div>
+
+      {/* Per-module rows */}
+      <div className="space-y-1">
+        {modules.map(m => {
+          const have = m.docsHave.length
+          const missing = m.docsMissing.length
+          const isOpen = openModId === m.id
+
+          return (
+            <div key={m.id}>
+              <button
+                onClick={() => setOpenModId(isOpen ? null : m.id)}
+                className="w-full flex items-center justify-between py-1.5 px-2 rounded-lg text-left transition-colors"
+                style={{ background: isOpen ? 'rgba(255,255,255,0.04)' : 'transparent' }}
+              >
+                <div className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>M{m.id}</span>
+                  <span>{m.name}</span>
+                </div>
+                <div className="flex items-center gap-3 text-[11px]">
+                  {have > 0 && <span style={{ color: '#22c55e' }}>✓ {have}</span>}
+                  {missing > 0 && <span style={{ color: '#f59e0b' }}>○ {missing}</span>}
+                  {missing === 0 && have > 0 && <span style={{ color: '#22c55e' }}>complete</span>}
+                  <span style={{ color: 'var(--text-muted)' }}>{isOpen ? '▲' : '▼'}</span>
+                </div>
+              </button>
+
+              {isOpen && (
+                <div className="ml-4 mt-1 mb-2 space-y-3">
+                  {m.docsHave.length > 0 && (
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Collected</div>
+                      <ul className="space-y-0.5">
+                        {m.docsHave.map((doc, i) => (
+                          <li key={i} className="flex items-start gap-1.5 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                            <span style={{ color: '#22c55e' }} className="shrink-0 mt-0.5">✓</span>{doc}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {m.docsMissing.length > 0 && (
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Still Needed</div>
+                      <ul className="space-y-0.5">
+                        {m.docsMissing.map((doc, i) => (
+                          <li key={i} className="flex items-start gap-1.5 text-[11px]" style={{ color: '#f59e0b' }}>
+                            <span className="shrink-0 mt-0.5">○</span>{doc}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {totalMissing > 0 && (
+        <p className="text-[11px] mt-3 pt-3 border-t" style={{ color: 'var(--text-muted)', borderColor: 'rgba(255,255,255,0.06)' }}>
+          Upload missing docs below to make them searchable in the AI chat →
+        </p>
+      )}
+    </div>
+  )
+}
+
 export default function ModulePlaybookTab({ modules }: { modules: FinancialModule[] }) {
   const [openId, setOpenId] = useState<number | null>(null)
   const [editId, setEditId] = useState<number | null>(null)
@@ -251,6 +349,9 @@ export default function ModulePlaybookTab({ modules }: { modules: FinancialModul
           )
         })}
       </div>
+
+      {/* Document Tracker */}
+      <DocTracker modules={modules} />
 
       {/* Document Upload */}
       <div className="glass-card p-5">
