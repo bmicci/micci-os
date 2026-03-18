@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/goals", label: "Goals + Vision", icon: "🎯", exact: false },
   { href: "/planner", label: "Planner", icon: "📅", exact: false },
   { href: "/health", label: "Health", icon: "🏋️", exact: false },
+  { href: "/import", label: "Import", icon: "📥", exact: false },
 ];
 
 export default function Sidebar() {
