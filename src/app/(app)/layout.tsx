@@ -1,10 +1,11 @@
 import Sidebar from '@/components/Sidebar'
 import AnimatedBackground from '@/components/AnimatedBackground'
 import AIChat from '@/components/AIChat'
+import QueryProvider from '@/components/providers/QueryProvider'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <QueryProvider>
       <AnimatedBackground />
       <div className="relative z-10 flex h-screen">
         <Sidebar />
@@ -16,6 +17,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       <AIChat />
-    </>
+    </QueryProvider>
   )
 }
