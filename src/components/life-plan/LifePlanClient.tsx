@@ -5,6 +5,7 @@ import { FOUNDATION_DATA, RITUALS_DATA, SECTIONS } from '@/lib/life-plan-data'
 import AddGoalModal from './AddGoalModal'
 import VisionBoardView from '@/components/goals/VisionBoardView'
 import HouseBoardView from '@/components/goals/HouseBoardView'
+import GoalProgressPanel, { QuarterlyReviewBanner } from '@/components/goals/GoalProgressPanel'
 
 // ── Types ──────────────────────────────────────────────────────
 export interface DBSection {
@@ -233,6 +234,10 @@ export default function LifePlanClient({ initialSections, initialGoals }: Props)
 
         {activeView === 'foundation' && <FoundationView />}
 
+        {activeView === 'goals' && (
+          <QuarterlyReviewBanner onDismiss={() => {}} />
+        )}
+
         {activeView === 'goals' && currentSection && (
           <GoalsSectionView
             section={currentSection} goals={goals}
@@ -302,49 +307,75 @@ export default function LifePlanClient({ initialSections, initialGoals }: Props)
 }
 
 // ── GOAL ITEM ─────────────────────────────────────────────────
-function GoalItem({ goal, isEditing, editText, setEditText, onToggle, onEdit, onDelete, onSaveEdit, onCancelEdit, searchQuery }: {
+function GoalItem({ goal, isEditing, editText, setEditText, onToggle, onEdit, onDelete, onSaveEdit, onCancelEdit, searchQuery, sectionColor }: {
   goal: DBGoal; isEditing: boolean; editText: string; setEditText: (t: string) => void
   onToggle: () => void; onEdit: () => void; onDelete: () => void
   onSaveEdit: () => void; onCancelEdit: () => void; searchQuery: string
+  sectionColor?: string
 }) {
   const q = searchQuery.toLowerCase()
   const highlight = !!q && goal.goal_text.toLowerCase().includes(q)
   const dim = !!q && !highlight
+  const [expanded, setExpanded] = useState(false)
+
+  function handleCreateTask(goalText: string) {
+    // Store pending task in sessionStorage for TaskManager to pick up
+    sessionStorage.setItem('micci-os-pending-task', JSON.stringify({ title: goalText, category: 'personal', priority: 'medium' }))
+    window.location.href = '/tasks'
+  }
 
   return (
-    <div className="flex items-start gap-2.5 px-3 py-2 rounded-lg transition-all group"
+    <div className="rounded-lg transition-all group"
       style={{ opacity: dim ? 0.15 : 1, background: highlight ? 'rgba(0,212,255,0.06)' : 'transparent', outline: highlight ? '1px solid rgba(0,212,255,0.25)' : 'none' }}>
-      <button onClick={onToggle}
-        className="mt-0.5 w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all"
-        style={{ borderColor: goal.completed ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.2)', background: goal.completed ? 'var(--accent-cyan)' : 'transparent' }}>
-        {goal.completed && <span style={{ color: '#000', fontSize: 9, fontWeight: 900, lineHeight: 1 }}>✓</span>}
-      </button>
+      <div className="flex items-start gap-2.5 px-3 py-2">
+        <button onClick={onToggle}
+          className="mt-0.5 w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all"
+          style={{ borderColor: goal.completed ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.2)', background: goal.completed ? 'var(--accent-cyan)' : 'transparent' }}>
+          {goal.completed && <span style={{ color: '#000', fontSize: 9, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+        </button>
 
-      {isEditing ? (
-        <div className="flex-1 flex gap-2">
-          <input value={editText} onChange={e => setEditText(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') onSaveEdit(); if (e.key === 'Escape') onCancelEdit() }}
-            className="flex-1 text-sm rounded px-2 py-0.5 border"
-            style={{ background: 'rgba(255,255,255,0.08)', borderColor: 'var(--accent-cyan)', color: 'var(--text-primary)' }}
-            autoFocus />
-          <button onClick={onSaveEdit} className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--accent-cyan)', color: '#000' }}>Save</button>
-          <button onClick={onCancelEdit} className="text-xs px-2 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)' }}>✕</button>
-        </div>
-      ) : (
-        <div className="flex-1 min-w-0">
-          <span className="text-sm leading-relaxed" style={{ color: goal.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: goal.completed ? 'line-through' : 'none' }}>
-            {goal.goal_text}
-          </span>
-          {goal.ai_generated && (
-            <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(0,212,255,0.15)', color: 'var(--accent-cyan)' }}>AI</span>
-          )}
-        </div>
-      )}
+        {isEditing ? (
+          <div className="flex-1 flex gap-2">
+            <input value={editText} onChange={e => setEditText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') onSaveEdit(); if (e.key === 'Escape') onCancelEdit() }}
+              className="flex-1 text-sm rounded px-2 py-0.5 border"
+              style={{ background: 'rgba(255,255,255,0.08)', borderColor: 'var(--accent-cyan)', color: 'var(--text-primary)' }}
+              autoFocus />
+            <button onClick={onSaveEdit} className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--accent-cyan)', color: '#000' }}>Save</button>
+            <button onClick={onCancelEdit} className="text-xs px-2 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)' }}>✕</button>
+          </div>
+        ) : (
+          <div className="flex-1 min-w-0">
+            <span className="text-sm leading-relaxed" style={{ color: goal.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: goal.completed ? 'line-through' : 'none' }}>
+              {goal.goal_text}
+            </span>
+            {goal.ai_generated && (
+              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(0,212,255,0.15)', color: 'var(--accent-cyan)' }}>AI</span>
+            )}
+          </div>
+        )}
 
-      {!isEditing && (
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          <button onClick={onEdit} className="text-[11px] px-1.5 py-0.5 rounded" style={{ color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)' }}>Edit</button>
-          <button onClick={onDelete} className="text-[11px] px-1.5 py-0.5 rounded" style={{ color: '#f87171', background: 'rgba(248,113,113,0.1)' }}>✕</button>
+        {!isEditing && (
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+            <button onClick={() => setExpanded(e => !e)} title="Progress + milestones"
+              className="text-[11px] px-1.5 py-0.5 rounded"
+              style={{ color: expanded ? 'var(--accent-cyan)' : 'var(--text-muted)', background: expanded ? 'rgba(0,212,255,0.1)' : 'rgba(255,255,255,0.06)' }}>
+              {expanded ? '▲' : '▼'}
+            </button>
+            <button onClick={onEdit} className="text-[11px] px-1.5 py-0.5 rounded" style={{ color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)' }}>Edit</button>
+            <button onClick={onDelete} className="text-[11px] px-1.5 py-0.5 rounded" style={{ color: '#f87171', background: 'rgba(248,113,113,0.1)' }}>✕</button>
+          </div>
+        )}
+      </div>
+
+      {expanded && (
+        <div className="px-3 pb-2">
+          <GoalProgressPanel
+            goalId={goal.id}
+            goalText={goal.goal_text}
+            sectionColor={sectionColor}
+            onCreateTask={handleCreateTask}
+          />
         </div>
       )}
     </div>
@@ -408,6 +439,7 @@ function GoalsSectionView({ section, goals, activeFilter, searchQuery, stats, ed
                     onDelete={() => onDelete(g.id)}
                     onSaveEdit={onSaveEdit} onCancelEdit={onCancelEdit}
                     searchQuery={searchQuery}
+                    sectionColor={section.color_hex}
                   />
                 ))}
               </div>

@@ -8,8 +8,16 @@ const NAV_ITEMS = [
   { href: "/financial", label: "Financial", icon: "💰", exact: false },
   { href: "/goals", label: "Goals + Vision", icon: "🎯", exact: false },
   { href: "/planner", label: "Planner", icon: "📅", exact: false },
+  { href: "/tasks", label: "Tasks", icon: "✅", exact: false },
   { href: "/health", label: "Health", icon: "🏋️", exact: false },
   { href: "/import", label: "Import", icon: "📥", exact: false },
+];
+
+const SIMULATOR_ITEMS = [
+  { href: "/finance/paycheck", label: "Paycheck", icon: "💵" },
+  { href: "/finance/heloc", label: "HELOC", icon: "🏦" },
+  { href: "/finance/cashflow", label: "Cash Flow", icon: "📊" },
+  { href: "/finance/scenarios", label: "Scenarios", icon: "⚖️" },
 ];
 
 export default function Sidebar() {
@@ -82,6 +90,34 @@ export default function Sidebar() {
               </Link>
             );
           })}
+
+          {/* Finance Simulators sub-section */}
+          <div className="mt-2 pt-2" style={{ borderTop: "1px solid rgba(0,212,255,0.08)" }}>
+            <div className="px-3 py-1 text-[10px] uppercase tracking-widest font-semibold"
+              style={{ color: "var(--text-muted)" }}>
+              Simulators
+            </div>
+            {SIMULATOR_ITEMS.map(({ href, label, icon }) => {
+              const active = pathname === href || pathname.startsWith(href + "/");
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all duration-150 ${
+                    active ? "nav-active" : ""
+                  }`}
+                  style={{
+                    color: active ? "var(--accent-cyan)" : "var(--text-muted)",
+                    borderLeft: active ? undefined : "2px solid transparent",
+                    textDecoration: "none",
+                  }}
+                >
+                  <span style={{ fontSize: 13, lineHeight: 1 }}>{icon}</span>
+                  <span className="font-medium">{label}</span>
+                </Link>
+              );
+            })}
+          </div>
         </nav>
 
         {/* Footer */}
