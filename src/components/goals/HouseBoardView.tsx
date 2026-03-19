@@ -3,21 +3,21 @@
 import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-// ── Rooms ────────────────────────────────────────────────────
+// ── Rooms (aligned with House CC room names) ─────────────────
 
 const ROOMS = [
-  { id: 'living-room',    label: 'Living Room',     icon: '🛋️',  color: '#E76F51' },
-  { id: 'dining-room',    label: 'Dining Room',     icon: '🍽️',  color: '#A0522D' },
-  { id: 'office',         label: 'Office',           icon: '💼',  color: '#0077B6' },
-  { id: 'entertainment',  label: 'Entertainment',    icon: '🎬',  color: '#7209B7' },
-  { id: 'bedroom',        label: 'Bedroom',          icon: '🛏️',  color: '#E63946' },
-  { id: 'guest-room',     label: 'Guest Room',       icon: '🛌',  color: '#6A4C93' },
-  { id: 'master-bath',    label: 'Master Bath',      icon: '🚿',  color: '#2A9D8F' },
-  { id: 'kitchen',        label: 'Kitchen',          icon: '🍳',  color: '#F4A261' },
-  { id: 'staircase',      label: 'Staircase',        icon: '🪜',  color: '#4A90D9' },
-  { id: 'patio',          label: 'Patio',            icon: '🌿',  color: '#2D6A4F' },
-  { id: 'rooftop',        label: 'Rooftop',          icon: '🌆',  color: '#4361EE' },
-  { id: 'upstairs',       label: 'Upstairs',         icon: '🧱',  color: '#C1121F' },
+  { id: 'Living Room',      label: 'Living Room',      icon: '🛋️',  color: '#E76F51' },
+  { id: 'Dining Room',      label: 'Dining Room',      icon: '🍽️',  color: '#A0522D' },
+  { id: 'Office',           label: 'Office',            icon: '💼',  color: '#0077B6' },
+  { id: 'Entertainment',    label: 'Entertainment',     icon: '🎬',  color: '#7209B7' },
+  { id: 'Primary Bedroom',  label: 'Primary Bedroom',   icon: '🛏️',  color: '#E63946' },
+  { id: 'Guest Room',       label: 'Guest Room',        icon: '🛌',  color: '#6A4C93' },
+  { id: 'Primary Bathroom', label: 'Primary Bathroom',  icon: '🚿',  color: '#2A9D8F' },
+  { id: 'Kitchen',          label: 'Kitchen',           icon: '🍳',  color: '#F4A261' },
+  { id: 'Staircase',        label: 'Staircase',         icon: '🪜',  color: '#4A90D9' },
+  { id: 'Patio/Deck',       label: 'Patio/Deck',        icon: '🌿',  color: '#2D6A4F' },
+  { id: 'Rooftop',          label: 'Rooftop',           icon: '🌆',  color: '#4361EE' },
+  { id: 'Upstairs',         label: 'Upstairs',          icon: '🧱',  color: '#C1121F' },
 ]
 
 const ROOM_MAP = Object.fromEntries(ROOMS.map(r => [r.id, r]))
@@ -31,33 +31,15 @@ const STATUSES = [
 
 const STATUS_MAP = Object.fromEntries(STATUSES.map(s => [s.id, s]))
 
-// ── Seed data ────────────────────────────────────────────────
+// ── Status mapping (UI uses 'in-progress', DB uses 'in_progress') ──
 
-const SEED_IDEAS: HouseIdea[] = [
-  // Living Room
-  { id: 'h-lr-1', room: 'living-room',   title: 'Mood lighting',          notes: 'Dimmers, smart bulbs, accent strips throughout',                     status: 'idea' },
-  { id: 'h-lr-2', room: 'living-room',   title: 'Tables & art',           notes: 'Coffee table, side tables, wall art pieces',                          status: 'idea' },
-  // Office
-  { id: 'h-of-1', room: 'office',        title: 'Mood lighting',          notes: 'Smart bulbs, dimmer switches, desk accent lighting',                  status: 'idea' },
-  // Entertainment Room
-  { id: 'h-en-1', room: 'entertainment', title: 'Mood lighting',          notes: 'LED strips behind screen/TV, ambient bias lighting',                  status: 'idea' },
-  // Bedroom
-  { id: 'h-br-1', room: 'bedroom',       title: 'Mood lighting',          notes: 'Bedside lamps, under-bed accent strips, dimmer controls',             status: 'idea' },
-  // Master Bath
-  { id: 'h-mb-1', room: 'master-bath',   title: 'Countertop refresh',     notes: 'New decorations, soap dispensers, trays, accessories, organization',  status: 'idea' },
-  { id: 'h-mb-2', room: 'master-bath',   title: 'New towels & linens',    notes: 'New color scheme — towels, bath mats, hand towels',                   status: 'idea' },
-  // Kitchen
-  { id: 'h-ki-1', room: 'kitchen',       title: 'Mood lighting (future)', notes: 'Under-cabinet strips, pendant lighting — lower priority',             status: 'idea' },
-  // Patio
-  { id: 'h-pa-1', room: 'patio',         title: 'Patio furniture',        notes: 'Outdoor seating set, dining table, maybe a fire pit or fire table',   status: 'idea' },
-  // Rooftop
-  { id: 'h-rt-1', room: 'rooftop',       title: 'Rooftop lounge area',    notes: 'Lounge furniture, outdoor rug, string lights, maybe a grill',         status: 'idea' },
-  // Staircase
-  { id: 'h-st-1', room: 'staircase',     title: 'Blue & gold blown glass bowls', notes: 'Decorative blown glass bowls in blue and gold along the staircase', status: 'idea' },
-  // Upstairs
-  { id: 'h-up-1', room: 'upstairs',      title: 'Lego display case',      notes: 'Dedicated shelving or lit display cabinet for completed Lego sets',    status: 'idea' },
-  { id: 'h-up-2', room: 'upstairs',      title: 'Legos mounted on wall',  notes: 'Wall-mounted framed displays for select sets',                        status: 'idea' },
-]
+function toDbStatus(s: string): string {
+  return s === 'in-progress' ? 'in_progress' : s
+}
+
+function fromDbStatus(s: string): string {
+  return s === 'in_progress' ? 'in-progress' : s
+}
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -75,23 +57,6 @@ interface VisionItem {
   image_url: string
   category: string | null
   created_at: string
-}
-
-// ── localStorage helpers ──────────────────────────────────────
-
-const LS_KEY = 'micci_house_ideas'
-
-function loadIdeas(): HouseIdea[] {
-  if (typeof window === 'undefined') return SEED_IDEAS
-  try {
-    const raw = localStorage.getItem(LS_KEY)
-    if (raw) return JSON.parse(raw) as HouseIdea[]
-  } catch { /* ignore */ }
-  return SEED_IDEAS
-}
-
-function saveIdeas(ideas: HouseIdea[]) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(ideas)) } catch { /* ignore */ }
 }
 
 // ── Sub-components ────────────────────────────────────────────
@@ -184,7 +149,7 @@ function IdeaModal({ initial, defaultRoom, onSave, onClose }: {
   onClose: () => void
 }) {
   const [title, setTitle] = useState(initial?.title ?? '')
-  const [room, setRoom] = useState(initial?.room ?? defaultRoom ?? 'living-room')
+  const [room, setRoom] = useState(initial?.room ?? defaultRoom ?? 'Living Room')
   const [status, setStatus] = useState(initial?.status ?? 'idea')
   const [notes, setNotes] = useState(initial?.notes ?? '')
 
@@ -275,13 +240,14 @@ export default function HouseBoardView() {
   const [uploadTargetRoom, setUploadTargetRoom] = useState<string | null>(null)
 
   const [ideas, setIdeas] = useState<HouseIdea[]>([])
+  const [ideasLoading, setIdeasLoading] = useState(true)
   const [photos, setPhotos] = useState<VisionItem[]>([])
   const [photosLoading, setPhotosLoading] = useState(true)
 
   const [activeRoom, setActiveRoom] = useState<string>('all')
   const [showIdeaModal, setShowIdeaModal] = useState(false)
   const [editingIdea, setEditingIdea] = useState<HouseIdea | null>(null)
-  const [addDefaultRoom, setAddDefaultRoom] = useState<string>('living-room')
+  const [addDefaultRoom, setAddDefaultRoom] = useState<string>('Living Room')
 
   const [showPhotoModal, setShowPhotoModal] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
@@ -290,11 +256,31 @@ export default function HouseBoardView() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  // Load ideas from localStorage on mount
   useEffect(() => {
-    setIdeas(loadIdeas())
+    fetchIdeas()
     fetchPhotos()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function fetchIdeas() {
+    setIdeasLoading(true)
+    try {
+      const res = await fetch('/api/house/projects')
+      if (res.ok) {
+        const data = await res.json()
+        setIdeas(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (Array.isArray(data) ? data : []).map((p: any) => ({
+            id: p.id,
+            room: p.room,
+            title: p.title,
+            notes: p.notes ?? '',
+            status: fromDbStatus(p.status),
+          }))
+        )
+      }
+    } catch { /* ignore */ }
+    setIdeasLoading(false)
+  }
 
   async function fetchPhotos() {
     setPhotosLoading(true)
@@ -307,39 +293,73 @@ export default function HouseBoardView() {
     setPhotosLoading(false)
   }
 
-  // ── Idea CRUD ──────────────────────────────────────────────
+  // ── Idea CRUD (Supabase via /api/house/projects) ────────────
 
-  function handleSaveIdea(data: Omit<HouseIdea, 'id'>) {
+  async function handleSaveIdea(formData: Omit<HouseIdea, 'id'>) {
     if (editingIdea) {
-      const updated = ideas.map(i => i.id === editingIdea.id ? { ...editingIdea, ...data } : i)
-      setIdeas(updated)
-      saveIdeas(updated)
+      const res = await fetch(`/api/house/projects/${editingIdea.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          room: formData.room,
+          notes: formData.notes,
+          status: toDbStatus(formData.status),
+        }),
+      })
+      if (res.ok) {
+        setIdeas(prev => prev.map(i =>
+          i.id === editingIdea.id
+            ? { ...i, title: formData.title, room: formData.room, notes: formData.notes, status: formData.status }
+            : i
+        ))
+      }
     } else {
-      const newIdea: HouseIdea = { id: `h-${Date.now()}`, ...data }
-      const updated = [...ideas, newIdea]
-      setIdeas(updated)
-      saveIdeas(updated)
+      const res = await fetch('/api/house/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          room: formData.room,
+          notes: formData.notes,
+          status: toDbStatus(formData.status),
+          priority: 'low',
+          estimated_budget: 0,
+        }),
+      })
+      if (res.ok) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const created: any = await res.json()
+        setIdeas(prev => [...prev, {
+          id: created.id,
+          room: created.room,
+          title: created.title,
+          notes: created.notes ?? '',
+          status: fromDbStatus(created.status),
+        }])
+      }
     }
     setShowIdeaModal(false)
     setEditingIdea(null)
   }
 
-  function cycleStatus(id: string) {
+  async function cycleStatus(id: string) {
     const order = ['idea', 'planned', 'in-progress', 'done']
-    const updated = ideas.map(i => {
-      if (i.id !== id) return i
-      const next = order[(order.indexOf(i.status) + 1) % order.length]
-      return { ...i, status: next }
+    const idea = ideas.find(i => i.id === id)
+    if (!idea) return
+    const next = order[(order.indexOf(idea.status) + 1) % order.length]
+    setIdeas(prev => prev.map(i => i.id === id ? { ...i, status: next } : i))
+    await fetch(`/api/house/projects/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: toDbStatus(next) }),
     })
-    setIdeas(updated)
-    saveIdeas(updated)
   }
 
-  function deleteIdea(id: string) {
-    if (!confirm('Remove this idea?')) return
-    const updated = ideas.filter(i => i.id !== id)
-    setIdeas(updated)
-    saveIdeas(updated)
+  async function deleteIdea(id: string) {
+    if (!confirm('Remove this project?')) return
+    setIdeas(prev => prev.filter(i => i.id !== id))
+    await fetch(`/api/house/projects/${id}`, { method: 'DELETE' })
   }
 
   // ── Photo upload ───────────────────────────────────────────
@@ -426,12 +446,19 @@ export default function HouseBoardView() {
           <h2 style={{ color: '#e8c97a', fontSize: 20, fontWeight: 700 }}>🏡 House Board</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 4 }}>
             Project ideas + inspiration photos by room &nbsp;·&nbsp;
-            <span style={{ color: '#52b788' }}>{doneIdeas} done</span>
-            <span style={{ color: 'var(--text-muted)' }}> / {totalIdeas} ideas</span>
+            {ideasLoading ? (
+              <span style={{ color: 'var(--text-muted)' }}>loading…</span>
+            ) : (
+              <>
+                <span style={{ color: '#52b788' }}>{doneIdeas} done</span>
+                <span style={{ color: 'var(--text-muted)' }}> / {totalIdeas} projects</span>
+                <span style={{ color: 'var(--text-muted)' }}> · synced with House CC</span>
+              </>
+            )}
           </p>
         </div>
         <button
-          onClick={() => { setAddDefaultRoom(activeRoom === 'all' ? 'living-room' : activeRoom); setEditingIdea(null); setShowIdeaModal(true) }}
+          onClick={() => { setAddDefaultRoom(activeRoom === 'all' ? 'Living Room' : activeRoom); setEditingIdea(null); setShowIdeaModal(true) }}
           className="px-4 py-2 rounded-xl font-semibold text-sm flex-shrink-0 ml-4"
           style={{ background: 'linear-gradient(135deg,#C9A84C,#e8c97a)', color: '#08080f' }}
         >
@@ -467,68 +494,95 @@ export default function HouseBoardView() {
         })}
       </div>
 
+      {/* Loading state */}
+      {ideasLoading && (
+        <div className="flex items-center justify-center py-16">
+          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading projects…</div>
+        </div>
+      )}
+
       {/* Room sections */}
-      <div className="space-y-10">
-        {roomsToShow.map(room => {
-          const roomIdeas = ideasInRoom(room.id)
-          const roomPhotos = photosInRoom(room.id)
-          if (activeRoom === 'all' && roomIdeas.length === 0 && roomPhotos.length === 0) return null
+      {!ideasLoading && (
+        <div className="space-y-10">
+          {roomsToShow.map(room => {
+            const roomIdeas = ideasInRoom(room.id)
+            const roomPhotos = photosInRoom(room.id)
+            if (activeRoom === 'all' && roomIdeas.length === 0 && roomPhotos.length === 0) return null
 
-          return (
-            <div key={room.id}>
-              {/* Room header */}
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-1 h-6 rounded" style={{ background: room.color }} />
-                <span className="text-base font-bold" style={{ color: room.color }}>{room.icon} {room.label}</span>
-                <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
-                <button
-                  onClick={() => { setAddDefaultRoom(room.id); setEditingIdea(null); setShowIdeaModal(true) }}
-                  className="text-xs px-3 py-1 rounded-lg transition-all"
-                  style={{ background: `${room.color}15`, border: `1px solid ${room.color}40`, color: room.color }}>
-                  + Idea
-                </button>
-                <button
-                  onClick={() => { setUploadTargetRoom(room.id); fileInputRef.current?.click() }}
-                  className="text-xs px-3 py-1 rounded-lg transition-all"
-                  style={{ background: `${room.color}15`, border: `1px solid ${room.color}40`, color: room.color }}>
-                  + Photo
-                </button>
+            return (
+              <div key={room.id}>
+                {/* Room header */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-1 h-6 rounded" style={{ background: room.color }} />
+                  <span className="text-base font-bold" style={{ color: room.color }}>{room.icon} {room.label}</span>
+                  <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                  <button
+                    onClick={() => { setAddDefaultRoom(room.id); setEditingIdea(null); setShowIdeaModal(true) }}
+                    className="text-xs px-3 py-1 rounded-lg transition-all"
+                    style={{ background: `${room.color}15`, border: `1px solid ${room.color}40`, color: room.color }}>
+                    + Idea
+                  </button>
+                  <button
+                    onClick={() => { setUploadTargetRoom(room.id); fileInputRef.current?.click() }}
+                    className="text-xs px-3 py-1 rounded-lg transition-all"
+                    style={{ background: `${room.color}15`, border: `1px solid ${room.color}40`, color: room.color }}>
+                    + Photo
+                  </button>
+                </div>
+
+                {/* Ideas grid */}
+                {roomIdeas.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                    {roomIdeas.map(idea => (
+                      <IdeaCard
+                        key={idea.id}
+                        idea={idea}
+                        onStatusCycle={() => cycleStatus(idea.id)}
+                        onEdit={() => { setEditingIdea(idea); setShowIdeaModal(true) }}
+                        onDelete={() => deleteIdea(idea.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Photos */}
+                {roomPhotos.length > 0 && (
+                  <PhotoGrid photos={roomPhotos} onDelete={handlePhotoDelete} deletingId={deletingId} />
+                )}
+
+                {/* Empty room prompt */}
+                {activeRoom !== 'all' && roomIdeas.length === 0 && roomPhotos.length === 0 && !photosLoading && (
+                  <div className="flex flex-col items-center justify-center rounded-xl py-12 cursor-pointer"
+                    style={{ border: `2px dashed ${room.color}30`, background: `${room.color}05` }}
+                    onClick={() => { setAddDefaultRoom(room.id); setEditingIdea(null); setShowIdeaModal(true) }}>
+                    <div style={{ fontSize: 36, marginBottom: 8 }}>{room.icon}</div>
+                    <p style={{ color: room.color, fontWeight: 600, marginBottom: 4 }}>Nothing here yet</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>Add ideas or inspiration photos for your {room.label}</p>
+                  </div>
+                )}
               </div>
+            )
+          })}
 
-              {/* Ideas grid */}
-              {roomIdeas.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-                  {roomIdeas.map(idea => (
-                    <IdeaCard
-                      key={idea.id}
-                      idea={idea}
-                      onStatusCycle={() => cycleStatus(idea.id)}
-                      onEdit={() => { setEditingIdea(idea); setShowIdeaModal(true) }}
-                      onDelete={() => deleteIdea(idea.id)}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Photos */}
-              {roomPhotos.length > 0 && (
-                <PhotoGrid photos={roomPhotos} onDelete={handlePhotoDelete} deletingId={deletingId} />
-              )}
-
-              {/* Empty room prompt (only shown when drilling into a specific room) */}
-              {activeRoom !== 'all' && roomIdeas.length === 0 && roomPhotos.length === 0 && !photosLoading && (
-                <div className="flex flex-col items-center justify-center rounded-xl py-12 cursor-pointer"
-                  style={{ border: `2px dashed ${room.color}30`, background: `${room.color}05` }}
-                  onClick={() => { setAddDefaultRoom(room.id); setEditingIdea(null); setShowIdeaModal(true) }}>
-                  <div style={{ fontSize: 36, marginBottom: 8 }}>{room.icon}</div>
-                  <p style={{ color: room.color, fontWeight: 600, marginBottom: 4 }}>Nothing here yet</p>
-                  <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>Add ideas or inspiration photos for your {room.label}</p>
-                </div>
-              )}
+          {/* Empty state when no projects at all */}
+          {activeRoom === 'all' && ideas.length === 0 && photos.length === 0 && !photosLoading && (
+            <div className="flex flex-col items-center justify-center py-20 rounded-2xl"
+              style={{ border: '2px dashed rgba(201,168,76,0.2)', background: 'rgba(201,168,76,0.03)' }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🏡</div>
+              <p style={{ color: '#e8c97a', fontWeight: 700, fontSize: 16, marginBottom: 6 }}>No house projects yet</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 20 }}>
+                Add your first idea — it will also appear in the House Command Center kanban.
+              </p>
+              <button
+                onClick={() => { setAddDefaultRoom('Living Room'); setEditingIdea(null); setShowIdeaModal(true) }}
+                className="px-5 py-2.5 rounded-xl font-semibold text-sm"
+                style={{ background: 'linear-gradient(135deg,#C9A84C,#e8c97a)', color: '#08080f' }}>
+                + Add First Idea
+              </button>
             </div>
-          )
-        })}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Hidden file input */}
       <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
@@ -549,7 +603,7 @@ export default function HouseBoardView() {
           style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}>
           <div className="w-full max-w-md rounded-2xl p-6" style={{ background: '#0f0f1a', border: '1px solid rgba(201,168,76,0.35)' }}>
             <h3 style={{ color: '#e8c97a', fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
-              Add {pendingFiles.length} Photo{pendingFiles.length !== 1 ? 's' : ''} — {ROOM_MAP[uploadTargetRoom]?.label}
+              Add {pendingFiles.length} Photo{pendingFiles.length !== 1 ? 's' : ''} — {uploadTargetRoom}
             </h3>
             <p className="mb-5 text-xs" style={{ color: 'var(--text-muted)' }}>
               {pendingFiles.slice(0, 3).map(f => f.name).join(', ')}{pendingFiles.length > 3 ? ` + ${pendingFiles.length - 3} more` : ''}
