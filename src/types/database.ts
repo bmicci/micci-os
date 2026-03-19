@@ -122,6 +122,38 @@ export interface DbScenario {
   updated_at: string
 }
 
+// ── Daily Tracker ─────────────────────────────────────────────────
+
+export interface DbRoutine {
+  id: string
+  user_id: string
+  title: string
+  description: string | null
+  category: 'morning' | 'evening' | 'health_protocol' | 'supplement' | 'skincare' | 'fitness' | 'spiritual' | 'personal' | 'work' | 'custom'
+  time_of_day: 'morning' | 'midday' | 'evening' | 'anytime'
+  frequency: 'daily' | 'weekdays' | 'weekends' | 'weekly' | 'custom'
+  days_of_week: string[] | null
+  sort_order: number
+  source_type: 'manual' | 'health_protocol' | 'supplement' | 'skincare' | 'task' | null
+  source_id: string | null
+  is_active: boolean
+  streak_current: number
+  streak_best: number
+  created_at: string
+  updated_at: string
+}
+
+export interface DbRoutineCompletion {
+  id: string
+  user_id: string
+  routine_id: string
+  completed_date: string
+  completed_at: string
+  notes: string | null
+  skipped: boolean
+  skip_reason: string | null
+}
+
 // ── Planner ───────────────────────────────────────────────────────
 
 export interface DbScheduleBlock {
