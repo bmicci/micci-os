@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: "/planner", label: "Planner", icon: "📅", exact: false },
   { href: "/tasks", label: "Tasks", icon: "✅", exact: false },
   { href: "/health", label: "Health", icon: "🏋️", exact: false },
+  { href: "/house",   label: "House",   icon: "🏡", exact: false },
   { href: "/import", label: "Import", icon: "📥", exact: false },
 ];
 
