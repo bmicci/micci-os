@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import DocumentUpload from '@/components/DocumentUpload'
+import SkincareRoutine from '@/components/health/SkincareRoutine'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Health — Micci OS' }
@@ -270,6 +271,9 @@ export default async function HealthPage() {
 
       {/* Supplements */}
       {supps.length > 0 && <SupplementsSection supplements={supps} />}
+
+      {/* Skincare Routine */}
+      <SkincareRoutine />
 
       {/* Document Upload */}
       <section>
