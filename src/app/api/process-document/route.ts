@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+
+export const maxDuration = 300 // 5 min — large PDFs need time to embed
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { chunkText, generateEmbeddings } from '@/lib/ai/embeddings'
 

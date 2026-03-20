@@ -41,18 +41,18 @@ export async function getStructuredContext(section: Section): Promise<string> {
 
   if (section === 'financial') {
     const [modules, subs, debts, budgets] = await Promise.all([
-      supabase.from('financial_modules').select('*').order('name'),
-      supabase.from('subscriptions').select('*').order('amount', { ascending: false }),
-      supabase.from('debt_accounts').select('*').order('balance', { ascending: false }),
+      supabase.from('financial_modules').select('*').order('module_number'),
+      supabase.from('subscriptions').select('*').order('monthly_cost', { ascending: false }),
+      supabase.from('accounts').select('*').order('current_balance', { ascending: false }),
       supabase.from('budget_categories').select('*').order('name'),
     ])
 
     if (debts.data?.length) {
-      const totalDebt = debts.data.reduce((sum, d) => sum + (Number(d.balance) || 0), 0)
-      context += `\n## Debt Accounts (Total: $${totalDebt.toLocaleString('en-US', { minimumFractionDigits: 2 })})\n${JSON.stringify(debts.data, null, 2)}`
+      const totalDebt = debts.data.reduce((sum, d) => sum + (Number(d.current_balance) || 0), 0)
+      context += `\n## Accounts / Debt (Total: $${totalDebt.toLocaleString('en-US', { minimumFractionDigits: 2 })})\n${JSON.stringify(debts.data, null, 2)}`
     }
     if (subs.data?.length) {
-      const monthlyTotal = subs.data.reduce((sum, s) => sum + (Number(s.amount) || 0), 0)
+      const monthlyTotal = subs.data.reduce((sum, s) => sum + (Number(s.monthly_cost) || 0), 0)
       context += `\n## Subscriptions (Monthly total: ~$${monthlyTotal.toFixed(2)})\n${JSON.stringify(subs.data, null, 2)}`
     }
     if (budgets.data?.length) {
