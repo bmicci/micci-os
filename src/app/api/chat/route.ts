@@ -2,7 +2,7 @@ import { anthropic } from '@ai-sdk/anthropic'
 import { streamText } from 'ai'
 import { NextRequest } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { retrieveRelevantChunks, getStructuredContext, type Section } from '@/lib/ai/retrieval'
+import { getStructuredContext, type Section } from '@/lib/ai/retrieval'
 
 export const maxDuration = 60
 
@@ -17,33 +17,15 @@ export async function POST(request: NextRequest) {
   const { messages, section = 'general' } = await request.json()
   const userMessage: string = messages[messages.length - 1]?.content ?? ''
 
-  // Retrieve relevant document chunks (RAG) — graceful fallback if table missing
-  let chunks: Awaited<ReturnType<typeof retrieveRelevantChunks>> = []
-  try {
-    chunks = await retrieveRelevantChunks(userMessage, section as Section, 8, 0.5)
-  } catch { /* document_chunks table may not exist yet */ }
-
-  // Fetch structured data — graceful fallback
+  // Fetch structured context from Supabase — skip RAG (requires OpenAI key not configured)
   let structuredContext = ''
   try {
     structuredContext = await getStructuredContext(section as Section)
-  } catch { /* structured context tables may not exist yet */ }
+  } catch { /* graceful fallback if tables missing */ }
 
-  // Build context string
   const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   })
-
-  let ragContext = ''
-  if (chunks.length > 0) {
-    ragContext = '\n\n## Retrieved Document Context\n'
-    chunks.forEach((chunk, i) => {
-      ragContext += `\n### Source ${i + 1} (similarity: ${(chunk.similarity * 100).toFixed(0)}%)\n${chunk.content}\n`
-    })
-  }
 
   const systemPrompt = `You are Brandon's personal AI assistant embedded in his life OS app. You have access to his real financial data, goals, wellness protocols, and planning data.
 
@@ -64,65 +46,26 @@ Life Plan context (when section is life-plan):
 - Goals are grouped by timeframes: Age 40 (1yr), Age 45 (5yr), Age 50 (10yr), Age 60 (20yr)
 - Foundation: Vision → C-Suite by 45, CEO by 50, Forbes cover, Governor capstone. Purpose → Business visionary to world leader.
 - Role models: Ray Dalio, Simon Sinek, Julius Caesar, Ronald Reagan
-- Custom/AI-added goals are tracked in the database and available in structured context${structuredContext ? `\n\n## Structured Data from Database${structuredContext}` : ''}${ragContext}`
+- Custom/AI-added goals are tracked in the database and available in structured context${structuredContext ? `\n\n## Structured Data from Database\n${structuredContext}` : ''}`
 
-  // Store user message — graceful fallback if table missing
+  // Persist user message (best-effort)
   let service: Awaited<ReturnType<typeof createServiceClient>> | null = null
   try {
     service = await createServiceClient()
-    await service.from('chat_messages').insert({
-      user_id: user.id,
-      section,
-      role: 'user',
-      content: userMessage,
-    })
-  } catch { /* chat_messages table may not exist yet */ }
+    await service.from('chat_messages').insert({ user_id: user.id, section, role: 'user', content: userMessage })
+  } catch { /* chat_messages table may not exist */ }
 
-  // Stream response — manually pipe textStream to catch errors
   const result = streamText({
     model: anthropic('claude-sonnet-4-6'),
     system: systemPrompt,
     messages,
-    onError: ({ error }) => {
-      console.error('[chat/route] streamText error:', error)
-    },
     onFinish: async ({ text }) => {
       if (!service) return
       try {
-        const sources = chunks.map((c) => ({
-          document_id: c.document_id,
-          content_preview: c.content.slice(0, 120),
-          similarity: c.similarity,
-        }))
-        await service.from('chat_messages').insert({
-          user_id: user.id,
-          section,
-          role: 'assistant',
-          content: text,
-          sources,
-        })
+        await service.from('chat_messages').insert({ user_id: user.id, section, role: 'assistant', content: text })
       } catch { /* graceful fallback */ }
     },
   })
 
-  const encoder = new TextEncoder()
-  const stream = new ReadableStream({
-    async start(controller) {
-      try {
-        for await (const text of result.textStream) {
-          controller.enqueue(encoder.encode(text))
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Stream error'
-        console.error('[chat/route] textStream error:', err)
-        controller.enqueue(encoder.encode(`\n\n⚠️ ${msg}`))
-      } finally {
-        controller.close()
-      }
-    },
-  })
-
-  return new Response(stream, {
-    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-  })
+  return result.toTextStreamResponse()
 }
