@@ -67,16 +67,57 @@ export interface DbBudgetCategory {
 
 export interface DbDeadline {
   id: string
-  user_id: string
+  user_id?: string
   title: string
   description: string | null
   deadline_date: string
+  amount: number | null
   urgency: 'critical' | 'high' | 'medium' | 'low'
   module: string | null
   impact_if_missed: string | null
   status: 'upcoming' | 'completed' | 'missed'
+  sort_order: number
   created_at: string
   updated_at: string
+}
+
+export interface DbPromoDeadline {
+  id: string
+  user_id?: string
+  name: string
+  account_name: string
+  balance: number
+  expires_date: string
+  deferred_interest_risk: number | null
+  notes: string | null
+  status: 'active' | 'paid' | 'expired'
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface DbTransaction {
+  id: string
+  transaction_date: string
+  merchant: string
+  raw_description: string | null
+  amount: number
+  category: string | null
+  account_name: string
+  source_file: string | null
+  is_income: boolean
+  notes: string | null
+  created_at: string
+}
+
+export interface DbBalanceSnapshot {
+  id: string
+  account_name: string
+  balance: number
+  snapshot_date: string
+  source: 'manual' | 'import' | 'csv'
+  notes: string | null
+  created_at: string
 }
 
 // ── Simulator (Phase 1) ──────────────────────────────────────────

@@ -4,13 +4,16 @@
 // zero changes needed in any component or chart file.
 
 import { createServiceClient } from './supabase/service'
-import type { DbDebtAccount, DbFinancialModule, DbSubscription } from './supabase/types'
+import type { DbDebtAccount, DbFinancialModule, DbSubscription, DbBudgetCategory, DbDeadline, DbPromoDeadline } from './supabase/types'
 import {
   type FinancialData,
   type DebtAccount,
   type FinancialModule,
   type Subscription,
   type EssentialBill,
+  type SpendingCategory,
+  type Deadline,
+  type PromoDeadline,
   getAllData,
   MODULES,
   DEADLINES,
@@ -107,6 +110,59 @@ function mapToEssentialBill(row: DbSubscription): EssentialBill {
   }
 }
 
+function mapSpendingCategory(row: DbBudgetCategory): SpendingCategory {
+  // Derive a stable color from the category name when not stored
+  const COLOR_MAP: Record<string, string> = {
+    'Food & Dining': '#ef4444',
+    'Shopping/Retail': '#f59e0b',
+    Housing: '#3b82f6',
+    Health: '#22c55e',
+    Insurance: '#8b5cf6',
+    Transportation: '#06b6d4',
+    Other: '#64748b',
+    Travel: '#ec4899',
+    Subscriptions: '#eab308',
+    'Debt Service': '#be123c',
+    Entertainment: '#6366f1',
+  }
+  const annual = Number(row.annual_actual ?? 0)
+  const monthly = Number(row.monthly_actual ?? Math.round((annual / 12) * 100) / 100)
+  const survival = Number(row.survival_budget ?? 0)
+  const pct = Number(row.pct_of_total ?? 0)
+  const color = row.color ?? COLOR_MAP[row.name] ?? '#64748b'
+  return { cat: row.name, annual, monthly, survival, pct, color }
+}
+
+function mapDeadline(row: DbDeadline): Deadline {
+  // Format date as "Mon D, YYYY" to match the hardcoded style
+  const d = new Date(row.deadline_date + 'T00:00:00')
+  const formatted = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  // Derive a risk label from urgency + impact_if_missed
+  const riskLabel = row.impact_if_missed ?? (
+    row.urgency === 'critical' ? '🚨 Critical' :
+    row.urgency === 'high'     ? '⚠️ Hard deadline' :
+    row.urgency === 'medium'   ? '⚠️ Deadline' :
+                                 '✅ Low urgency'
+  )
+  return {
+    date: formatted,
+    event: row.title,
+    amount: (row as DbDeadline & { amount?: number | null }).amount ?? null,
+    risk: riskLabel,
+  }
+}
+
+function mapPromoDeadline(row: DbPromoDeadline): PromoDeadline {
+  return {
+    name: row.name,
+    acct: row.account_name,
+    balance: Number(row.balance),
+    expires: row.expires_date,
+    risk: row.deferred_interest_risk != null ? Number(row.deferred_interest_risk) : null,
+    note: row.notes ?? '',
+  }
+}
+
 // Canonical module order — matches M1–M9 numbering
 const MODULE_ORDER: Record<string, number> = {
   'Spending Analysis': 1,
@@ -131,50 +187,116 @@ export async function getFinancialData(): Promise<FinancialData> {
   }
 
   try {
-    const [debtsRes, modulesRes, subsRes] = await Promise.all([
-      supabase.from('debt_accounts').select('*').order('balance', { ascending: true }),
-      supabase.from('financial_modules').select('*'),
-      supabase.from('subscriptions').select('*').eq('is_active', true),
+    const [
+      debtsRes,
+      modulesRes,
+      cancelSubsRes,
+      reviewSubsRes,
+      essentialSubsRes,
+      spendingCatsRes,
+      deadlinesRes,
+      promosRes,
+    ] = await Promise.all([
+      supabase
+        .from('debt_accounts')
+        .select('*')
+        .order('balance', { ascending: false }),
+      supabase
+        .from('financial_modules')
+        .select('*')
+        .order('module_number'),
+      supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('action', 'cancel')
+        .eq('is_active', true)
+        .order('amount', { ascending: false }),
+      supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('action', 'review')
+        .eq('is_active', true)
+        .order('amount', { ascending: false }),
+      supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('action', 'essential')
+        .eq('is_active', true)
+        .order('amount', { ascending: false }),
+      supabase
+        .from('budget_categories')
+        .select('*')
+        .order('annual_actual', { ascending: false, nullsFirst: false }),
+      supabase
+        .from('deadlines')
+        .select('*')
+        .order('deadline_date', { ascending: true }),
+      supabase
+        .from('promo_deadlines')
+        .select('*')
+        .neq('status', 'paid')
+        .order('expires_date', { ascending: true }),
     ])
 
     const fallback = getAllData()
 
-    // Debt accounts — use Supabase if available and non-empty, otherwise fallback
+    // ── Debt accounts ──────────────────────────────────────────────
     const debts: DebtAccount[] =
       debtsRes.data && debtsRes.data.length > 0
-        ? debtsRes.data.map(mapDebtAccount)
+        ? (debtsRes.data as DbDebtAccount[]).map(mapDebtAccount)
         : fallback.debts
 
-    // Modules — use Supabase if available and non-empty, otherwise fallback
-    // Sort by canonical M1–M9 order (not alphabetical)
+    // ── Modules — sort by canonical M1–M9 order ────────────────────
     const modules: FinancialModule[] =
       modulesRes.data && modulesRes.data.length > 0
-        ? [...modulesRes.data]
+        ? [...(modulesRes.data as DbFinancialModule[])]
             .sort((a, b) => (MODULE_ORDER[a.name] ?? 99) - (MODULE_ORDER[b.name] ?? 99))
             .map(mapFinancialModule)
         : fallback.modules
 
-    // Subscriptions — split by action
-    const allSubs = subsRes.data as DbSubscription[] | null
+    // ── Subscriptions — each bucket has its own per-property fallback ──
     const cancelSubs: Subscription[] =
-      allSubs && allSubs.length > 0
-        ? allSubs.filter(s => s.action === 'cancel').map(mapToSubscription)
+      cancelSubsRes.data && cancelSubsRes.data.length > 0
+        ? (cancelSubsRes.data as DbSubscription[]).map(mapToSubscription)
         : fallback.cancelSubs
+
     const reviewSubs: Subscription[] =
-      allSubs && allSubs.length > 0
-        ? allSubs.filter(s => s.action === 'review').map(mapToSubscription)
+      reviewSubsRes.data && reviewSubsRes.data.length > 0
+        ? (reviewSubsRes.data as DbSubscription[]).map(mapToSubscription)
         : fallback.reviewSubs
+
     const essentialBills: EssentialBill[] =
-      allSubs && allSubs.length > 0
-        ? allSubs.filter(s => s.action === 'essential').map(mapToEssentialBill)
+      essentialSubsRes.data && essentialSubsRes.data.length > 0
+        ? (essentialSubsRes.data as DbSubscription[]).map(mapToEssentialBill)
         : fallback.essentialBills
 
-    // Spending categories — always hardcoded (Supabase has survival budgets only, not actuals)
-    const spendingCategories = SPENDING_CATEGORIES
+    // ── Spending categories ────────────────────────────────────────
+    const spendingCategories: SpendingCategory[] =
+      spendingCatsRes.data && spendingCatsRes.data.length > 0
+        ? (spendingCatsRes.data as DbBudgetCategory[]).map(mapSpendingCategory)
+        : SPENDING_CATEGORIES
 
-    if (debtsRes.error) console.warn('[financial-data-service] debt_accounts:', debtsRes.error.message)
-    if (modulesRes.error) console.warn('[financial-data-service] financial_modules:', modulesRes.error.message)
-    if (subsRes.error) console.warn('[financial-data-service] subscriptions:', subsRes.error.message)
+    // ── Deadlines ──────────────────────────────────────────────────
+    const deadlines: Deadline[] =
+      deadlinesRes.data && deadlinesRes.data.length > 0
+        ? (deadlinesRes.data as DbDeadline[]).map(mapDeadline)
+        : DEADLINES
+
+    // ── Promo deadlines ────────────────────────────────────────────
+    const promos: PromoDeadline[] =
+      promosRes.data && promosRes.data.length > 0
+        ? (promosRes.data as DbPromoDeadline[]).map(mapPromoDeadline)
+        : PROMOS
+
+    // Log any fetch errors at warning level (don't throw — fallbacks handle it)
+    if (debtsRes.error)        console.warn('[financial-data-service] debt_accounts:', debtsRes.error.message)
+    if (modulesRes.error)      console.warn('[financial-data-service] financial_modules:', modulesRes.error.message)
+    if (cancelSubsRes.error)   console.warn('[financial-data-service] subscriptions (cancel):', cancelSubsRes.error.message)
+    if (reviewSubsRes.error)   console.warn('[financial-data-service] subscriptions (review):', reviewSubsRes.error.message)
+    if (essentialSubsRes.error) console.warn('[financial-data-service] subscriptions (essential):', essentialSubsRes.error.message)
+    if (spendingCatsRes.error) console.warn('[financial-data-service] budget_categories:', spendingCatsRes.error.message)
+    if (deadlinesRes.error)    console.warn('[financial-data-service] deadlines:', deadlinesRes.error.message)
+    if (promosRes.error)       console.warn('[financial-data-service] promo_deadlines:', promosRes.error.message)
 
     return {
       debts,
@@ -183,10 +305,10 @@ export async function getFinancialData(): Promise<FinancialData> {
       reviewSubs,
       essentialBills,
       spendingCategories,
-      // Hardcoded — no Supabase tables for these
-      deadlines: DEADLINES,
+      deadlines,
+      promos,
+      // Hardcoded — editorial/config data, rarely changes
       actionItems: ACTION_ITEMS,
-      promos: PROMOS,
       bills: BILLS,
       burnRate: BURN_RATE,
       helocAccounts: HELOC_ACCOUNTS,
@@ -197,5 +319,48 @@ export async function getFinancialData(): Promise<FinancialData> {
   } catch (err) {
     console.error('[financial-data-service] Unexpected error, falling back:', err)
     return getAllData()
+  }
+}
+
+// ── Snapshot balances ─────────────────────────────────────────────────────────
+// Reads all debt_accounts and upserts one row per account into balance_snapshots
+// with today's date. Called by the import API after updating balances.
+
+export async function snapshotCurrentBalances(): Promise<void> {
+  const supabase = createServiceClient()
+
+  if (!supabase) {
+    console.warn('[financial-data-service] snapshotCurrentBalances: no Supabase client')
+    return
+  }
+
+  const { data: accounts, error: fetchErr } = await supabase
+    .from('debt_accounts')
+    .select('name, balance')
+
+  if (fetchErr) {
+    console.error('[financial-data-service] snapshotCurrentBalances fetch error:', fetchErr.message)
+    return
+  }
+
+  if (!accounts || accounts.length === 0) return
+
+  const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+
+  const rows = (accounts as { name: string; balance: number }[]).map(a => ({
+    account_name: a.name,
+    balance: Number(a.balance),
+    snapshot_date: today,
+    source: 'import',
+  }))
+
+  const { error: upsertErr } = await supabase
+    .from('balance_snapshots')
+    .upsert(rows, { onConflict: 'account_name,snapshot_date' })
+
+  if (upsertErr) {
+    console.error('[financial-data-service] snapshotCurrentBalances upsert error:', upsertErr.message)
+  } else {
+    console.log(`[financial-data-service] snapshotCurrentBalances: wrote ${rows.length} rows for ${today}`)
   }
 }
