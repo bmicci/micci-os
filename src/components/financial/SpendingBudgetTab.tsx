@@ -7,6 +7,8 @@ import SpendingDonut from './SpendingDonut'
 import BurnRateChart from './BurnRateChart'
 import WealthProjectionChart from './WealthProjectionChart'
 import TaxSnapshotCard from './TaxSnapshotCard'
+import SpendTrendChart from './SpendTrendChart'
+import BalanceHistoryChart from './BalanceHistoryChart'
 
 export default function SpendingBudgetTab({
   spendingCategories,
@@ -32,6 +34,10 @@ export default function SpendingBudgetTab({
         <KPICard label="#1 Category" value="Food & Dining" note="$27,441 · 36% of total CC spend" />
         <KPICard label="Monthly Savings Target" value="~$3,800/mo" note="Cards only: $6,338 → $2,500 survival" accent="green" />
       </div>
+
+      {/* Spend Trend + Balance History (live from transactions table) */}
+      <SpendTrendChart />
+      <BalanceHistoryChart />
 
       {/* Category chart + table */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{ alignItems: 'start' }}>

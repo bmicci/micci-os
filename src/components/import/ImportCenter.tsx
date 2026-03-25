@@ -4,18 +4,20 @@ import { useState, useCallback } from 'react'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type DataType = 'auto' | 'debt_accounts' | 'subscriptions' | 'budget_categories'
+type DataType = 'auto' | 'debt_accounts' | 'subscriptions' | 'budget_categories' | 'transactions'
 type ImportMode = 'replace' | 'upsert'
 type Stage = 'idle' | 'parsing' | 'preview' | 'committing' | 'done' | 'error'
 
 interface ParseResult {
-  detectedType: 'debt_accounts' | 'subscriptions' | 'budget_categories'
+  detectedType: 'debt_accounts' | 'subscriptions' | 'budget_categories' | 'transactions'
   headers: string[]
   columnMap: Record<string, string>
   rows: Record<string, unknown>[]
   sheetName: string
   totalRaw: number
   totalParsed: number
+  bankFormat?: string
+  accountName?: string
 }
 
 interface CommitResult {
@@ -23,6 +25,7 @@ interface CommitResult {
   errors: number
   dataType: string
   mode: string
+  skipped?: number
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -31,19 +34,32 @@ const DATA_TYPE_LABELS: Record<string, string> = {
   debt_accounts: 'Debt Accounts',
   subscriptions: 'Subscriptions',
   budget_categories: 'Budget Categories',
+  transactions: 'Transactions',
 }
 
 const DATA_TYPE_DESCRIPTIONS: Record<string, string> = {
   debt_accounts: 'Balance, interest rate, minimum payment per account',
   subscriptions: 'Monthly/annual costs, keep/cancel/review decisions',
   budget_categories: 'Monthly actual, annual actual, survival budget targets',
+  transactions: 'Bank/credit card statements — Chase, AmEx, BofA CSV auto-detected',
 }
 
 const DATA_TYPE_ICONS: Record<string, string> = {
   debt_accounts: '💳',
   subscriptions: '🔄',
   budget_categories: '📊',
+  transactions: '🧾',
 }
+
+const ACCOUNT_PRESETS = [
+  'AmEx Gold',
+  'AmEx Platinum',
+  'Chase Freedom Unlimited',
+  'Chase Freedom',
+  'Chase Checking',
+  'BofA Mortgage',
+  'Citi Diamond',
+]
 
 // ── Preview table columns per data type ───────────────────────────────────
 
@@ -93,6 +109,22 @@ const PREVIEW_COLS: Record<string, { key: string; label: string; format?: (v: un
       format: (v) => (v != null ? `$${Number(v).toLocaleString()}` : '—'),
     },
   ],
+  transactions: [
+    { key: 'transaction_date', label: 'Date' },
+    { key: 'merchant', label: 'Merchant', format: (v) => String(v ?? '').slice(0, 40) },
+    {
+      key: 'amount',
+      label: 'Amount',
+      format: (v) => `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+    },
+    { key: 'category', label: 'Category' },
+    { key: 'account_name', label: 'Account' },
+    {
+      key: 'is_credit',
+      label: 'Type',
+      format: (v) => (v ? 'Credit' : 'Charge'),
+    },
+  ],
 }
 
 // ── Action badge colors ────────────────────────────────────────────────────
@@ -121,9 +153,17 @@ export default function ImportCenter() {
   const [commitResult, setCommitResult] = useState<CommitResult | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
+  const [accountName, setAccountName] = useState<string>('')
 
   const handleFile = useCallback(
     async (file: File) => {
+      // Require account name for transactions
+      if (dataType === 'transactions' && !accountName.trim()) {
+        setErrorMsg('Please enter an account name before uploading (e.g. "AmEx Gold")')
+        setStage('error')
+        return
+      }
+
       setFileName(file.name)
       setErrorMsg(null)
       setParseResult(null)
@@ -134,6 +174,9 @@ export default function ImportCenter() {
         const formData = new FormData()
         formData.append('file', file)
         formData.append('dataType', dataType)
+        if (accountName.trim()) {
+          formData.append('accountName', accountName.trim())
+        }
 
         const res = await fetch('/api/import', {
           method: 'POST',
@@ -153,7 +196,7 @@ export default function ImportCenter() {
         setStage('error')
       }
     },
-    [dataType]
+    [dataType, accountName]
   )
 
   const handleDrop = useCallback(
@@ -188,7 +231,8 @@ export default function ImportCenter() {
         body: JSON.stringify({
           rows: parseResult.rows,
           dataType: parseResult.detectedType,
-          mode: importMode,
+          mode: parseResult.detectedType === 'transactions' ? 'upsert' : importMode,
+          accountName: parseResult.accountName || accountName,
         }),
       })
 
@@ -204,7 +248,7 @@ export default function ImportCenter() {
       setErrorMsg(err instanceof Error ? err.message : 'Unknown error')
       setStage('error')
     }
-  }, [parseResult, importMode])
+  }, [parseResult, importMode, accountName])
 
   const reset = () => {
     setStage('idle')
@@ -240,8 +284,8 @@ export default function ImportCenter() {
             What are you importing?
           </h3>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {(['auto', 'debt_accounts', 'subscriptions', 'budget_categories'] as DataType[]).map((t) => (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {(['auto', 'debt_accounts', 'subscriptions', 'budget_categories', 'transactions'] as DataType[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setDataType(t)}
@@ -310,6 +354,66 @@ export default function ImportCenter() {
                 : 'Matches by name, adds new / updates existing'}
             </span>
           </div>
+
+          {/* Account Name — transactions only */}
+          {dataType === 'transactions' && (
+            <div className="mt-5">
+              <label
+                style={{
+                  fontSize: 11,
+                  color: 'var(--text-muted)',
+                  fontFamily: 'var(--font-geist-mono)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  display: 'block',
+                  marginBottom: 8,
+                }}
+              >
+                Account Name *
+              </label>
+              <div className="flex items-center gap-3 flex-wrap">
+                <input
+                  type="text"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  placeholder="e.g. AmEx Gold"
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    border: `1px solid ${accountName ? 'rgba(0,212,255,0.4)' : 'rgba(255,255,255,0.15)'}`,
+                    background: 'rgba(255,255,255,0.03)',
+                    color: 'var(--text-primary)',
+                    fontSize: 14,
+                    width: 220,
+                    outline: 'none',
+                  }}
+                />
+                <div className="flex gap-2 flex-wrap">
+                  {ACCOUNT_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      onClick={() => setAccountName(preset)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: 20,
+                        border: `1px solid ${accountName === preset ? 'rgba(0,212,255,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                        background: accountName === preset ? 'rgba(0,212,255,0.08)' : 'transparent',
+                        color: accountName === preset ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                        fontSize: 11,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                This tags every transaction with the card/account it came from. Auto-detects Chase, AmEx, BofA CSV formats.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -447,14 +551,29 @@ export default function ImportCenter() {
                     Detected: {DATA_TYPE_LABELS[parseResult.detectedType]}
                   </p>
                   <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 2 }}>
-                    {fileName} · Sheet: {parseResult.sheetName} ·{' '}
+                    {fileName} · Sheet: {parseResult.sheetName}
+                    {parseResult.bankFormat && (
+                      <span>
+                        {' '}· Format:{' '}
+                        <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>
+                          {parseResult.bankFormat.toUpperCase()}
+                        </span>
+                      </span>
+                    )}
+                    {parseResult.accountName && (
+                      <span>
+                        {' '}· Account:{' '}
+                        <span style={{ color: 'var(--accent-cyan)' }}>{parseResult.accountName}</span>
+                      </span>
+                    )}
+                    {' '}·{' '}
                     <span style={{ color: 'var(--accent-cyan)' }}>
                       {parseResult.totalParsed} rows ready
                     </span>
                     {parseResult.totalRaw - parseResult.totalParsed > 0 && (
                       <span style={{ color: '#fbbf24' }}>
                         {' '}
-                        · {parseResult.totalRaw - parseResult.totalParsed} skipped (blank name)
+                        · {parseResult.totalRaw - parseResult.totalParsed} skipped (blank/unparseable)
                       </span>
                     )}
                   </p>
@@ -608,6 +727,28 @@ export default function ImportCenter() {
                           )
                         }
 
+                        // Special rendering for is_credit badge
+                        if (col.key === 'is_credit') {
+                          const isCredit = Boolean(raw)
+                          return (
+                            <td key={col.key} style={{ padding: '10px 16px' }}>
+                              <span
+                                style={{
+                                  padding: '2px 8px',
+                                  borderRadius: 20,
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  background: isCredit ? 'rgba(52,211,153,0.1)' : 'rgba(239,68,68,0.1)',
+                                  color: isCredit ? '#34d399' : '#ef4444',
+                                  border: `1px solid ${isCredit ? 'rgba(52,211,153,0.25)' : 'rgba(239,68,68,0.25)'}`,
+                                }}
+                              >
+                                {isCredit ? 'Credit' : 'Charge'}
+                              </span>
+                            </td>
+                          )
+                        }
+
                         return (
                           <td
                             key={col.key}
@@ -699,6 +840,11 @@ export default function ImportCenter() {
               ⚠️ {commitResult.errors} rows failed — check console for details
             </p>
           )}
+          {(commitResult.skipped ?? 0) > 0 && (
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}>
+              {commitResult.skipped} duplicate rows skipped (already in database)
+            </p>
+          )}
           <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>
             The Financial dashboard will now load live data from Supabase.
           </p>
@@ -746,7 +892,7 @@ export default function ImportCenter() {
             What to upload
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               {
                 icon: '💳',
@@ -768,6 +914,13 @@ export default function ImportCenter() {
                 desc: 'Annual spending by category with actual vs survival budget targets.',
                 columns: ['Category', 'Monthly Actual', 'Annual Actual', 'Survival Budget'],
                 example: 'Budget 2026.xlsx',
+              },
+              {
+                icon: '🧾',
+                type: 'Transactions',
+                desc: 'Bank or credit card CSV exports. Auto-detects Chase, AmEx, BofA formats. Deduplicates on import.',
+                columns: ['Date', 'Description/Merchant', 'Amount', 'Category (auto-assigned)'],
+                example: 'Chase_Activity_2025.csv',
               },
             ].map(({ icon, type, desc, columns, example }) => (
               <div
