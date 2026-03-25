@@ -28,6 +28,99 @@ const BUDGET_PATTERNS: Record<string, string[]> = {
   survival_budget: ['survival', 'budget', 'target', 'goal', 'survival budget'],
 }
 
+// ── Bank-specific transaction CSV formats ─────────────────────────────────
+
+type BankFormat = 'chase' | 'amex' | 'bofa' | 'generic'
+
+interface BankFormatConfig {
+  dateCol: string[]
+  descCol: string[]
+  amountCol: string[]
+  categoryCol: string[]
+  // Chase uses "Type" (Sale/Return/Payment), AmEx uses no type, BofA uses no type
+  signLogic: 'chase' | 'amex' | 'bofa' | 'generic'
+}
+
+const BANK_FORMATS: Record<BankFormat, BankFormatConfig> = {
+  chase: {
+    dateCol: ['transaction date', 'posting date'],
+    descCol: ['description'],
+    amountCol: ['amount'],
+    categoryCol: ['category'],
+    signLogic: 'chase', // negative = charge, positive = payment/refund
+  },
+  amex: {
+    dateCol: ['date'],
+    descCol: ['description'],
+    amountCol: ['amount'],
+    categoryCol: ['category'],
+    signLogic: 'amex', // positive = charge, negative = payment/credit
+  },
+  bofa: {
+    dateCol: ['date', 'posted date'],
+    descCol: ['payee', 'description'],
+    amountCol: ['amount'],
+    categoryCol: [],
+    signLogic: 'bofa', // negative = charge, positive = deposit
+  },
+  generic: {
+    dateCol: ['date', 'transaction date', 'trans date', 'posted'],
+    descCol: ['description', 'merchant', 'payee', 'memo', 'name'],
+    amountCol: ['amount', 'debit', 'charge'],
+    categoryCol: ['category', 'type'],
+    signLogic: 'generic',
+  },
+}
+
+// ── Auto-categorization rules ─────────────────────────────────────────────
+
+const CATEGORY_RULES: [RegExp, string][] = [
+  // Food & Dining
+  [/uber\s*eats|doordash|grubhub|postmates|caviar/i, 'Food & Dining'],
+  [/starbucks|coffee|dunkin|peet/i, 'Food & Dining'],
+  [/mcdonald|chick-fil|wendy|burger|taco\s*bell|chipotle|subway|panera|shake\s*shack/i, 'Food & Dining'],
+  [/restaurant|grill|pizza|sushi|thai|chinese|mexican|steakhouse|bistro|cafe|diner|eatery/i, 'Food & Dining'],
+  [/whole\s*foods|trader\s*joe|kroger|safeway|heb|publix|aldi|costco|walmart\s*(grocery|supercenter)|target.*grocery|instacart/i, 'Groceries'],
+  // Shopping
+  [/amazon|amzn/i, 'Shopping'],
+  [/target(?!.*grocery)|walmart(?!.*grocery)|best\s*buy|home\s*depot|lowes|ikea|costco(?!.*gas)/i, 'Shopping'],
+  [/nordstrom|zara|h&m|nike|adidas|gap|old\s*navy|uniqlo/i, 'Shopping'],
+  // Transport
+  [/uber(?!\s*eats)|lyft|taxi|cab\b/i, 'Transport'],
+  [/exxon|shell|chevron|bp\b|gas\s*station|fuel|costco\s*gas|buc-ee/i, 'Transport'],
+  [/parking|toll|dart|transit/i, 'Transport'],
+  // Health
+  [/gym|fitness|lifetime|la\s*fitness|equinox|yoga|pilates|crossfit|peloton/i, 'Health & Fitness'],
+  [/pharmacy|cvs|walgreens|rite\s*aid|quest\s*diag|lab\s*corp|doctor|medical|dental|optom/i, 'Health & Medical'],
+  // Entertainment
+  [/netflix|hulu|disney|hbo|spotify|apple\s*music|youtube\s*premium|paramount|peacock/i, 'Entertainment'],
+  [/movie|cinema|amc|regal|concert|ticket|live\s*nation|stubhub/i, 'Entertainment'],
+  // Subscriptions / Software
+  [/adobe|microsoft|google\s*(one|storage|workspace)|dropbox|icloud|chatgpt|openai|notion|slack/i, 'Software & Subscriptions'],
+  [/paddle|substack|patreon|medium/i, 'Software & Subscriptions'],
+  // Travel
+  [/airline|delta|united|american\s*air|southwest|jetblue|frontier|spirit/i, 'Travel'],
+  [/hotel|marriott|hilton|hyatt|airbnb|vrbo|booking|expedia/i, 'Travel'],
+  // Housing
+  [/mortgage|rent|hoa|property\s*tax/i, 'Housing'],
+  [/electric|power|energy|water|gas\s*(company|utility)|trash|waste|sewer/i, 'Utilities'],
+  [/at&t|verizon|t-mobile|spectrum|comcast|xfinity|internet/i, 'Utilities'],
+  // Insurance
+  [/insurance|geico|state\s*farm|allstate|progressive|liberty\s*mutual|usaa/i, 'Insurance'],
+  // Personal Care
+  [/salon|barber|spa|nail|massage|beauty|sephora|ulta/i, 'Personal Care'],
+  // Payments / Transfers (ignore)
+  [/payment\s*(thank|received)|autopay|online\s*payment|credit\s*card\s*payment/i, 'Payment/Credit'],
+]
+
+function autoCategory(description: string): string {
+  const desc = description.trim()
+  for (const [regex, cat] of CATEGORY_RULES) {
+    if (regex.test(desc)) return cat
+  }
+  return 'Other'
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function scoreHeaders(headers: string[], patterns: Record<string, string[]>): number {
@@ -39,10 +132,51 @@ function scoreHeaders(headers: string[], patterns: Record<string, string[]>): nu
   return score
 }
 
-function detectDataType(headers: string[]): 'debt_accounts' | 'subscriptions' | 'budget_categories' {
+function detectBankFormat(headers: string[]): BankFormat | null {
+  const hLower = headers.map(h => h.toLowerCase().trim())
+  // Chase: "Transaction Date", "Post Date", "Description", "Category", "Type", "Amount"
+  if (hLower.some(h => h === 'transaction date') && hLower.some(h => h === 'type') && hLower.some(h => h === 'amount'))
+    return 'chase'
+  // AmEx: "Date", "Description", "Amount" (sometimes "Card Member", "Account #")
+  if (hLower.some(h => h === 'date') && hLower.some(h => h === 'description') && hLower.some(h => h === 'amount') && !hLower.some(h => h === 'transaction date'))
+    return 'amex'
+  // BofA: "Posted Date", "Payee", "Amount" OR "Date", "Description", "Amount" with "Reference Number"
+  if (hLower.some(h => h === 'posted date' || h === 'reference number') && hLower.some(h => h === 'amount'))
+    return 'bofa'
+  return null
+}
+
+function isTransactionCSV(headers: string[]): boolean {
+  const hLower = headers.map(h => h.toLowerCase().trim())
+  const hasDate = hLower.some(h => h.includes('date'))
+  const hasAmount = hLower.some(h => h.includes('amount') || h.includes('debit') || h.includes('charge'))
+  const hasDesc = hLower.some(h => h.includes('description') || h.includes('merchant') || h.includes('payee') || h.includes('memo'))
+  return hasDate && hasAmount && hasDesc
+}
+
+type DataType = 'debt_accounts' | 'subscriptions' | 'budget_categories' | 'transactions'
+
+function detectDataType(headers: string[]): DataType {
+  // Check for transaction CSV first (bank statements)
+  if (isTransactionCSV(headers)) {
+    const bankFmt = detectBankFormat(headers)
+    if (bankFmt) return 'transactions'
+    // Even without known bank format, if it looks like transactions, treat as such
+    const hLower = headers.map(h => h.toLowerCase().trim())
+    const hasTxnSignals = hLower.some(h => h.includes('transaction') || h.includes('posting') || h.includes('post date'))
+    if (hasTxnSignals) return 'transactions'
+  }
+
   const debtScore = scoreHeaders(headers, DEBT_PATTERNS)
   const subScore = scoreHeaders(headers, SUB_PATTERNS)
   const budgetScore = scoreHeaders(headers, BUDGET_PATTERNS)
+
+  // Transactions can also win via column pattern matching
+  if (isTransactionCSV(headers)) {
+    const txnScore = 3 // date + amount + desc matched
+    if (txnScore > debtScore && txnScore > subScore && txnScore > budgetScore) return 'transactions'
+  }
+
   if (debtScore >= subScore && debtScore >= budgetScore) return 'debt_accounts'
   if (subScore >= budgetScore) return 'subscriptions'
   return 'budget_categories'
@@ -179,12 +313,112 @@ function parseBudgetRow(
   }
 }
 
+// ── Transaction row parser ─────────────────────────────────────────────────
+
+function parseTransactionDate(val: unknown): string | null {
+  if (val == null || val === '') return null
+  const s = String(val).trim()
+  // Try MM/DD/YYYY or MM/DD/YY
+  const mdyMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
+  if (mdyMatch) {
+    let year = parseInt(mdyMatch[3])
+    if (year < 100) year += 2000
+    const month = mdyMatch[1].padStart(2, '0')
+    const day = mdyMatch[2].padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  // Try YYYY-MM-DD
+  const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`
+  // Try "Mon DD, YYYY" (e.g. "Jan 15, 2025")
+  const namedMatch = s.match(/^(\w{3})\s+(\d{1,2}),?\s+(\d{4})/)
+  if (namedMatch) {
+    const months: Record<string, string> = { jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12' }
+    const m = months[namedMatch[1].toLowerCase()]
+    if (m) return `${namedMatch[3]}-${m}-${namedMatch[2].padStart(2, '0')}`
+  }
+  return null
+}
+
+function parseTransactionRows(
+  rawRows: Record<string, unknown>[],
+  headers: string[],
+  accountName: string
+): { rows: Record<string, unknown>[]; bankFormat: string } {
+  const bankFormat = detectBankFormat(headers) || 'generic'
+  const config = BANK_FORMATS[bankFormat]
+
+  // Find column names
+  const hLower = headers.map(h => h.toLowerCase().trim())
+  const findCol = (pats: string[]) => {
+    for (const p of pats) {
+      const idx = hLower.findIndex(h => h.includes(p) || p.includes(h))
+      if (idx !== -1) return headers[idx]
+    }
+    return undefined
+  }
+
+  const dateCol = findCol(config.dateCol)
+  const descCol = findCol(config.descCol)
+  const amountCol = findCol(config.amountCol)
+  const catCol = findCol(config.categoryCol)
+
+  const rows: Record<string, unknown>[] = []
+  for (const raw of rawRows) {
+    const dateStr = dateCol ? parseTransactionDate(raw[dateCol]) : null
+    if (!dateStr) continue
+
+    const description = descCol ? String(raw[descCol] ?? '').trim() : ''
+    if (!description) continue
+
+    let rawAmount = parseCurrency(amountCol ? raw[amountCol] : null)
+    if (rawAmount == null) continue
+
+    // Normalize sign: we want charges (spending) as positive, payments/credits as negative
+    let amount: number
+    switch (config.signLogic) {
+      case 'chase':
+        // Chase: negative = charge, positive = payment/refund
+        amount = -rawAmount
+        break
+      case 'amex':
+        // AmEx: positive = charge, negative = credit/payment
+        amount = rawAmount
+        break
+      case 'bofa':
+        // BofA: negative = charge, positive = deposit
+        amount = -rawAmount
+        break
+      default:
+        // Generic: assume negative = charge
+        amount = rawAmount < 0 ? -rawAmount : rawAmount
+    }
+
+    // Skip payments/credits for now (they show as negative after normalization)
+    const isPayment = amount < 0
+    const category = catCol ? String(raw[catCol] ?? '').trim() : autoCategory(description)
+
+    rows.push({
+      transaction_date: dateStr,
+      merchant: description,
+      amount: Math.abs(amount),
+      category: category || autoCategory(description),
+      account_name: accountName,
+      is_credit: isPayment,
+      original_description: description,
+    })
+  }
+
+  return { rows, bankFormat }
+}
+
 // ── Parse handler ──────────────────────────────────────────────────────────
 
 async function handleParse(request: NextRequest): Promise<NextResponse> {
   const formData = await request.formData()
   const file = formData.get('file') as File | null
   const dataTypeHint = (formData.get('dataType') as string) || 'auto'
+  const accountName = (formData.get('accountName') as string) || ''
 
   if (!file) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -211,10 +445,29 @@ async function handleParse(request: NextRequest): Promise<NextResponse> {
   }
 
   const headers = Object.keys(rawRows[0])
-  const detectedType =
+  const detectedType: DataType =
     dataTypeHint === 'auto'
       ? detectDataType(headers)
-      : (dataTypeHint as 'debt_accounts' | 'subscriptions' | 'budget_categories')
+      : (dataTypeHint as DataType)
+
+  // Handle transactions separately
+  if (detectedType === 'transactions') {
+    if (!accountName) {
+      return NextResponse.json({ error: 'Account name is required for transaction imports' }, { status: 400 })
+    }
+    const { rows: parsed, bankFormat } = parseTransactionRows(rawRows, headers, accountName)
+    return NextResponse.json({
+      detectedType: 'transactions',
+      headers,
+      columnMap: { bankFormat },
+      rows: parsed,
+      sheetName,
+      totalRaw: rawRows.length,
+      totalParsed: parsed.length,
+      bankFormat,
+      accountName,
+    })
+  }
 
   const patterns =
     detectedType === 'debt_accounts'
@@ -257,10 +510,11 @@ async function handleCommit(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { rows, dataType, mode } = (await request.json()) as {
+  const { rows, dataType, mode, accountName } = (await request.json()) as {
     rows: Record<string, unknown>[]
-    dataType: 'debt_accounts' | 'subscriptions' | 'budget_categories'
+    dataType: DataType
     mode: 'replace' | 'upsert'
+    accountName?: string
   }
 
   if (!rows || !dataType) {
@@ -271,6 +525,53 @@ async function handleCommit(request: NextRequest): Promise<NextResponse> {
 
   let imported = 0
   let errors = 0
+
+  // Transactions use ON CONFLICT DO NOTHING for dedup
+  if (dataType === 'transactions') {
+    // Add user_id to each row
+    const rowsWithUser = rows.map(r => ({ ...r, user_id: user.id }))
+
+    // Batch insert with dedup — insert in chunks of 500
+    const BATCH = 500
+    for (let i = 0; i < rowsWithUser.length; i += BATCH) {
+      const chunk = rowsWithUser.slice(i, i + BATCH)
+      const { data, error } = await service
+        .from('transactions')
+        .upsert(chunk, {
+          onConflict: 'user_id,transaction_date,merchant,amount,account_name',
+          ignoreDuplicates: true,
+        })
+        .select('id')
+
+      if (error) {
+        console.error('[import] Transaction batch error:', error)
+        errors += chunk.length
+      } else {
+        imported += data?.length ?? 0
+      }
+    }
+
+    // Also snapshot the import as a balance event if accountName provided
+    if (accountName) {
+      const totalSpend = rows
+        .filter(r => !r.is_credit)
+        .reduce((s, r) => s + (Number(r.amount) || 0), 0)
+      const totalCredits = rows
+        .filter(r => r.is_credit)
+        .reduce((s, r) => s + (Number(r.amount) || 0), 0)
+
+      await service.from('balance_snapshots').insert({
+        user_id: user.id,
+        account_name: accountName,
+        snapshot_date: new Date().toISOString().split('T')[0],
+        total_charges: totalSpend,
+        total_credits: totalCredits,
+        transaction_count: rows.length,
+      }).select()
+    }
+
+    return NextResponse.json({ imported, errors, dataType, mode: 'dedup', skipped: rows.length - imported - errors })
+  }
 
   if (mode === 'replace') {
     // Delete all existing rows first, then insert
