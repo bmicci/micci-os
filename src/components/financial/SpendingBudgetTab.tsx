@@ -1,6 +1,6 @@
 'use client'
 
-import type { SpendingCategory, BurnRateItem, WealthScenario, TaxSnapshot } from '@/lib/financial-data'
+import type { SpendingCategory, BurnRateItem, WealthScenario, TaxSnapshot, TransactionSummary } from '@/lib/financial-data'
 import { fmt, calcWealth } from '@/lib/financial-data'
 import KPICard from './KPICard'
 import SpendingDonut from './SpendingDonut'
@@ -10,29 +10,59 @@ import TaxSnapshotCard from './TaxSnapshotCard'
 import SpendTrendChart from './SpendTrendChart'
 import BalanceHistoryChart from './BalanceHistoryChart'
 
+function fmtShort(n: number): string {
+  if (n >= 1000) return '$' + (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'K'
+  return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 })
+}
+
 export default function SpendingBudgetTab({
   spendingCategories,
   burnRate,
   wealthScenarios,
   taxSnapshot,
+  transactionSummary,
 }: {
   spendingCategories: SpendingCategory[]
   burnRate: BurnRateItem[]
   wealthScenarios: WealthScenario[]
   taxSnapshot: TaxSnapshot
+  transactionSummary: TransactionSummary
 }) {
   const totalCurrent = burnRate.reduce((s, b) => s + b.current, 0)
   const totalSurvival = burnRate.reduce((s, b) => s + b.survival, 0)
   const monthlySaved = totalCurrent - totalSurvival
 
+  const ts = transactionSummary
+  const survivalTarget = 2500
+  const savingsTarget = Math.round(ts.monthlyAvg - survivalTarget)
+
   return (
     <div className="space-y-5">
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KPICard label="2025 CC Spend (full year)" value="$76,052" note="AmEx Gold + Plat + Chase 9313 · 1,615 txns" accent="red" />
-        <KPICard label="Monthly Average" value="$6,338/mo" note="Credit cards only — does not include ACH" accent="amber" />
-        <KPICard label="#1 Category" value="Food & Dining" note="$27,441 · 36% of total CC spend" />
-        <KPICard label="Monthly Savings Target" value="~$3,800/mo" note="Cards only: $6,338 → $2,500 survival" accent="green" />
+        <KPICard
+          label={ts.hasData ? 'Total CC Spend (imported)' : '2025 CC Spend (full year)'}
+          value={`$${ts.totalSpend.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+          note={`${ts.monthCount} month${ts.monthCount !== 1 ? 's' : ''} · ${ts.txnCount.toLocaleString()} txns${!ts.hasData ? ' (hardcoded)' : ''}`}
+          accent="red"
+        />
+        <KPICard
+          label="Monthly Average"
+          value={`$${ts.monthlyAvg.toLocaleString('en-US', { maximumFractionDigits: 0 })}/mo`}
+          note={ts.hasData ? 'From imported transactions' : 'Credit cards only — does not include ACH'}
+          accent="amber"
+        />
+        <KPICard
+          label="#1 Category"
+          value={ts.topCategory}
+          note={`${fmtShort(ts.topCategoryAmount)} · ${ts.topCategoryPct}% of total`}
+        />
+        <KPICard
+          label="Monthly Savings Target"
+          value={`~$${savingsTarget.toLocaleString()}/mo`}
+          note={`$${ts.monthlyAvg.toLocaleString('en-US', { maximumFractionDigits: 0 })} → $${survivalTarget.toLocaleString()} survival`}
+          accent="green"
+        />
       </div>
 
       {/* Spend Trend + Balance History (live from transactions table) */}
@@ -81,8 +111,8 @@ export default function SpendingBudgetTab({
               <tfoot>
                 <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)' }}>
                   <td className="py-3 px-3 text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>TOTAL (CC)</td>
-                  <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>$76,052</td>
-                  <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>$6,338</td>
+                  <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>${ts.totalSpend.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
+                  <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>${ts.monthlyAvg.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
                   <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>100%</td>
                   <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: '#22c55e' }}>~$2,500</td>
                 </tr>

@@ -8,16 +8,19 @@ import SubscriptionDonut from './SubscriptionDonut'
 export default function SubscriptionsTab({
   cancelSubs,
   reviewSubs,
+  keepSubs,
   essentialBills,
   topActions,
 }: {
   cancelSubs: Subscription[]
   reviewSubs: Subscription[]
+  keepSubs: Subscription[]
   essentialBills: EssentialBill[]
   topActions: TopAction[]
 }) {
   const cancelTotal = cancelSubs.reduce((s, c) => s + c.mo, 0)
   const reviewTotal = reviewSubs.reduce((s, r) => s + r.mo, 0)
+  const keepTotal = keepSubs.reduce((s, k) => s + k.mo, 0)
   const essentialTotal = essentialBills.reduce((s, b) => s + b.mo, 0)
 
   return (
@@ -27,8 +30,8 @@ export default function SubscriptionsTab({
         <KPICard label="Cancel Now (Monthly)" value={`$${cancelTotal.toFixed(2)}`} note={`${cancelSubs.length} services · $${(cancelTotal * 12).toFixed(0)}/yr`} accent="red" />
         <KPICard label="Under Review (Monthly)" value={`$${reviewTotal.toFixed(2)}`} note={`${reviewSubs.length} services · $${(reviewTotal * 12).toFixed(0)}/yr if all cut`} accent="amber" />
         <KPICard label="Conservative Savings" value={`$${(cancelTotal + reviewTotal * 0.5).toFixed(2)}/mo`} note="Cancels + 50% of reviews cut" accent="green" />
-        <KPICard label="Keep (Justified)" value="$36.29/mo" note="3 services — clear ROI" />
-        <KPICard label="Recurring Merchants Found" value="102" note="Appearing in 3+ months of 2025" />
+        <KPICard label="Keep (Justified)" value={`$${keepTotal.toFixed(2)}/mo`} note={`${keepSubs.length} service${keepSubs.length !== 1 ? 's' : ''} — clear ROI`} />
+        <KPICard label="Total Active Subs" value={`${cancelSubs.length + reviewSubs.length + keepSubs.length}`} note={`$${(cancelTotal + reviewTotal + keepTotal).toFixed(2)}/mo total`} />
       </div>
 
       {/* Cancel + Review Tables */}
@@ -139,7 +142,7 @@ export default function SubscriptionsTab({
           <h3 className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
             Subscription Spend Breakdown
           </h3>
-          <SubscriptionDonut cancelTotal={cancelTotal} reviewTotal={reviewTotal} keepTotal={36.29} />
+          <SubscriptionDonut cancelTotal={cancelTotal} reviewTotal={reviewTotal} keepTotal={keepTotal} />
         </div>
 
         <div className="glass-card p-5">

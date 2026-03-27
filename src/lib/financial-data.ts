@@ -118,6 +118,18 @@ export interface TaxSnapshot {
   caveat: string
 }
 
+export interface TransactionSummary {
+  totalSpend: number
+  monthlyAvg: number
+  txnCount: number
+  monthCount: number
+  topCategory: string
+  topCategoryAmount: number
+  topCategoryPct: number
+  byCategory: { category: string; total: number; pct: number }[]
+  hasData: boolean
+}
+
 export interface FinancialData {
   debts: DebtAccount[]
   modules: FinancialModule[]
@@ -129,11 +141,13 @@ export interface FinancialData {
   burnRate: BurnRateItem[]
   cancelSubs: Subscription[]
   reviewSubs: Subscription[]
+  keepSubs: Subscription[]
   essentialBills: EssentialBill[]
   helocAccounts: HELOCAccount[]
   wealthScenarios: WealthScenario[]
   topActions: TopAction[]
   taxSnapshot: TaxSnapshot
+  transactionSummary: TransactionSummary
 }
 
 // ── Data ───────────────────────────────────────────
@@ -461,6 +475,12 @@ export const CANCEL_SUBS: Subscription[] = [
   { name: 'Zips Car Wash Membership', mo: 33.38, reason: 'Cut now — use $5 self-serve wash' },
 ]
 
+export const KEEP_SUBS: Subscription[] = [
+  { name: 'Claude Pro (Anthropic)', mo: 20.00, reason: 'Essential for micci-os development + AI workflow' },
+  { name: 'ChatGPT Plus', mo: 20.00, reason: 'Daily use — research, writing, analysis' },
+  { name: 'iCloud+ 200GB', mo: 2.99, reason: 'Apple ecosystem backup — cheapest tier' },
+]
+
 export const REVIEW_SUBS: Subscription[] = [
   { name: 'Paddle.net (Unknown SaaS)', mo: 12.88, reason: '⚠️ UNIDENTIFIED — check email for Paddle receipts' },
   { name: 'Canva Pro', mo: 15.00, reason: 'Free tier is very capable — downgrade' },
@@ -581,10 +601,22 @@ export function getAllData(): FinancialData {
     burnRate: BURN_RATE,
     cancelSubs: CANCEL_SUBS,
     reviewSubs: REVIEW_SUBS,
+    keepSubs: KEEP_SUBS,
     essentialBills: ESSENTIAL_BILLS,
     helocAccounts: HELOC_ACCOUNTS,
     wealthScenarios: WEALTH_SCENARIOS,
     topActions: TOP_ACTIONS,
     taxSnapshot: TAX_SNAPSHOT,
+    transactionSummary: {
+      totalSpend: 76052,
+      monthlyAvg: 6338,
+      txnCount: 1615,
+      monthCount: 12,
+      topCategory: 'Food & Dining',
+      topCategoryAmount: 27441,
+      topCategoryPct: 36,
+      byCategory: [],
+      hasData: false, // false = hardcoded fallback
+    },
   }
 }

@@ -1,7 +1,7 @@
 'use client'
 
-import type { HELOCAccount } from '@/lib/financial-data'
-import { fmt } from '@/lib/financial-data'
+import type { HELOCAccount, DebtAccount } from '@/lib/financial-data'
+import { fmt, fmtK } from '@/lib/financial-data'
 import KPICard from './KPICard'
 import HELOCBarChart from './HELOCBarChart'
 
@@ -24,29 +24,39 @@ const decisionBadge = (d: string) => {
 
 const HELOC_RATE = 6.85
 const HELOC_LIMIT = 190000
-// Updated Mar 8: SoFi $56,075 + WF/Dad $21,420 + VFCU/Dad $18,600 + AmEx Plat $6,453 + AmEx Gold $6,263 + Nordstrom $653 = $109,464
-const IMMEDIATE_ROLL = 109464
 
-// Waterfall stages (updated with Mar 8 balances)
-const waterfallData = [
-  { label: 'HELOC Limit (Confirmed)', amount: 190000, color: '#22c55e' },
-  { label: '→ Immediate Roll (high-rate debt)', amount: -109464, color: '#ef4444' },
-  { label: '= Available After Roll', amount: 80536, color: '#3b82f6' },
-  { label: '→ Promo payoffs (as they expire)', amount: -51129, color: '#f59e0b' },
-  { label: '= Final Available Buffer', amount: 29407, color: '#22c55e' },
-]
+export default function HELOCPlanTab({ helocAccounts, debts }: { helocAccounts: HELOCAccount[]; debts: DebtAccount[] }) {
+  // Compute from live debt data
+  const rollDebts = debts.filter(d => d.decision === 'roll')
+  const immediateRoll = rollDebts.reduce((s, d) => s + d.balance, 0)
+  const rollMinPayments = rollDebts.reduce((s, d) => s + (d.min || 0), 0)
+  const promoDebts = debts.filter(d => d.decision === 'promo')
+  const promoTotal = promoDebts.reduce((s, d) => s + d.balance, 0)
 
-export default function HELOCPlanTab({ helocAccounts }: { helocAccounts: HELOCAccount[] }) {
+  const afterRoll = HELOC_LIMIT - immediateRoll
+  const monthlyHelocInterest = Math.round((immediateRoll * HELOC_RATE / 100) / 12)
+  const monthlyRelief = Math.round(rollMinPayments - monthlyHelocInterest)
+  const annualGain = monthlyRelief * 12
+  const finalBuffer = HELOC_LIMIT - immediateRoll - promoTotal
+
+  const waterfallData = [
+    { label: 'HELOC Limit (Confirmed)', amount: HELOC_LIMIT, color: '#22c55e' },
+    { label: '→ Immediate Roll (high-rate debt)', amount: -immediateRoll, color: '#ef4444' },
+    { label: '= Available After Roll', amount: afterRoll, color: '#3b82f6' },
+    { label: '→ Promo payoffs (as they expire)', amount: -promoTotal, color: '#f59e0b' },
+    { label: '= Final Available Buffer', amount: finalBuffer, color: '#22c55e' },
+  ]
+
   return (
     <div className="space-y-5">
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        <KPICard label="HELOC Limit (Confirmed)" value="$190,000" note="Texas Credit Union · 6.85% variable" accent="green" />
-        <KPICard label="Immediate Roll at Close" value="$109,464" note="High-rate accounts" />
-        <KPICard label="HELOC After Roll" value="$80,536" note="Available for promo payoffs" />
-        <KPICard label="Monthly HELOC Interest" value="$625" note="Interest-only on $109,464 at 6.85%" accent="red" />
-        <KPICard label="Monthly Payment Relief" value="$2,860" note="vs current payments on same accounts" accent="green" />
-        <KPICard label="Annual Cash Flow Gain" value="$34,323" note="Critical during income gap period" accent="green" />
+        <KPICard label="HELOC Limit (Confirmed)" value={fmtK(HELOC_LIMIT)} note={`${HELOC_RATE}% variable`} accent="green" />
+        <KPICard label="Immediate Roll at Close" value={fmtK(immediateRoll)} note={`${rollDebts.length} high-rate accounts`} />
+        <KPICard label="HELOC After Roll" value={fmtK(afterRoll)} note="Available for promo payoffs" />
+        <KPICard label="Monthly HELOC Interest" value={fmtK(monthlyHelocInterest)} note={`Interest-only on ${fmtK(immediateRoll)} @ ${HELOC_RATE}%`} accent="red" />
+        <KPICard label="Monthly Payment Relief" value={fmtK(monthlyRelief)} note={`${fmtK(rollMinPayments)} current → ${fmtK(monthlyHelocInterest)} HELOC`} accent="green" />
+        <KPICard label="Annual Cash Flow Gain" value={fmtK(annualGain)} note="Critical during income gap period" accent="green" />
       </div>
 
       {/* Decision Matrix + Chart */}

@@ -11,6 +11,7 @@ import {
   type FinancialModule,
   type Subscription,
   type EssentialBill,
+  type TransactionSummary,
   getAllData,
   MODULES,
   DEADLINES,
@@ -131,10 +132,11 @@ export async function getFinancialData(): Promise<FinancialData> {
   }
 
   try {
-    const [debtsRes, modulesRes, subsRes] = await Promise.all([
+    const [debtsRes, modulesRes, subsRes, txnRes] = await Promise.all([
       supabase.from('debt_accounts').select('*').order('balance', { ascending: true }),
       supabase.from('financial_modules').select('*'),
       supabase.from('subscriptions').select('*').eq('is_active', true),
+      supabase.from('transactions').select('transaction_date, amount, category, is_credit').eq('is_credit', false),
     ])
 
     const fallback = getAllData()
@@ -169,20 +171,67 @@ export async function getFinancialData(): Promise<FinancialData> {
         ? allSubs.filter(s => s.action === 'essential').map(mapToEssentialBill)
         : fallback.essentialBills
 
+    // Keep subs
+    const keepSubs: Subscription[] =
+      allSubs && allSubs.length > 0
+        ? allSubs.filter(s => s.action === 'keep').map(mapToSubscription)
+        : fallback.keepSubs
+
     // Spending categories — always hardcoded (Supabase has survival budgets only, not actuals)
     const spendingCategories = SPENDING_CATEGORIES
+
+    // Transaction summary — compute from Supabase if data exists
+    let transactionSummary: TransactionSummary = fallback.transactionSummary
+    const txnData = txnRes.data
+    if (txnData && txnData.length > 0) {
+      const totalSpend = txnData.reduce((s, t) => s + Number(t.amount), 0)
+      const months = new Set(txnData.map(t => String(t.transaction_date).slice(0, 7)))
+      const monthCount = months.size || 1
+      const monthlyAvg = totalSpend / monthCount
+
+      // Category totals
+      const catMap = new Map<string, number>()
+      for (const t of txnData) {
+        const cat = t.category || 'Other'
+        catMap.set(cat, (catMap.get(cat) || 0) + Number(t.amount))
+      }
+      const byCategory = Array.from(catMap.entries())
+        .map(([category, total]) => ({
+          category,
+          total: Math.round(total * 100) / 100,
+          pct: Math.round((total / totalSpend) * 100),
+        }))
+        .sort((a, b) => b.total - a.total)
+
+      const top = byCategory[0]
+
+      transactionSummary = {
+        totalSpend: Math.round(totalSpend * 100) / 100,
+        monthlyAvg: Math.round(monthlyAvg * 100) / 100,
+        txnCount: txnData.length,
+        monthCount,
+        topCategory: top?.category || 'Other',
+        topCategoryAmount: top?.total || 0,
+        topCategoryPct: top?.pct || 0,
+        byCategory,
+        hasData: true,
+      }
+    }
 
     if (debtsRes.error) console.warn('[financial-data-service] debt_accounts:', debtsRes.error.message)
     if (modulesRes.error) console.warn('[financial-data-service] financial_modules:', modulesRes.error.message)
     if (subsRes.error) console.warn('[financial-data-service] subscriptions:', subsRes.error.message)
+    if (txnRes.error) console.warn('[financial-data-service] transactions:', txnRes.error.message)
 
     return {
       debts,
       modules,
       cancelSubs,
       reviewSubs,
+      keepSubs,
       essentialBills,
       spendingCategories,
+      transactionSummary,
       // Hardcoded — no Supabase tables for these
       deadlines: DEADLINES,
       actionItems: ACTION_ITEMS,

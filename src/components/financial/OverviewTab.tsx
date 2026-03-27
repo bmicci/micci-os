@@ -23,6 +23,26 @@ export default function OverviewTab({ data }: { data: FinancialData }) {
   const totals = getDebtTotals(debts)
   const modCounts = getModuleCounts(modules)
 
+  // Compute HELOC-related KPIs from live debt data
+  const HELOC_RATE = 6.85
+  const HELOC_LIMIT = 190000
+
+  // Debts to roll = those with decision 'roll' (rate > HELOC rate)
+  const rollDebts = debts.filter(d => d.decision === 'roll')
+  const rollTotal = rollDebts.reduce((s, d) => s + d.balance, 0)
+  const rollMinPayments = rollDebts.reduce((s, d) => s + (d.min || 0), 0)
+
+  // HELOC interest on rolled amount
+  const helocMonthlyInterest = Math.round((rollTotal * HELOC_RATE / 100) / 12)
+  const monthlyRelief = Math.round(rollMinPayments - helocMonthlyInterest)
+  const helocAvailable = Math.round(HELOC_LIMIT - rollTotal)
+
+  // Mortgage — find it in debts
+  const mortgage = debts.find(d => d.category === 'Mortgage')
+  const mortgageNote = mortgage
+    ? `Mortgage: ${fmt(mortgage.balance)} @ ${mortgage.rate}%`
+    : 'Excl. mortgage'
+
   return (
     <div className="space-y-5">
       {/* KPI Strip */}
@@ -30,30 +50,30 @@ export default function OverviewTab({ data }: { data: FinancialData }) {
         <KPICard
           label="Total Debt (excl. mortgage)"
           value={fmtK(totals.total)}
-          note="Mortgage: $498,903 @ 3.375%"
+          note={mortgageNote}
           accent="red"
         />
         <KPICard
           label="Immediate HELOC Roll"
-          value="$110,630"
-          note="At close — high-rate accounts"
+          value={fmtK(rollTotal)}
+          note={`${rollDebts.length} high-rate accounts`}
         />
         <KPICard
           label="Monthly Payment Relief"
-          value="$2,860"
-          note="After HELOC replaces high-rate debt"
+          value={fmtK(monthlyRelief)}
+          note={`${fmtK(rollMinPayments)} current → ${fmtK(helocMonthlyInterest)} HELOC int.`}
           accent="green"
         />
         <KPICard
-          label="March Cash Buffer"
-          value="~$3,686"
-          note="After all March obligations"
+          label="HELOC Monthly Interest"
+          value={fmtK(helocMonthlyInterest)}
+          note={`Interest-only on ${fmtK(rollTotal)} @ ${HELOC_RATE}%`}
           accent="amber"
         />
         <KPICard
           label="HELOC Available"
-          value="$85,000"
-          note="After initial roll · covers all promos"
+          value={fmtK(helocAvailable)}
+          note={`$190K limit − ${fmtK(rollTotal)} rolled`}
         />
         <KPICard
           label="Modules Complete"
