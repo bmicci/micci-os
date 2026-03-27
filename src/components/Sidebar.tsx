@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/financial", label: "Financial", icon: "💰", exact: false },
   { href: "/goals", label: "Goals + Vision", icon: "🎯", exact: false },
   { href: "/planner", label: "Planner", icon: "📅", exact: false },
+  { href: "/job-search", label: "Job Search", icon: "🚀", exact: false },
   { href: "/tasks", label: "Tasks", icon: "✅", exact: false },
   { href: "/health", label: "Health", icon: "🏋️", exact: false },
   { href: "/import", label: "Import", icon: "📥", exact: false },

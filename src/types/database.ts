@@ -122,6 +122,83 @@ export interface DbScenario {
   updated_at: string
 }
 
+// ── Job Search ───────────────────────────────────────────────────
+
+export interface DbJobPipeline {
+  id: string
+  user_id?: string
+  company: string
+  role: string
+  status: 'active' | 'waiting' | 'rejected' | 'offer' | 'closed'
+  stage: string
+  contact: string | null
+  last_action: string | null
+  next_step: string | null
+  priority: 'high' | 'medium' | 'low'
+  notes: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface DbJobOutreach {
+  id: string
+  user_id?: string
+  date: string
+  target: string
+  outreach_type: 'cold' | 'warm' | 'referral'
+  method: string
+  status: 'planned' | 'sent' | 'responded' | 'no_response'
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface DbJobContent {
+  id: string
+  user_id?: string
+  week: number
+  day_label: string
+  content_type: 'post' | 'engage' | 'article'
+  topic: string
+  status: 'idea' | 'draft' | 'published' | 'ongoing'
+  notes: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface DbJobRecruiter {
+  id: string
+  user_id?: string
+  name: string
+  practice: string | null
+  status: 'to_contact' | 'cold' | 'warm' | 'engaged'
+  last_contact: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface DbJobWeeklyKpi {
+  id: string
+  user_id?: string
+  week_label: string
+  week_number: number
+  apps: number
+  outreach: number
+  posts: number
+  comments: number
+  interviews: number
+  target_apps: number
+  target_outreach: number
+  target_posts: number
+  target_comments: number
+  target_interviews: number
+  created_at: string
+  updated_at: string
+}
+
 // ── Planner ───────────────────────────────────────────────────────
 
 export interface DbScheduleBlock {
