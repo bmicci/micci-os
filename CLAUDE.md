@@ -210,10 +210,18 @@ Housing, Food, Transport, Health, Entertainment, Personal, Subscriptions, Debt S
 - **Mortgage:** BofA, $498,903 @ 3.375% fixed, payment $2,486.79/mo
 
 ### HELOC (CRITICAL — March 19 deadline)
-- Loan Depot, $190,000 limit @ 8.88% variable
+- Texas Credit Union, $190,000 limit @ 6.85% variable
 - **Must close before March 19** (employment verification required)
-- Rolling $66,667 of high-rate debt → saves ~$400/mo in interest
-- $123,333 remaining availability for 0% promo payoffs starting July 2026
+- Rolling ~$109K of high-rate debt → saves ~$2,800/mo in payments
+- Remaining availability for 0% promo payoffs starting July 2026
+
+### HELOC Architecture (dynamic)
+- HELOC data is derived from the live `debts` array — single source of truth
+- `financial-data.ts` exports: `deriveHelocAccounts()`, `computeHelocKPIs()`, `computeWaterfall()`
+- Constants `HELOC_LIMIT` (190K) and `HELOC_RATE` (6.85) are in `financial-data.ts`
+- `financial-data-service.ts` computes HELOC accounts/KPIs from Supabase debts (not hardcoded)
+- When debt balances change (reimport), all HELOC KPIs, decision matrix, waterfall, and charts auto-update
+- Document tracking: `docs/uploads/README.md` tracks all documents needed per module
 
 ### 2025 Tax estimate
 - W-2 Box 1: $160,667.19 | Federal withheld: $23,126.93

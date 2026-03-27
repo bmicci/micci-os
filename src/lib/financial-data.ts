@@ -131,6 +131,8 @@ export interface FinancialData {
   reviewSubs: Subscription[]
   essentialBills: EssentialBill[]
   helocAccounts: HELOCAccount[]
+  helocKPIs: HelocKPIs
+  waterfallData: WaterfallItem[]
   wealthScenarios: WealthScenario[]
   topActions: TopAction[]
   taxSnapshot: TaxSnapshot
@@ -542,6 +544,94 @@ export function calcWealth(pv: number, pmt: number, r: number, n: number): numbe
   return pv * Math.pow(1 + r, n) + pmt * (Math.pow(1 + r, n) - 1) / r
 }
 
+// ── HELOC Constants ──────────────────────────────────
+// Easy to update when terms change
+export const HELOC_LIMIT = 190_000
+export const HELOC_RATE = 6.85
+
+// ── HELOC Computation Engine ─────────────────────────
+// Derives everything from the live debts array — single source of truth
+
+export interface HelocKPIs {
+  limit: number
+  rate: number
+  immediateRoll: number
+  helocAfterRoll: number
+  monthlyHelocInterest: number
+  currentPaymentsOnRolled: number
+  monthlyRelief: number
+  annualGain: number
+  promoTotal: number
+  finalBuffer: number
+}
+
+export interface WaterfallItem {
+  label: string
+  amount: number
+  color: string
+}
+
+/** Derive HELOCAccount entries from the debts array — no separate hardcoded list needed */
+export function deriveHelocAccounts(debts: DebtAccount[]): HELOCAccount[] {
+  return debts
+    .filter(d => d.category !== 'Mortgage')
+    .map(d => ({
+      name: d.name,
+      balance: d.balance,
+      rate: d.rate,
+      moNow: d.min ?? d.balance * (d.rate / 100) / 12,
+      decision: d.decision,
+    }))
+    .sort((a, b) => {
+      // Sort: roll first (by balance desc), then keep, then promo
+      const order = { roll: 0, keep: 1, promo: 2 }
+      const diff = order[a.decision] - order[b.decision]
+      return diff !== 0 ? diff : b.balance - a.balance
+    })
+}
+
+/** Compute all HELOC KPIs from the debts array */
+export function computeHelocKPIs(debts: DebtAccount[]): HelocKPIs {
+  const nonMortgage = debts.filter(d => d.category !== 'Mortgage')
+
+  const rollAccounts = nonMortgage.filter(d => d.decision === 'roll')
+  const promoAccounts = nonMortgage.filter(d => d.decision === 'promo')
+
+  const immediateRoll = rollAccounts.reduce((s, d) => s + d.balance, 0)
+  const promoTotal = promoAccounts.reduce((s, d) => s + d.balance, 0)
+
+  const helocAfterRoll = HELOC_LIMIT - immediateRoll
+  const monthlyHelocInterest = immediateRoll * (HELOC_RATE / 100) / 12
+  const currentPaymentsOnRolled = rollAccounts.reduce((s, d) => s + (d.min ?? d.balance * (d.rate / 100) / 12), 0)
+  const monthlyRelief = currentPaymentsOnRolled - monthlyHelocInterest
+  const annualGain = monthlyRelief * 12
+  const finalBuffer = HELOC_LIMIT - immediateRoll - promoTotal
+
+  return {
+    limit: HELOC_LIMIT,
+    rate: HELOC_RATE,
+    immediateRoll,
+    helocAfterRoll,
+    monthlyHelocInterest,
+    currentPaymentsOnRolled,
+    monthlyRelief,
+    annualGain,
+    promoTotal,
+    finalBuffer,
+  }
+}
+
+/** Build waterfall chart data from live KPIs */
+export function computeWaterfall(kpis: HelocKPIs): WaterfallItem[] {
+  return [
+    { label: 'HELOC Limit (Confirmed)', amount: kpis.limit, color: '#22c55e' },
+    { label: '→ Immediate Roll (high-rate debt)', amount: -kpis.immediateRoll, color: '#ef4444' },
+    { label: '= Available After Roll', amount: kpis.helocAfterRoll, color: '#3b82f6' },
+    { label: '→ Promo payoffs (as they expire)', amount: -kpis.promoTotal, color: '#f59e0b' },
+    { label: '= Final Available Buffer', amount: kpis.finalBuffer, color: '#22c55e' },
+  ]
+}
+
 // ── Computed helpers ───────────────────────────────
 
 export function getDebtTotals(debts: DebtAccount[]) {
@@ -570,6 +660,10 @@ export function fmtK(n: number): string {
 }
 
 export function getAllData(): FinancialData {
+  const helocAccounts = deriveHelocAccounts(DEBTS)
+  const helocKPIs = computeHelocKPIs(DEBTS)
+  const waterfallData = computeWaterfall(helocKPIs)
+
   return {
     debts: DEBTS,
     modules: MODULES,
@@ -582,7 +676,9 @@ export function getAllData(): FinancialData {
     cancelSubs: CANCEL_SUBS,
     reviewSubs: REVIEW_SUBS,
     essentialBills: ESSENTIAL_BILLS,
-    helocAccounts: HELOC_ACCOUNTS,
+    helocAccounts,
+    helocKPIs,
+    waterfallData,
     wealthScenarios: WEALTH_SCENARIOS,
     topActions: TOP_ACTIONS,
     taxSnapshot: TAX_SNAPSHOT,

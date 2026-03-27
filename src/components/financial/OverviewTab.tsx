@@ -3,6 +3,10 @@ import { getDebtTotals, getModuleCounts, fmtK, fmt } from '@/lib/financial-data'
 import KPICard from './KPICard'
 import DebtDonut from './DebtDonut'
 
+function fmtRound(n: number): string {
+  return '$' + Math.round(n).toLocaleString('en-US')
+}
+
 // ── Priority dot colors ──
 const dotColor = {
   red: '#ef4444',
@@ -19,13 +23,13 @@ const statusStyle = {
 }
 
 export default function OverviewTab({ data }: { data: FinancialData }) {
-  const { debts, modules, deadlines, actionItems } = data
+  const { debts, modules, deadlines, actionItems, helocKPIs } = data
   const totals = getDebtTotals(debts)
   const modCounts = getModuleCounts(modules)
 
   return (
     <div className="space-y-5">
-      {/* KPI Strip */}
+      {/* KPI Strip — all derived from live data */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         <KPICard
           label="Total Debt (excl. mortgage)"
@@ -35,12 +39,12 @@ export default function OverviewTab({ data }: { data: FinancialData }) {
         />
         <KPICard
           label="Immediate HELOC Roll"
-          value="$110,630"
+          value={fmtRound(helocKPIs.immediateRoll)}
           note="At close — high-rate accounts"
         />
         <KPICard
           label="Monthly Payment Relief"
-          value="$2,860"
+          value={fmtRound(helocKPIs.monthlyRelief)}
           note="After HELOC replaces high-rate debt"
           accent="green"
         />
@@ -52,7 +56,7 @@ export default function OverviewTab({ data }: { data: FinancialData }) {
         />
         <KPICard
           label="HELOC Available"
-          value="$85,000"
+          value={fmtRound(helocKPIs.helocAfterRoll)}
           note="After initial roll · covers all promos"
         />
         <KPICard

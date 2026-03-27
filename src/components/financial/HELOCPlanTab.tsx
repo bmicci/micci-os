@@ -1,10 +1,12 @@
 'use client'
 
-import type { HELOCAccount } from '@/lib/financial-data'
-import { fmt } from '@/lib/financial-data'
+import type { HELOCAccount, HelocKPIs, WaterfallItem } from '@/lib/financial-data'
+import { fmt, HELOC_LIMIT, HELOC_RATE } from '@/lib/financial-data'
 import KPICard from './KPICard'
 import HELOCBarChart from './HELOCBarChart'
+import HELOCDrawdownTimeline from './HELOCDrawdownTimeline'
 
+// ── Decision badge ──────────────────────────────────
 const decisionBadge = (d: string) => {
   const map: Record<string, { bg: string; color: string; label: string }> = {
     roll: { bg: 'rgba(34,197,94,0.15)', color: '#22c55e', label: '✅ ROLL' },
@@ -22,42 +24,74 @@ const decisionBadge = (d: string) => {
   )
 }
 
-const HELOC_RATE = 6.85
-const HELOC_LIMIT = 190000
-// Updated Mar 8: SoFi $56,075 + WF/Dad $21,420 + VFCU/Dad $18,600 + AmEx Plat $6,453 + AmEx Gold $6,263 + Nordstrom $653 = $109,464
-const IMMEDIATE_ROLL = 109464
+// ── Format helpers ──────────────────────────────────
+function fmtRound(n: number): string {
+  return '$' + Math.round(n).toLocaleString('en-US')
+}
 
-// Waterfall stages (updated with Mar 8 balances)
-const waterfallData = [
-  { label: 'HELOC Limit (Confirmed)', amount: 190000, color: '#22c55e' },
-  { label: '→ Immediate Roll (high-rate debt)', amount: -109464, color: '#ef4444' },
-  { label: '= Available After Roll', amount: 80536, color: '#3b82f6' },
-  { label: '→ Promo payoffs (as they expire)', amount: -51129, color: '#f59e0b' },
-  { label: '= Final Available Buffer', amount: 29407, color: '#22c55e' },
-]
+function fmtK(n: number): string {
+  return n >= 1000 ? '$' + (n / 1000).toFixed(0) + 'K' : '$' + n.toFixed(0)
+}
 
-export default function HELOCPlanTab({ helocAccounts }: { helocAccounts: HELOCAccount[] }) {
+// ── Props ───────────────────────────────────────────
+interface HELOCPlanTabProps {
+  helocAccounts: HELOCAccount[]
+  helocKPIs: HelocKPIs
+  waterfallData: WaterfallItem[]
+}
+
+export default function HELOCPlanTab({ helocAccounts, helocKPIs, waterfallData }: HELOCPlanTabProps) {
+  const kpi = helocKPIs
+
   return (
     <div className="space-y-5">
-      {/* KPIs */}
+      {/* Dynamic KPIs — all derived from live debts */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        <KPICard label="HELOC Limit (Confirmed)" value="$190,000" note="Texas Credit Union · 6.85% variable" accent="green" />
-        <KPICard label="Immediate Roll at Close" value="$109,464" note="High-rate accounts" />
-        <KPICard label="HELOC After Roll" value="$80,536" note="Available for promo payoffs" />
-        <KPICard label="Monthly HELOC Interest" value="$625" note="Interest-only on $109,464 at 6.85%" accent="red" />
-        <KPICard label="Monthly Payment Relief" value="$2,860" note="vs current payments on same accounts" accent="green" />
-        <KPICard label="Annual Cash Flow Gain" value="$34,323" note="Critical during income gap period" accent="green" />
+        <KPICard
+          label="HELOC Limit (Confirmed)"
+          value={fmtRound(kpi.limit)}
+          note={`Texas Credit Union · ${kpi.rate}% variable`}
+          accent="green"
+        />
+        <KPICard
+          label="Immediate Roll at Close"
+          value={fmtRound(kpi.immediateRoll)}
+          note={`${helocAccounts.filter(a => a.decision === 'roll').length} high-rate accounts`}
+        />
+        <KPICard
+          label="HELOC After Roll"
+          value={fmtRound(kpi.helocAfterRoll)}
+          note="Available for promo payoffs"
+        />
+        <KPICard
+          label="Monthly HELOC Interest"
+          value={fmtRound(kpi.monthlyHelocInterest)}
+          note={`Interest-only on ${fmtK(kpi.immediateRoll)} at ${kpi.rate}%`}
+          accent="red"
+        />
+        <KPICard
+          label="Monthly Payment Relief"
+          value={fmtRound(kpi.monthlyRelief)}
+          note={`vs ${fmtRound(kpi.currentPaymentsOnRolled)}/mo current`}
+          accent="green"
+        />
+        <KPICard
+          label="Annual Cash Flow Gain"
+          value={fmtRound(kpi.annualGain)}
+          note="Critical during income gap period"
+          accent="green"
+        />
       </div>
 
-      {/* Decision Matrix + Chart */}
+      {/* Decision Matrix + Before/After Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{ alignItems: 'start' }}>
-        {/* Decision Matrix Table */}
+        {/* Decision Matrix Table — fully derived from debts */}
         <div className="glass-card p-5">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>
               Decision Matrix — Roll vs. Keep
             </h3>
-            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Cutoff: 6.85%</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Cutoff: {HELOC_RATE}%</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-[13px]" style={{ borderCollapse: 'collapse' }}>
@@ -106,20 +140,36 @@ export default function HELOCPlanTab({ helocAccounts }: { helocAccounts: HELOCAc
                   )
                 })}
               </tbody>
+              {/* Totals row */}
+              <tfoot>
+                <tr style={{ borderTop: '2px solid rgba(0,212,255,0.2)' }}>
+                  <td className="py-2.5 px-3 text-[12px] font-bold" style={{ color: 'var(--accent-cyan)' }}>
+                    TOTALS
+                  </td>
+                  <td className="py-2.5 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--accent-cyan)' }}>
+                    {fmtRound(helocAccounts.reduce((s, a) => s + a.balance, 0))}
+                  </td>
+                  <td className="py-2.5 px-3" />
+                  <td className="py-2.5 px-3 text-[12px] font-mono font-bold" style={{ color: '#22c55e' }}>
+                    +{fmtRound(kpi.monthlyRelief)}/mo
+                  </td>
+                  <td className="py-2.5 px-3" />
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
 
-        {/* Before vs After Chart */}
+        {/* Before vs After Chart — dynamic data */}
         <div className="glass-card p-5">
           <h3 className="text-[13px] font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
             Monthly Payment: Before vs. After HELOC
           </h3>
-          <HELOCBarChart />
+          <HELOCBarChart helocAccounts={helocAccounts} />
         </div>
       </div>
 
-      {/* Waterfall */}
+      {/* Waterfall — fully computed from debts */}
       <div className="glass-card p-5">
         <h3 className="text-[13px] font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
           HELOC Utilization — Waterfall Over Time
@@ -146,13 +196,31 @@ export default function HELOCPlanTab({ helocAccounts }: { helocAccounts: HELOCAc
                   className="w-[100px] text-right text-[12px] font-mono font-semibold shrink-0"
                   style={{ color: item.color }}
                 >
-                  {item.amount < 0 ? '−' : ''}{fmt(Math.abs(item.amount))}
+                  {item.amount < 0 ? '−' : ''}{fmtRound(Math.abs(item.amount))}
                 </div>
               </div>
             )
           })}
         </div>
+
+        {/* Buffer health indicator */}
+        <div
+          className="mt-4 p-3 rounded-lg text-[12px] font-semibold text-center"
+          style={{
+            background: kpi.finalBuffer > 0 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+            color: kpi.finalBuffer > 0 ? '#22c55e' : '#ef4444',
+            border: `1px solid ${kpi.finalBuffer > 0 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+          }}
+        >
+          {kpi.finalBuffer > 0
+            ? `✅ ${fmtRound(kpi.finalBuffer)} buffer remaining after all promos are paid`
+            : `⚠️ ${fmtRound(Math.abs(kpi.finalBuffer))} shortfall — need additional funds for promo payoffs`
+          }
+        </div>
       </div>
+
+      {/* HELOC Drawdown Timeline */}
+      <HELOCDrawdownTimeline helocKPIs={helocKPIs} />
     </div>
   )
 }

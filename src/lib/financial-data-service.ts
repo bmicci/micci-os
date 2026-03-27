@@ -12,13 +12,16 @@ import {
   type Subscription,
   type EssentialBill,
   getAllData,
+  deriveHelocAccounts,
+  computeHelocKPIs,
+  computeWaterfall,
+  HELOC_RATE,
   MODULES,
   DEADLINES,
   ACTION_ITEMS,
   PROMOS,
   BILLS,
   BURN_RATE,
-  HELOC_ACCOUNTS,
   WEALTH_SCENARIOS,
   TOP_ACTIONS,
   TAX_SNAPSHOT,
@@ -42,12 +45,14 @@ function mapAccountType(dbType: string): DebtAccount['category'] {
 function mapDecision(notes: string | null, rate: number): DebtAccount['decision'] {
   if (notes) {
     const lower = notes.toLowerCase()
+    // Explicit notes from spreadsheet take priority
     if (lower.includes('roll') || lower.includes('heloc')) return 'roll'
-    if (lower.includes('promo') || lower.includes('0%') || lower.includes('hold')) return 'promo'
+    if (lower.includes('keep') || lower.includes('do not roll')) return 'keep'
+    if (lower.includes('promo') || lower.includes('0%') || lower.includes('hold') || lower.includes('pay by')) return 'promo'
   }
-  // Fallback: rate-based logic
+  // Fallback: rate-based logic using HELOC_RATE constant
   if (rate === 0) return 'promo'
-  if (rate > 6.85) return 'roll'
+  if (rate > HELOC_RATE) return 'roll'
   return 'keep'
 }
 
@@ -172,6 +177,11 @@ export async function getFinancialData(): Promise<FinancialData> {
     // Spending categories — always hardcoded (Supabase has survival budgets only, not actuals)
     const spendingCategories = SPENDING_CATEGORIES
 
+    // Derive HELOC data from live debts — single source of truth
+    const helocAccounts = deriveHelocAccounts(debts)
+    const helocKPIs = computeHelocKPIs(debts)
+    const waterfallData = computeWaterfall(helocKPIs)
+
     if (debtsRes.error) console.warn('[financial-data-service] debt_accounts:', debtsRes.error.message)
     if (modulesRes.error) console.warn('[financial-data-service] financial_modules:', modulesRes.error.message)
     if (subsRes.error) console.warn('[financial-data-service] subscriptions:', subsRes.error.message)
@@ -183,13 +193,16 @@ export async function getFinancialData(): Promise<FinancialData> {
       reviewSubs,
       essentialBills,
       spendingCategories,
+      // Derived from debts — auto-updates when debts change
+      helocAccounts,
+      helocKPIs,
+      waterfallData,
       // Hardcoded — no Supabase tables for these
       deadlines: DEADLINES,
       actionItems: ACTION_ITEMS,
       promos: PROMOS,
       bills: BILLS,
       burnRate: BURN_RATE,
-      helocAccounts: HELOC_ACCOUNTS,
       wealthScenarios: WEALTH_SCENARIOS,
       topActions: TOP_ACTIONS,
       taxSnapshot: TAX_SNAPSHOT,
