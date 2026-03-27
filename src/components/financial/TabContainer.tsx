@@ -59,7 +59,7 @@ export default function TabContainer({ data }: { data: FinancialData }) {
       <div className="flex-1 p-4 sm:p-6 max-w-[1400px] mx-auto w-full">
         {activeTab === 'overview' && <OverviewTab data={data} />}
         {activeTab === 'runway' && <MarchRunwayTab bills={data.bills} />}
-        {activeTab === 'heloc' && <HELOCPlanTab helocAccounts={data.helocAccounts} debts={data.debts} />}
+        {activeTab === 'heloc' && <HELOCPlanTab debts={data.debts} />}
         {activeTab === 'debt' && <DebtTrackerTab debts={data.debts} />}
         {activeTab === 'promos' && <PromoDeadlinesTab promos={data.promos} />}
         {activeTab === 'playbook' && <ModulePlaybookTab modules={data.modules} />}

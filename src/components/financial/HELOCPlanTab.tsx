@@ -1,6 +1,6 @@
 'use client'
 
-import type { HELOCAccount, DebtAccount } from '@/lib/financial-data'
+import type { DebtAccount } from '@/lib/financial-data'
 import { fmt, fmtK } from '@/lib/financial-data'
 import KPICard from './KPICard'
 import HELOCBarChart from './HELOCBarChart'
@@ -25,19 +25,26 @@ const decisionBadge = (d: string) => {
 const HELOC_RATE = 6.85
 const HELOC_LIMIT = 190000
 
-export default function HELOCPlanTab({ helocAccounts, debts }: { helocAccounts: HELOCAccount[]; debts: DebtAccount[] }) {
+export default function HELOCPlanTab({ debts }: { debts: DebtAccount[] }) {
+  // Exclude mortgage from HELOC analysis
+  const nonMortgage = debts.filter(d => d.category !== 'Mortgage')
+
   // Compute from live debt data
-  const rollDebts = debts.filter(d => d.decision === 'roll')
+  const rollDebts = nonMortgage.filter(d => d.decision === 'roll')
   const immediateRoll = rollDebts.reduce((s, d) => s + d.balance, 0)
   const rollMinPayments = rollDebts.reduce((s, d) => s + (d.min || 0), 0)
-  const promoDebts = debts.filter(d => d.decision === 'promo')
+  const promoDebts = nonMortgage.filter(d => d.decision === 'promo')
   const promoTotal = promoDebts.reduce((s, d) => s + d.balance, 0)
+  const keepDebts = nonMortgage.filter(d => d.decision === 'keep')
 
   const afterRoll = HELOC_LIMIT - immediateRoll
   const monthlyHelocInterest = Math.round((immediateRoll * HELOC_RATE / 100) / 12)
   const monthlyRelief = Math.round(rollMinPayments - monthlyHelocInterest)
   const annualGain = monthlyRelief * 12
   const finalBuffer = HELOC_LIMIT - immediateRoll - promoTotal
+
+  // Build decision matrix rows from live debts (sorted: roll first, then keep, then promo)
+  const matrixRows = [...rollDebts, ...keepDebts, ...promoDebts]
 
   const waterfallData = [
     { label: 'HELOC Limit (Confirmed)', amount: HELOC_LIMIT, color: '#22c55e' },
@@ -85,14 +92,15 @@ export default function HELOCPlanTab({ helocAccounts, debts }: { helocAccounts: 
                 </tr>
               </thead>
               <tbody>
-                {helocAccounts.map((a, i) => {
+                {matrixRows.map((a, i) => {
+                  const moNow = a.min || 0
                   const moHeloc = a.balance * (HELOC_RATE / 100) / 12
-                  const save = a.moNow - moHeloc
+                  const save = moNow - moHeloc
                   return (
                     <tr
                       key={a.name}
                       className="transition-colors hover:bg-white/[0.03]"
-                      style={{ borderBottom: i < helocAccounts.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}
+                      style={{ borderBottom: i < matrixRows.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}
                     >
                       <td className="py-2 px-3 text-[12px]" style={{ color: 'var(--text-primary)' }}>
                         {a.name}
