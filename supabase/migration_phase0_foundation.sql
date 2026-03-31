@@ -156,7 +156,15 @@ ALTER TABLE financial_deadlines ENABLE ROW LEVEL SECURITY;
 ALTER TABLE paycheck_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE financial_scenarios ENABLE ROW LEVEL SECURITY;
 
--- Service role bypasses RLS — app uses service role key for now
--- When per-user auth is added, add policies here:
--- CREATE POLICY "Users own their own data" ON paycheck_settings
---   FOR ALL USING (auth.uid() = user_id);
+-- Policies: any authenticated user (single-user app)
+CREATE POLICY "Auth users manage financial_deadlines"
+  ON financial_deadlines FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
+CREATE POLICY "Auth users manage paycheck_settings"
+  ON paycheck_settings FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
+CREATE POLICY "Auth users manage financial_scenarios"
+  ON financial_scenarios FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);

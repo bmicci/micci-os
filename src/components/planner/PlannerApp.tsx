@@ -53,7 +53,7 @@ const URGENCY_COLORS = {
   low:      { bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.20)', badge: '#6b7280', text: '#9ca3af' },
 }
 
-// ── Supabase client (anon — RLS disabled) ──
+// ── Supabase client (anon — RLS requires authenticated session) ──
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL

@@ -14,5 +14,9 @@ CREATE TABLE IF NOT EXISTS schedule_blocks (
   updated_at   TIMESTAMPTZ DEFAULT now()
 );
 
--- Single-user app — disable RLS like schedule_completions
-ALTER TABLE schedule_blocks DISABLE ROW LEVEL SECURITY;
+-- RLS: authenticated users only
+ALTER TABLE schedule_blocks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Auth users manage schedule_blocks"
+  ON schedule_blocks FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);

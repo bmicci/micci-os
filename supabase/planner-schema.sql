@@ -8,6 +8,9 @@ CREATE TABLE IF NOT EXISTS schedule_completions (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Disable RLS so anon key can read/write without authentication.
--- This is intentional — single-user personal app, no sensitive data.
-ALTER TABLE schedule_completions DISABLE ROW LEVEL SECURITY;
+-- RLS: authenticated users only
+ALTER TABLE schedule_completions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Auth users manage schedule_completions"
+  ON schedule_completions FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
