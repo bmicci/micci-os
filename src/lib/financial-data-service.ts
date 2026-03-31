@@ -137,7 +137,11 @@ export async function getFinancialData(): Promise<FinancialData> {
 
   try {
     const [debtsRes, modulesRes, subsRes] = await Promise.all([
-      supabase.from('debt_accounts').select('*').order('balance', { ascending: true }),
+      supabase
+        .from('debt_accounts')
+        .select('*')
+        .gt('balance', 0)            // Exclude zero-balance junk rows (e.g. transaction data)
+        .order('balance', { ascending: true }),
       supabase.from('financial_modules').select('*'),
       supabase.from('subscriptions').select('*').eq('is_active', true),
     ])

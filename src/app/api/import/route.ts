@@ -256,9 +256,13 @@ function parseDebtRow(
       account_type = 'loan'
   }
 
+  // Reject rows with no balance — these are likely transaction descriptions, not debt accounts
+  const finalBalance = balance ?? 0
+  if (finalBalance <= 0) return null
+
   return {
     name,
-    balance: balance ?? 0,
+    balance: finalBalance,
     interest_rate: rate ?? 0,
     minimum_payment: minPayment,
     account_type,
