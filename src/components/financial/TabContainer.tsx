@@ -3,22 +3,22 @@
 import { useState, useRef, useEffect } from 'react'
 import type { FinancialData } from '@/lib/financial-data'
 import OverviewTab from './OverviewTab'
-import DebtTrackerTab from './DebtTrackerTab'
 import CashFlowTab from './CashFlowTab'
 import HELOCPlanTab from './HELOCPlanTab'
+import BudgetActualTab from './BudgetActualTab'
+import NetWorthTab from './NetWorthTab'
+import DebtPayoffTab from './DebtPayoffTab'
 import PromoDeadlinesTab from './PromoDeadlinesTab'
-import ModulePlaybookTab from './ModulePlaybookTab'
-import SpendingBudgetTab from './SpendingBudgetTab'
 import SubscriptionsTab from './SubscriptionsTab'
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: '⬡' },
-  { id: 'heloc', label: 'HELOC Plan', icon: '🏦' },
-  { id: 'debt', label: 'Debt Tracker', icon: '💳' },
   { id: 'cashflow', label: 'Cash Flow', icon: '📈' },
+  { id: 'budget', label: 'Budget vs Actual', icon: '📊' },
+  { id: 'networth', label: 'Net Worth', icon: '💰' },
+  { id: 'heloc', label: 'HELOC Plan', icon: '🏦' },
+  { id: 'debtpayoff', label: 'Debt Payoff', icon: '💳' },
   { id: 'promos', label: 'Promo Deadlines', icon: '⏰' },
-  { id: 'playbook', label: 'Module Playbook', icon: '📋' },
-  { id: 'spending', label: 'Spending & Budget', icon: '📊' },
   { id: 'subscriptions', label: 'Subscriptions', icon: '📦' },
 ] as const
 
@@ -99,17 +99,28 @@ export default function TabContainer({ data }: { data: FinancialData }) {
             waterfallData={data.waterfallData}
           />
         )}
-        {activeTab === 'debt' && <DebtTrackerTab debts={data.debts} />}
-        {activeTab === 'promos' && <PromoDeadlinesTab promos={data.promos} />}
-        {activeTab === 'playbook' && <ModulePlaybookTab modules={data.modules} />}
-        {activeTab === 'spending' && (
-          <SpendingBudgetTab
+        {activeTab === 'budget' && (
+          <BudgetActualTab
             spendingCategories={data.spendingCategories}
             burnRate={data.burnRate}
             wealthScenarios={data.wealthScenarios}
             taxSnapshot={data.taxSnapshot}
           />
         )}
+        {activeTab === 'networth' && (
+          <NetWorthTab
+            debts={data.debts}
+            helocKPIs={data.helocKPIs}
+          />
+        )}
+        {activeTab === 'debtpayoff' && (
+          <DebtPayoffTab
+            debts={data.debts}
+            helocKPIs={data.helocKPIs}
+            promos={data.promos}
+          />
+        )}
+        {activeTab === 'promos' && <PromoDeadlinesTab promos={data.promos} />}
         {activeTab === 'subscriptions' && (
           <SubscriptionsTab
             cancelSubs={data.cancelSubs}
