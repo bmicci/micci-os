@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import type { FinancialData } from '@/lib/financial-data'
 import OverviewTab from './OverviewTab'
 import DebtTrackerTab from './DebtTrackerTab'
-import MarchRunwayTab from './MarchRunwayTab'
+import CashFlowTab from './CashFlowTab'
 import HELOCPlanTab from './HELOCPlanTab'
 import PromoDeadlinesTab from './PromoDeadlinesTab'
 import ModulePlaybookTab from './ModulePlaybookTab'
@@ -15,7 +15,7 @@ const TABS = [
   { id: 'overview', label: 'Overview', icon: '⬡' },
   { id: 'heloc', label: 'HELOC Plan', icon: '🏦' },
   { id: 'debt', label: 'Debt Tracker', icon: '💳' },
-  { id: 'runway', label: 'March Runway', icon: '📅' },
+  { id: 'cashflow', label: 'Cash Flow', icon: '📈' },
   { id: 'promos', label: 'Promo Deadlines', icon: '⏰' },
   { id: 'playbook', label: 'Module Playbook', icon: '📋' },
   { id: 'spending', label: 'Spending & Budget', icon: '📊' },
@@ -84,7 +84,14 @@ export default function TabContainer({ data }: { data: FinancialData }) {
       {/* Tab content */}
       <div className="flex-1 p-3 sm:p-6 max-w-[1400px] mx-auto w-full">
         {activeTab === 'overview' && <OverviewTab data={data} />}
-        {activeTab === 'runway' && <MarchRunwayTab bills={data.bills} />}
+        {activeTab === 'cashflow' && (
+          <CashFlowTab
+            bills={data.bills}
+            promos={data.promos}
+            debts={data.debts}
+            helocKPIs={data.helocKPIs}
+          />
+        )}
         {activeTab === 'heloc' && (
           <HELOCPlanTab
             helocAccounts={data.helocAccounts}
