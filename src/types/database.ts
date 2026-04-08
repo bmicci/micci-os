@@ -199,6 +199,22 @@ export interface DbJobWeeklyKpi {
   updated_at: string
 }
 
+// ── Perks & Points ───────────────────────────────────────────────
+
+export interface DbPerkCredit {
+  id: string
+  card_name: 'platinum' | 'gold'
+  credit_name: string
+  amount: number
+  reset_period: 'monthly' | 'quarterly' | 'semi-annual' | 'annual'
+  period_start: string
+  period_end: string
+  used: boolean
+  used_amount: number
+  notes: string | null
+  updated_at: string
+}
+
 // ── Planner ───────────────────────────────────────────────────────
 
 export interface DbScheduleBlock {
