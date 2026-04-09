@@ -45,10 +45,7 @@ function inferStatus(
   // 0% promotional rate
   if (rate === 0) return 'promo_hold'
 
-  // The HELOC line itself — it's the vehicle, not debt to consolidate
-  if (n.includes('heloc') || n.includes('credit union of texas')) return 'keep'
-
-  // High-rate or standard debt → roll to HELOC
+  // High-rate or standard debt (including the HELOC balance itself) → rolled
   return 'rolled'
 }
 
