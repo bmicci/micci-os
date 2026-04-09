@@ -45,8 +45,8 @@ function inferStatus(
   // 0% promotional rate
   if (rate === 0) return 'promo_hold'
 
-  // The HELOC line itself — its balance IS the current draw
-  if (accountType === 'heloc') return 'rolled'
+  // The HELOC line itself, or any account explicitly marked as rolled in
+  if (accountType === 'heloc' || notesLower.includes('rolled in')) return 'rolled'
 
   // All other debts: still being paid separately, not yet moved to HELOC
   return 'keep'
