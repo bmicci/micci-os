@@ -45,8 +45,11 @@ function inferStatus(
   // 0% promotional rate
   if (rate === 0) return 'promo_hold'
 
-  // High-rate or standard debt (including the HELOC balance itself) → rolled
-  return 'rolled'
+  // The HELOC line itself — its balance IS the current draw
+  if (accountType === 'heloc') return 'rolled'
+
+  // All other debts: still being paid separately, not yet moved to HELOC
+  return 'keep'
 }
 
 async function fetchDebtAccounts(): Promise<HELOCDebtAccount[] | null> {
