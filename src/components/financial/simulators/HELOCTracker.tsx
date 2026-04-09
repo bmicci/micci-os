@@ -84,7 +84,9 @@ export default function HELOCTracker({ initialAccounts }: { initialAccounts?: HE
   const rolled = accounts.filter(a => a.status === 'rolled')
   const promoHold = accounts.filter(a => a.status === 'promo_hold')
   const deferred = accounts.filter(a => a.status === 'deferred')
-  const totalDraw = rolled.reduce((s, a) => s + a.currentBalance, 0)
+  // Total draw = the HELOC line's own balance (the vehicle), NOT the sum of rolled items
+  const helocLine = accounts.find(a => a.accountType === 'heloc')
+  const totalDraw = helocLine ? helocLine.currentBalance : rolled.reduce((s, a) => s + a.currentBalance, 0)
   const remaining = HELOC_LIMIT - totalDraw
   const monthlyInterest = (totalDraw * 0.0685) / 12
 
