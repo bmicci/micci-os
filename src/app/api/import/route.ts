@@ -423,6 +423,8 @@ async function handleParse(request: NextRequest): Promise<NextResponse> {
   const file = formData.get('file') as File | null
   const dataTypeHint = (formData.get('dataType') as string) || 'auto'
   const accountName = (formData.get('accountName') as string) || ''
+  // If mode is provided in FormData, auto-commit after parsing (single-step import)
+  const mode = (formData.get('mode') as string) || null
 
   if (!file) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -459,18 +461,44 @@ async function handleParse(request: NextRequest): Promise<NextResponse> {
     if (!accountName) {
       return NextResponse.json({ error: 'Account name is required for transaction imports' }, { status: 400 })
     }
-    const { rows: parsed, bankFormat } = parseTransactionRows(rawRows, headers, accountName)
-    return NextResponse.json({
-      detectedType: 'transactions',
+    const { rows: txParsed, bankFormat } = parseTransactionRows(rawRows, headers, accountName)
+    const baseResponse = {
+      detectedType: 'transactions' as const,
       headers,
       columnMap: { bankFormat },
-      rows: parsed,
+      rows: txParsed,
       sheetName,
       totalRaw: rawRows.length,
-      totalParsed: parsed.length,
+      totalParsed: txParsed.length,
       bankFormat,
       accountName,
-    })
+    }
+    // Auto-commit transactions if mode provided
+    if (mode === 'replace' || mode === 'upsert') {
+      try {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const service = await createServiceClient()
+          const rowsWithUser = txParsed.map(r => ({ ...r, user_id: user.id }))
+          let imported = 0, errors = 0
+          const BATCH = 500
+          for (let i = 0; i < rowsWithUser.length; i += BATCH) {
+            const chunk = rowsWithUser.slice(i, i + BATCH)
+            const { data, error } = await service
+              .from('transactions')
+              .upsert(chunk, { onConflict: 'user_id,transaction_date,merchant,amount,account_name', ignoreDuplicates: true })
+              .select('id')
+            if (error) errors += chunk.length
+            else imported += data?.length ?? 0
+          }
+          return NextResponse.json({ ...baseResponse, imported, errors, mode, committed: true })
+        }
+      } catch (commitErr) {
+        console.error('[import] Transaction auto-commit error:', commitErr)
+      }
+    }
+    return NextResponse.json(baseResponse)
   }
 
   const patterns =
@@ -491,7 +519,7 @@ async function handleParse(request: NextRequest): Promise<NextResponse> {
     if (result) parsed.push(result)
   }
 
-  return NextResponse.json({
+  const baseResponse = {
     detectedType,
     headers,
     columnMap: colMap,
@@ -499,7 +527,52 @@ async function handleParse(request: NextRequest): Promise<NextResponse> {
     sheetName,
     totalRaw: rawRows.length,
     totalParsed: parsed.length,
-  })
+  }
+
+  // Auto-commit if mode is provided in FormData (single-step import)
+  if (mode === 'replace' || mode === 'upsert') {
+    try {
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const service = await createServiceClient()
+        let imported = 0
+        let errors = 0
+        if (mode === 'replace') {
+          const { error: deleteError } = await service
+            .from(detectedType)
+            .delete()
+            .neq('id', '00000000-0000-0000-0000-000000000000')
+          if (!deleteError) {
+            const { data, error } = await service.from(detectedType).insert(parsed).select()
+            if (!error) {
+              imported = data?.length ?? parsed.length
+            } else {
+              console.error('[import] Auto-commit insert error:', error)
+              errors = parsed.length
+            }
+          } else {
+            console.error('[import] Auto-commit delete error:', deleteError)
+            errors = parsed.length
+          }
+        } else {
+          for (const row of parsed) {
+            const { error } = await service
+              .from(detectedType)
+              .upsert(row as Record<string, unknown>, { onConflict: 'name', ignoreDuplicates: false })
+            if (error) errors++
+            else imported++
+          }
+        }
+        return NextResponse.json({ ...baseResponse, imported, errors, mode, committed: true })
+      }
+    } catch (commitErr) {
+      console.error('[import] Auto-commit error:', commitErr)
+      // Fall through to preview-only response
+    }
+  }
+
+  return NextResponse.json(baseResponse)
 }
 
 // ── Commit handler ─────────────────────────────────────────────────────────

@@ -58,21 +58,28 @@ const SEED_ACCOUNTS: HELOCDebtAccount[] = [
   { id: '17', userId: '', accountName: 'Best Buy Promo 2', accountType: 'deferred_interest', originalBalance: 917.96, currentBalance: 917.96, interestRate: 29.99, monthlyPayment: 0, status: 'deferred', rollDate: null, promoExpiry: null, deferredExpiry: '2026-12-27', notes: '⚠ Pay before Dec 27 or owe deferred interest' },
 ]
 
-export default function HELOCTracker() {
+export default function HELOCTracker({ initialAccounts }: { initialAccounts?: HELOCDebtAccount[] }) {
   const store = useHELOCStore()
   const [tab, setTab] = useState<Tab>('overview')
   const [editId, setEditId] = useState<string | null>(null)
   const [editVal, setEditVal] = useState('')
 
-  // Use store accounts if hydrated, otherwise seed data
-  const accounts = store.accounts.length > 0 ? store.accounts : SEED_ACCOUNTS
-
-  // Ensure store is seeded if empty
+  // Hydrate store on first render:
+  // 1. Use server-fetched Supabase data if available (initialAccounts)
+  // 2. Fall back to SEED_ACCOUNTS if Supabase returned nothing
   useMemo(() => {
     if (!store.hydrated && store.accounts.length === 0) {
-      store.hydrate(SEED_ACCOUNTS)
+      const source =
+        initialAccounts && initialAccounts.length > 0 ? initialAccounts : SEED_ACCOUNTS
+      store.hydrate(source)
     }
-  }, [store])
+  }, [store, initialAccounts])
+
+  // Use store accounts (always populated after hydration above)
+  const accounts =
+    store.accounts.length > 0
+      ? store.accounts
+      : (initialAccounts && initialAccounts.length > 0 ? initialAccounts : SEED_ACCOUNTS)
 
   const rolled = accounts.filter(a => a.status === 'rolled')
   const promoHold = accounts.filter(a => a.status === 'promo_hold')
