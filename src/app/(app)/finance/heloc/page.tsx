@@ -5,6 +5,56 @@ import type { HELOCDebtAccount, AccountType } from '@/types/finance'
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'HELOC Tracker — Micci OS' }
 
+/**
+ * Bug 2 fix: Parse a deadline date out of the notes field.
+ * Handles formats like:
+ *   "DEADLINE 06/27/26", "exp 07/09/26", "expires 06/18/27",
+ *   "0% promo expires 07/22/2026", "expires Jun 18, 2027"
+ */
+function parseDeadlineFromNotes(
+  notes: string | null,
+  accountType: string | null,
+): { promoExpiry: string | null; deferredExpiry: string | null } {
+  if (!notes) return { promoExpiry: null, deferredExpiry: null }
+
+  let dateStr: string | null = null
+
+  // MM/DD/YY or MM/DD/YYYY
+  const slashMatch = notes.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/)
+  if (slashMatch) {
+    const [, m, d, y] = slashMatch
+    const year = y.length === 2 ? '20' + y : y
+    dateStr = `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+  }
+
+  // "Jun 18, 2027" or "June 18, 2027"
+  if (!dateStr) {
+    const monthMap: Record<string, string> = {
+      jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+      jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+    }
+    const monMatch = notes.match(
+      /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\.?\s+(\d{1,2}),?\s+(\d{4})\b/i,
+    )
+    if (monMatch) {
+      const mon = monthMap[monMatch[1].toLowerCase().slice(0, 3)]
+      if (mon) dateStr = `${monMatch[3]}-${mon}-${monMatch[2].padStart(2, '0')}`
+    }
+  }
+
+  if (!dateStr) return { promoExpiry: null, deferredExpiry: null }
+
+  // Deferred interest if account type is deferred_interest OR notes mention DEADLINE/deferred
+  const isDeferred =
+    accountType === 'deferred_interest' ||
+    /\bdeferred\b/i.test(notes) ||
+    /\bDEADLINE\b/.test(notes)
+
+  return isDeferred
+    ? { promoExpiry: null, deferredExpiry: dateStr }
+    : { promoExpiry: dateStr, deferredExpiry: null }
+}
+
 function mapAccountType(dbType: string | null): AccountType {
   const map: Record<string, AccountType> = {
     credit_card: 'credit_card',
@@ -74,7 +124,17 @@ async function fetchDebtAccounts(): Promise<HELOCDebtAccount[] | null> {
 
     return data.map((row, i) => {
       const balance = Number(row.balance ?? 0)
-      const rate = Number(row.interest_rate ?? 0)
+      // Bug 1 fix: Supabase stores rates as decimals (0.0685 = 6.85%).
+      // Multiply by 100 so the UI displays the correct percentage.
+      const rateDecimal = Number(row.interest_rate ?? 0)
+      const ratePercent = rateDecimal * 100
+
+      // Bug 2 fix: parse promoExpiry / deferredExpiry from the notes field.
+      const { promoExpiry, deferredExpiry } = parseDeadlineFromNotes(
+        row.notes ?? null,
+        row.account_type ?? null,
+      )
+
       return {
         id: row.id ?? String(i + 1),
         userId: '',
@@ -82,12 +142,12 @@ async function fetchDebtAccounts(): Promise<HELOCDebtAccount[] | null> {
         accountType: mapAccountType(row.account_type),
         originalBalance: balance,
         currentBalance: balance,
-        interestRate: rate,
+        interestRate: ratePercent,
         monthlyPayment: Number(row.minimum_payment ?? 0),
-        status: inferStatus(row.name, rate, balance, row.account_type, row.notes),
+        status: inferStatus(row.name, rateDecimal, balance, row.account_type, row.notes),
         rollDate: null,
-        promoExpiry: null,
-        deferredExpiry: null,
+        promoExpiry,
+        deferredExpiry,
         notes: row.notes ?? null,
       } satisfies HELOCDebtAccount
     })
