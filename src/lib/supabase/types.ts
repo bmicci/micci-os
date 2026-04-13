@@ -10,6 +10,12 @@ export type {
   DbPaycheckSettings,
   DbCashflowSettings,
   DbScenario,
+  DbBill,
+  DbBurnRateItem,
+  DbPromoDeadline,
+  DbTaxSnapshot,
+  DbWealthScenario,
+  DbFinancialSetting,
 } from '@/types/database'
 
 // ScheduleBlock alias for backward compatibility with planner components

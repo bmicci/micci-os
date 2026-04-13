@@ -154,9 +154,41 @@ function isTransactionCSV(headers: string[]): boolean {
   return hasDate && hasAmount && hasDesc
 }
 
-type DataType = 'debt_accounts' | 'subscriptions' | 'budget_categories' | 'transactions'
+type DataType = 'debt_accounts' | 'subscriptions' | 'budget_categories' | 'transactions' | 'tax_lots' | 'investment_transactions'
+
+// ── Investment CSV detection ──────────────────────────────────────────────
+
+function isTaxLotCSV(headers: string[]): boolean {
+  const hLower = headers.map(h => h.toLowerCase().trim())
+  // Chase tax lots have: Ticker, Quantity, Value, Cost, Acquisition Date, Tax term
+  const hasTicker = hLower.some(h => h === 'ticker')
+  const hasQuantity = hLower.some(h => h === 'quantity')
+  const hasCost = hLower.some(h => h === 'cost')
+  const hasAcqDate = hLower.some(h => h.includes('acquisition date'))
+  const hasTaxTerm = hLower.some(h => h.includes('tax term'))
+  const hasAssetClass = hLower.some(h => h.includes('asset class'))
+  // Need at least 4 of these signals
+  return [hasTicker, hasQuantity, hasCost, hasAcqDate, hasTaxTerm, hasAssetClass]
+    .filter(Boolean).length >= 4
+}
+
+function isInvestmentTransactionCSV(headers: string[]): boolean {
+  const hLower = headers.map(h => h.toLowerCase().trim())
+  // Chase investment transactions: Trade Date, Type (Buy/Sell/Dividend), Ticker, Amount USD, Tran Code
+  const hasTradeDate = hLower.some(h => h === 'trade date')
+  const hasTicker = hLower.some(h => h === 'ticker')
+  const hasTranCode = hLower.some(h => h.includes('tran code'))
+  const hasAmountUSD = hLower.some(h => h === 'amount usd')
+  const hasSecurityType = hLower.some(h => h === 'security type')
+  return [hasTradeDate, hasTicker, hasTranCode, hasAmountUSD, hasSecurityType]
+    .filter(Boolean).length >= 3
+}
 
 function detectDataType(headers: string[]): DataType {
+  // Check investment types FIRST (they also have date/amount/desc columns)
+  if (isTaxLotCSV(headers)) return 'tax_lots'
+  if (isInvestmentTransactionCSV(headers)) return 'investment_transactions'
+
   // Check for transaction CSV first (bank statements)
   if (isTransactionCSV(headers)) {
     const bankFmt = detectBankFormat(headers)
@@ -416,6 +448,175 @@ function parseTransactionRows(
   return { rows, bankFormat }
 }
 
+// ── Investment row parsers ─────────────────────────────────────────────────
+
+function parseDate(val: unknown): string | null {
+  if (val == null || val === '') return null
+  const s = String(val).trim()
+  // Handle "MM/DD/YYYY HH:MM:SS" or "MM/DD/YYYY"
+  const datePart = s.split(' ')[0]
+  const parts = datePart.split('/')
+  if (parts.length === 3) {
+    const [m, d, y] = parts
+    const year = y.length === 2 ? `20${y}` : y
+    return `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+  }
+  // Try ISO format
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10)
+  return null
+}
+
+function parseNum(val: unknown): number | null {
+  if (val == null || val === '') return null
+  const n = parseFloat(String(val).replace(/[$,%\s]/g, ''))
+  return isNaN(n) ? null : n
+}
+
+function findHeader(headers: string[], exact: string): string | undefined {
+  return headers.find(h => h.toLowerCase().trim() === exact.toLowerCase())
+}
+
+function findHeaderIncludes(headers: string[], pattern: string): string | undefined {
+  return headers.find(h => h.toLowerCase().trim().includes(pattern.toLowerCase()))
+}
+
+function parseTaxLotRows(
+  rawRows: Record<string, unknown>[],
+  headers: string[]
+): { rows: Record<string, unknown>[]; accountName: string; accountNumber: string } {
+  const colAccountName = findHeader(headers, 'Account name')
+  const colAccountNumber = findHeader(headers, 'Account number')
+  const colTicker = findHeader(headers, 'Ticker')
+  const colCusip = findHeader(headers, 'CUSIP')
+  const colDescription = findHeader(headers, 'Description')
+  const colAssetClass = findHeader(headers, 'Asset Class')
+  const colAssetStrategy = findHeader(headers, 'Asset Strategy')
+  const colQuantity = findHeader(headers, 'Quantity')
+  const colPrice = findHeader(headers, 'Price')
+  const colValue = findHeader(headers, 'Value')
+  const colCost = findHeader(headers, 'Cost')
+  const colOrigCost = findHeaderIncludes(headers, 'orig cost')
+  const colUnitCost = findHeader(headers, 'Unit Cost')
+  const colUnrealizedGL = findHeaderIncludes(headers, 'unrealized g/l amt')
+  const colUnrealizedGLPct = findHeaderIncludes(headers, 'unrealized gain/loss (%)')
+  const colAcqDate = findHeader(headers, 'Acquisition Date')
+  const colTaxTerm = findHeader(headers, 'Tax term')
+  const colDaysHeld = findHeader(headers, 'Days held')
+  const colDaysUntilLong = findHeader(headers, 'Days until long')
+  const colEstAnnualIncome = findHeader(headers, 'Est. Annual Income')
+  const colAccruedIncome = findHeader(headers, 'Accrued Income')
+  const colPricingDate = findHeader(headers, 'Pricing Date')
+  const colAsOf = findHeader(headers, 'As of')
+  const colCurrency = findHeader(headers, 'Base CCY')
+
+  let accountName = ''
+  let accountNumber = ''
+  const rows: Record<string, unknown>[] = []
+
+  for (const raw of rawRows) {
+    const ticker = colTicker ? String(raw[colTicker] ?? '').trim() : ''
+    if (!ticker) continue
+
+    if (!accountName && colAccountName) accountName = String(raw[colAccountName] ?? '').trim()
+    if (!accountNumber && colAccountNumber) accountNumber = String(raw[colAccountNumber] ?? '').trim()
+
+    rows.push({
+      account_name: colAccountName ? String(raw[colAccountName] ?? '').trim() : '',
+      account_number: colAccountNumber ? String(raw[colAccountNumber] ?? '').trim() : '',
+      ticker,
+      cusip: colCusip ? String(raw[colCusip] ?? '').trim() : null,
+      description: colDescription ? String(raw[colDescription] ?? '').trim() : null,
+      asset_class: colAssetClass ? String(raw[colAssetClass] ?? '').trim() : null,
+      asset_strategy: colAssetStrategy ? String(raw[colAssetStrategy] ?? '').trim() : null,
+      quantity: colQuantity ? parseNum(raw[colQuantity]) : 0,
+      price: colPrice ? parseNum(raw[colPrice]) : null,
+      value: colValue ? parseNum(raw[colValue]) : null,
+      cost: colCost ? parseNum(raw[colCost]) : null,
+      original_cost: colOrigCost ? parseNum(raw[colOrigCost]) : null,
+      unit_cost: colUnitCost ? parseNum(raw[colUnitCost]) : null,
+      unrealized_gl: colUnrealizedGL ? parseNum(raw[colUnrealizedGL]) : null,
+      unrealized_gl_pct: colUnrealizedGLPct ? parseNum(raw[colUnrealizedGLPct]) : null,
+      acquisition_date: colAcqDate ? parseDate(raw[colAcqDate]) : null,
+      tax_term: colTaxTerm ? String(raw[colTaxTerm] ?? '').trim() : null,
+      days_held: colDaysHeld ? parseNum(raw[colDaysHeld]) : null,
+      days_until_long: colDaysUntilLong ? parseNum(raw[colDaysUntilLong]) : null,
+      est_annual_income: colEstAnnualIncome ? parseNum(raw[colEstAnnualIncome]) : null,
+      accrued_income: colAccruedIncome ? parseNum(raw[colAccruedIncome]) : null,
+      pricing_date: colPricingDate ? parseDate(raw[colPricingDate]) : null,
+      as_of_date: colAsOf ? parseDate(raw[colAsOf]) : null,
+      currency: colCurrency ? String(raw[colCurrency] ?? 'USD').trim() : 'USD',
+    })
+  }
+
+  return { rows, accountName, accountNumber }
+}
+
+function parseInvestmentTransactionRows(
+  rawRows: Record<string, unknown>[],
+  headers: string[]
+): { rows: Record<string, unknown>[]; accountName: string; accountNumber: string } {
+  const colTradeDate = findHeader(headers, 'Trade Date')
+  const colPostDate = findHeader(headers, 'Post Date')
+  const colSettleDate = findHeader(headers, 'Settlement Date')
+  const colAccountName = findHeader(headers, 'Account Name')
+  const colAccountNumber = findHeader(headers, 'Account Number')
+  const colType = findHeader(headers, 'Type')
+  const colDescription = findHeader(headers, 'Description')
+  const colCusip = findHeader(headers, 'Cusip')
+  const colTicker = findHeader(headers, 'Ticker')
+  const colSecurityType = findHeader(headers, 'Security Type')
+  const colPriceUSD = findHeader(headers, 'Price USD')
+  const colQuantity = findHeader(headers, 'Quantity')
+  const colAmountUSD = findHeader(headers, 'Amount USD')
+  const colIncomeUSD = findHeader(headers, 'Income USD')
+  const colGLShort = findHeaderIncludes(headers, 'g/l short')
+  const colGLLong = findHeaderIncludes(headers, 'g/l long')
+  const colCommissions = findHeaderIncludes(headers, 'commissions')
+  const colTranCode = findHeader(headers, 'Tran Code')
+  const colTranCodeDesc = findHeaderIncludes(headers, 'tran code description')
+  const colTaxWithheld = findHeader(headers, 'Tax Withheld')
+
+  let accountName = ''
+  let accountNumber = ''
+  const rows: Record<string, unknown>[] = []
+
+  for (const raw of rawRows) {
+    const tradeDate = colTradeDate ? parseDate(raw[colTradeDate]) : null
+    if (!tradeDate) continue
+
+    if (!accountName && colAccountName) accountName = String(raw[colAccountName] ?? '').trim()
+    if (!accountNumber && colAccountNumber) accountNumber = String(raw[colAccountNumber] ?? '').trim()
+
+    const txnType = colType ? String(raw[colType] ?? '').trim() : 'Unknown'
+
+    rows.push({
+      account_name: colAccountName ? String(raw[colAccountName] ?? '').trim() : '',
+      account_number: colAccountNumber ? String(raw[colAccountNumber] ?? '').trim() : '',
+      trade_date: tradeDate,
+      post_date: colPostDate ? parseDate(raw[colPostDate]) : null,
+      settlement_date: colSettleDate ? parseDate(raw[colSettleDate]) : null,
+      transaction_type: txnType,
+      description: colDescription ? String(raw[colDescription] ?? '').trim() : null,
+      cusip: colCusip ? String(raw[colCusip] ?? '').trim() || null : null,
+      ticker: colTicker ? String(raw[colTicker] ?? '').trim() || null : null,
+      security_type: colSecurityType ? String(raw[colSecurityType] ?? '').trim() || null : null,
+      price: colPriceUSD ? parseNum(raw[colPriceUSD]) : null,
+      quantity: colQuantity ? parseNum(raw[colQuantity]) : null,
+      amount: colAmountUSD ? parseNum(raw[colAmountUSD]) : null,
+      income: colIncomeUSD ? parseNum(raw[colIncomeUSD]) : null,
+      gl_short: colGLShort ? parseNum(raw[colGLShort]) : null,
+      gl_long: colGLLong ? parseNum(raw[colGLLong]) : null,
+      commissions: colCommissions ? parseNum(raw[colCommissions]) : null,
+      tran_code: colTranCode ? String(raw[colTranCode] ?? '').trim() || null : null,
+      tran_code_description: colTranCodeDesc ? String(raw[colTranCodeDesc] ?? '').trim() || null : null,
+      tax_withheld: colTaxWithheld ? parseNum(raw[colTaxWithheld]) : null,
+      currency: 'USD',
+    })
+  }
+
+  return { rows, accountName, accountNumber }
+}
+
 // ── Parse handler ──────────────────────────────────────────────────────────
 
 async function handleParse(request: NextRequest): Promise<NextResponse> {
@@ -423,8 +624,6 @@ async function handleParse(request: NextRequest): Promise<NextResponse> {
   const file = formData.get('file') as File | null
   const dataTypeHint = (formData.get('dataType') as string) || 'auto'
   const accountName = (formData.get('accountName') as string) || ''
-  // If mode is provided in FormData, auto-commit after parsing (single-step import)
-  const mode = (formData.get('mode') as string) || null
 
   if (!file) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -461,44 +660,48 @@ async function handleParse(request: NextRequest): Promise<NextResponse> {
     if (!accountName) {
       return NextResponse.json({ error: 'Account name is required for transaction imports' }, { status: 400 })
     }
-    const { rows: txParsed, bankFormat } = parseTransactionRows(rawRows, headers, accountName)
-    const baseResponse = {
-      detectedType: 'transactions' as const,
+    const { rows: parsed, bankFormat } = parseTransactionRows(rawRows, headers, accountName)
+    return NextResponse.json({
+      detectedType: 'transactions',
       headers,
       columnMap: { bankFormat },
-      rows: txParsed,
+      rows: parsed,
       sheetName,
       totalRaw: rawRows.length,
-      totalParsed: txParsed.length,
+      totalParsed: parsed.length,
       bankFormat,
       accountName,
-    }
-    // Auto-commit transactions if mode provided
-    if (mode === 'replace' || mode === 'upsert') {
-      try {
-        const supabase = await createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          const service = await createServiceClient()
-          const rowsWithUser = txParsed.map(r => ({ ...r, user_id: user.id }))
-          let imported = 0, errors = 0
-          const BATCH = 500
-          for (let i = 0; i < rowsWithUser.length; i += BATCH) {
-            const chunk = rowsWithUser.slice(i, i + BATCH)
-            const { data, error } = await service
-              .from('transactions')
-              .upsert(chunk, { onConflict: 'user_id,transaction_date,merchant,amount,account_name', ignoreDuplicates: true })
-              .select('id')
-            if (error) errors += chunk.length
-            else imported += data?.length ?? 0
-          }
-          return NextResponse.json({ ...baseResponse, imported, errors, mode, committed: true })
-        }
-      } catch (commitErr) {
-        console.error('[import] Transaction auto-commit error:', commitErr)
-      }
-    }
-    return NextResponse.json(baseResponse)
+    })
+  }
+
+  // Handle investment tax lots
+  if (detectedType === 'tax_lots') {
+    const { rows: parsed, accountName: acctName, accountNumber: acctNum } = parseTaxLotRows(rawRows, headers)
+    return NextResponse.json({
+      detectedType: 'tax_lots',
+      headers,
+      rows: parsed,
+      sheetName,
+      totalRaw: rawRows.length,
+      totalParsed: parsed.length,
+      accountName: acctName,
+      accountNumber: acctNum,
+    })
+  }
+
+  // Handle investment transactions
+  if (detectedType === 'investment_transactions') {
+    const { rows: parsed, accountName: acctName, accountNumber: acctNum } = parseInvestmentTransactionRows(rawRows, headers)
+    return NextResponse.json({
+      detectedType: 'investment_transactions',
+      headers,
+      rows: parsed,
+      sheetName,
+      totalRaw: rawRows.length,
+      totalParsed: parsed.length,
+      accountName: acctName,
+      accountNumber: acctNum,
+    })
   }
 
   const patterns =
@@ -519,7 +722,7 @@ async function handleParse(request: NextRequest): Promise<NextResponse> {
     if (result) parsed.push(result)
   }
 
-  const baseResponse = {
+  return NextResponse.json({
     detectedType,
     headers,
     columnMap: colMap,
@@ -527,52 +730,7 @@ async function handleParse(request: NextRequest): Promise<NextResponse> {
     sheetName,
     totalRaw: rawRows.length,
     totalParsed: parsed.length,
-  }
-
-  // Auto-commit if mode is provided in FormData (single-step import)
-  if (mode === 'replace' || mode === 'upsert') {
-    try {
-      const supabase = await createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const service = await createServiceClient()
-        let imported = 0
-        let errors = 0
-        if (mode === 'replace') {
-          const { error: deleteError } = await service
-            .from(detectedType)
-            .delete()
-            .neq('id', '00000000-0000-0000-0000-000000000000')
-          if (!deleteError) {
-            const { data, error } = await service.from(detectedType).insert(parsed).select()
-            if (!error) {
-              imported = data?.length ?? parsed.length
-            } else {
-              console.error('[import] Auto-commit insert error:', error)
-              errors = parsed.length
-            }
-          } else {
-            console.error('[import] Auto-commit delete error:', deleteError)
-            errors = parsed.length
-          }
-        } else {
-          for (const row of parsed) {
-            const { error } = await service
-              .from(detectedType)
-              .upsert(row as Record<string, unknown>, { onConflict: 'name', ignoreDuplicates: false })
-            if (error) errors++
-            else imported++
-          }
-        }
-        return NextResponse.json({ ...baseResponse, imported, errors, mode, committed: true })
-      }
-    } catch (commitErr) {
-      console.error('[import] Auto-commit error:', commitErr)
-      // Fall through to preview-only response
-    }
-  }
-
-  return NextResponse.json(baseResponse)
+  })
 }
 
 // ── Commit handler ─────────────────────────────────────────────────────────
@@ -648,6 +806,123 @@ async function handleCommit(request: NextRequest): Promise<NextResponse> {
     }
 
     return NextResponse.json({ imported, errors, dataType, mode: 'dedup', skipped: rows.length - imported - errors })
+  }
+
+  // Investment tax lots: upsert with account auto-creation
+  if (dataType === 'tax_lots') {
+    const acctName = String(rows[0]?.account_name ?? '')
+    const acctNumber = String(rows[0]?.account_number ?? '')
+
+    // Upsert investment_account
+    const { data: acctData } = await service
+      .from('investment_accounts')
+      .upsert({
+        user_id: user.id,
+        account_name: acctName,
+        account_number: acctNumber,
+        account_type: 'Brokerage',
+        institution: 'Chase',
+        as_of_date: rows[0]?.as_of_date || new Date().toISOString().split('T')[0],
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,account_name,account_number' })
+      .select('id')
+      .single()
+
+    const accountId = acctData?.id || null
+
+    // Clear existing lots for this account and re-import (replace strategy)
+    if (accountId) {
+      await service.from('tax_lots').delete().eq('account_id', accountId)
+    }
+
+    const rowsWithUser = rows.map(r => ({
+      ...r,
+      user_id: user.id,
+      account_id: accountId,
+    }))
+
+    const BATCH = 100
+    for (let i = 0; i < rowsWithUser.length; i += BATCH) {
+      const chunk = rowsWithUser.slice(i, i + BATCH)
+      const { data, error } = await service
+        .from('tax_lots')
+        .upsert(chunk, {
+          onConflict: 'user_id,account_name,ticker,acquisition_date,quantity',
+          ignoreDuplicates: false,
+        })
+        .select('id')
+
+      if (error) {
+        console.error('[import] Tax lot batch error:', error)
+        errors += chunk.length
+      } else {
+        imported += data?.length ?? 0
+      }
+    }
+
+    // Update account totals
+    if (accountId) {
+      const totalValue = rows.reduce((s, r) => s + (Number(r.value) || 0), 0)
+      const totalCost = rows.reduce((s, r) => s + (Number(r.cost) || 0), 0)
+      const totalGL = rows.reduce((s, r) => s + (Number(r.unrealized_gl) || 0), 0)
+      await service.from('investment_accounts').update({
+        total_value: Math.round(totalValue * 100) / 100,
+        total_cost: Math.round(totalCost * 100) / 100,
+        unrealized_gl: Math.round(totalGL * 100) / 100,
+        updated_at: new Date().toISOString(),
+      }).eq('id', accountId)
+    }
+
+    return NextResponse.json({ imported, errors, dataType, mode: 'replace', accountId })
+  }
+
+  // Investment transactions: upsert with dedup
+  if (dataType === 'investment_transactions') {
+    const acctName = String(rows[0]?.account_name ?? '')
+    const acctNumber = String(rows[0]?.account_number ?? '')
+
+    // Upsert investment_account
+    const { data: acctData } = await service
+      .from('investment_accounts')
+      .upsert({
+        user_id: user.id,
+        account_name: acctName,
+        account_number: acctNumber,
+        account_type: 'Brokerage',
+        institution: 'Chase',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,account_name,account_number' })
+      .select('id')
+      .single()
+
+    const accountId = acctData?.id || null
+
+    const rowsWithUser = rows.map(r => ({
+      ...r,
+      user_id: user.id,
+      account_id: accountId,
+    }))
+
+    const BATCH = 100
+    for (let i = 0; i < rowsWithUser.length; i += BATCH) {
+      const chunk = rowsWithUser.slice(i, i + BATCH)
+      const { data, error } = await service
+        .from('investment_transactions')
+        .upsert(chunk, {
+          onConflict: 'user_id,account_name,trade_date,ticker,transaction_type,amount',
+          ignoreDuplicates: true,
+        })
+        .select('id')
+
+      if (error) {
+        console.error('[import] Investment txn batch error:', error)
+        errors += chunk.length
+      } else {
+        imported += data?.length ?? 0
+      }
+    }
+
+    return NextResponse.json({ imported, errors, dataType, mode: 'dedup', accountId, skipped: rows.length - imported - errors })
   }
 
   if (mode === 'replace') {

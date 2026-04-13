@@ -116,6 +116,129 @@ export interface TaxSnapshot {
   keyItems: string[]
   filingDeadline: string
   caveat: string
+  propertyTaxDetails: PropertyTaxDetail[]
+}
+
+export interface PropertyTaxDetail {
+  auth: string
+  amount: number
+  pct: number
+}
+
+export interface IncomeBridge {
+  liquidCash: number
+  marchPaychecks: number
+  severanceEstimate: number
+  familyBridge: number
+  consultingMonthlyNet: number
+  targetSalary: number
+  targetTotalComp: number
+  monthlyOutflow: number
+  newJobMonthlyNet: number
+}
+
+export interface SpendingSummary {
+  totalAnnualCC: number
+  totalMonthlyAvg: number
+  totalTransactions: number
+  topCategory: string
+  topCategoryAmount: number
+  topCategoryPct: number
+  survivalMonthly: number
+  cardsAnalyzed: string
+}
+
+export interface SubscriptionSummary {
+  totalRecurringMerchants: number
+  keepTotalMonthly: number
+  keepCount: number
+}
+
+export interface PropertyTaxConfig {
+  address: string
+  assessedValue: number
+  protestTarget: number
+  annualTotal: number
+  monthlyBudget: number
+  protestSavingsEstimate: number
+  protestDeadline: string
+  taxesPaid: boolean
+}
+
+export interface Assets {
+  home: number
+  retirement: number
+  brokerage: number
+  cash: number
+  vehicles: number
+}
+
+// ── Investment Types ──────────────────────────────
+
+export interface InvestmentAccount {
+  id: string
+  accountName: string
+  accountNumber: string
+  accountType: string
+  institution: string
+  totalValue: number
+  totalCost: number
+  unrealizedGL: number
+  asOfDate: string | null
+}
+
+export interface TaxLot {
+  id: string
+  ticker: string
+  cusip: string | null
+  description: string | null
+  assetClass: string | null
+  assetStrategy: string | null
+  quantity: number
+  price: number | null
+  value: number | null
+  cost: number | null
+  originalCost: number | null
+  unitCost: number | null
+  unrealizedGL: number | null
+  unrealizedGLPct: number | null
+  acquisitionDate: string | null
+  taxTerm: string | null
+  daysHeld: number | null
+  daysUntilLong: number | null
+  estAnnualIncome: number | null
+  asOfDate: string | null
+}
+
+export interface InvestmentTransaction {
+  id: string
+  tradeDate: string
+  postDate: string | null
+  settlementDate: string | null
+  transactionType: string
+  description: string | null
+  ticker: string | null
+  cusip: string | null
+  securityType: string | null
+  price: number | null
+  quantity: number | null
+  amount: number | null
+  income: number | null
+  glShort: number | null
+  glLong: number | null
+  tranCode: string | null
+}
+
+export interface InvestmentData {
+  accounts: InvestmentAccount[]
+  taxLots: TaxLot[]
+  transactions: InvestmentTransaction[]
+}
+
+export const EMPTY_INVESTMENT_DATA: InvestmentData = {
+  accounts: [],
+  taxLots: [],
+  transactions: [],
 }
 
 export interface FinancialData {
@@ -136,6 +259,12 @@ export interface FinancialData {
   wealthScenarios: WealthScenario[]
   topActions: TopAction[]
   taxSnapshot: TaxSnapshot
+  incomeBridge: IncomeBridge
+  spendingSummary: SpendingSummary
+  subscriptionSummary: SubscriptionSummary
+  propertyTax: PropertyTaxConfig
+  assets: Assets
+  investments: InvestmentData
 }
 
 // ── Data ───────────────────────────────────────────
@@ -530,6 +659,61 @@ export const TAX_SNAPSHOT: TaxSnapshot = {
   ],
   filingDeadline: 'Apr 15, 2026',
   caveat: 'Confirm HAF program impact on property tax deductibility with accountant before filing.',
+  propertyTaxDetails: [
+    { auth: 'Dallas ISD', amount: 6211.47, pct: 42.6 },
+    { auth: 'City of Dallas', amount: 4751.84, pct: 32.6 },
+    { auth: 'Dallas County', amount: 1465.40, pct: 10.0 },
+    { auth: 'Parkland Hospital', amount: 1441.60, pct: 9.9 },
+    { auth: 'Dallas College', amount: 724.71, pct: 5.0 },
+  ],
+}
+
+export const INCOME_BRIDGE: IncomeBridge = {
+  liquidCash: 8000,
+  marchPaychecks: 6250,
+  severanceEstimate: 25000,
+  familyBridge: 2000,
+  consultingMonthlyNet: 2500,
+  targetSalary: 240000,
+  targetTotalComp: 312000,
+  monthlyOutflow: 7234,
+  newJobMonthlyNet: 13670,
+}
+
+export const SPENDING_SUMMARY: SpendingSummary = {
+  totalAnnualCC: 76052,
+  totalMonthlyAvg: 6338,
+  totalTransactions: 1615,
+  topCategory: 'Food & Dining',
+  topCategoryAmount: 27441,
+  topCategoryPct: 36,
+  survivalMonthly: 2500,
+  cardsAnalyzed: 'AmEx Gold + Plat + Chase 9313',
+}
+
+export const SUBSCRIPTION_SUMMARY: SubscriptionSummary = {
+  totalRecurringMerchants: 102,
+  keepTotalMonthly: 36.29,
+  keepCount: 3,
+}
+
+export const PROPERTY_TAX: PropertyTaxConfig = {
+  address: '2214 N Carroll Ave, Dallas TX 75204',
+  assessedValue: 850000,
+  protestTarget: 750000,
+  annualTotal: 14595.02,
+  monthlyBudget: 1216.25,
+  protestSavingsEstimate: 1700,
+  protestDeadline: '2026-05-15',
+  taxesPaid: true,
+}
+
+export const ASSETS: Assets = {
+  home: 850000,
+  retirement: 180000,
+  brokerage: 25000,
+  cash: 8000,
+  vehicles: 35000,
 }
 
 export const TOP_ACTIONS: TopAction[] = [
@@ -682,5 +866,11 @@ export function getAllData(): FinancialData {
     wealthScenarios: WEALTH_SCENARIOS,
     topActions: TOP_ACTIONS,
     taxSnapshot: TAX_SNAPSHOT,
+    incomeBridge: INCOME_BRIDGE,
+    spendingSummary: SPENDING_SUMMARY,
+    subscriptionSummary: SUBSCRIPTION_SUMMARY,
+    propertyTax: PROPERTY_TAX,
+    assets: ASSETS,
+    investments: EMPTY_INVESTMENT_DATA,
   }
 }
