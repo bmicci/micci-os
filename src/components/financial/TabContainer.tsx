@@ -10,12 +10,14 @@ import NetWorthTab from './NetWorthTab'
 import DebtPayoffTab from './DebtPayoffTab'
 import PromoDeadlinesTab from './PromoDeadlinesTab'
 import SubscriptionsTab from './SubscriptionsTab'
+import InvestmentsTab from './InvestmentsTab'
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: '⬡' },
   { id: 'cashflow', label: 'Cash Flow', icon: '📈' },
   { id: 'budget', label: 'Budget vs Actual', icon: '📊' },
   { id: 'networth', label: 'Net Worth', icon: '💰' },
+  { id: 'investments', label: 'Investments', icon: '📈' },
   { id: 'heloc', label: 'HELOC Plan', icon: '🏦' },
   { id: 'debtpayoff', label: 'Debt Payoff', icon: '💳' },
   { id: 'promos', label: 'Promo Deadlines', icon: '⏰' },
@@ -90,7 +92,11 @@ export default function TabContainer({ data }: { data: FinancialData }) {
             promos={data.promos}
             debts={data.debts}
             helocKPIs={data.helocKPIs}
+            incomeBridge={data.incomeBridge}
           />
+        )}
+        {activeTab === 'investments' && (
+          <InvestmentsTab investments={data.investments} />
         )}
         {activeTab === 'heloc' && (
           <HELOCPlanTab
@@ -105,12 +111,14 @@ export default function TabContainer({ data }: { data: FinancialData }) {
             burnRate={data.burnRate}
             wealthScenarios={data.wealthScenarios}
             taxSnapshot={data.taxSnapshot}
+            incomeBridge={data.incomeBridge}
           />
         )}
         {activeTab === 'networth' && (
           <NetWorthTab
             debts={data.debts}
             helocKPIs={data.helocKPIs}
+            assets={data.assets}
           />
         )}
         {activeTab === 'debtpayoff' && (
@@ -120,13 +128,14 @@ export default function TabContainer({ data }: { data: FinancialData }) {
             promos={data.promos}
           />
         )}
-        {activeTab === 'promos' && <PromoDeadlinesTab promos={data.promos} />}
+        {activeTab === 'promos' && <PromoDeadlinesTab promos={data.promos} helocKPIs={data.helocKPIs} />}
         {activeTab === 'subscriptions' && (
           <SubscriptionsTab
             cancelSubs={data.cancelSubs}
             reviewSubs={data.reviewSubs}
             essentialBills={data.essentialBills}
             topActions={data.topActions}
+            subscriptionSummary={data.subscriptionSummary}
           />
         )}
       </div>

@@ -23,9 +23,20 @@ const statusStyle = {
 }
 
 export default function OverviewTab({ data }: { data: FinancialData }) {
-  const { debts, modules, deadlines, actionItems, helocKPIs } = data
+  const { debts, modules, deadlines, actionItems, helocKPIs, incomeBridge } = data
   const totals = getDebtTotals(debts)
   const modCounts = getModuleCounts(modules)
+
+  // Mortgage info from live debt data
+  const mortgage = debts.find(d => d.category === 'Mortgage')
+  const mortgageNote = mortgage
+    ? `Mortgage: ${fmtRound(mortgage.balance)} @ ${mortgage.rate}%`
+    : 'No mortgage found'
+
+  // Cash buffer computed from income bridge
+  const totalLiquid = incomeBridge.liquidCash + incomeBridge.marchPaychecks + incomeBridge.severanceEstimate + incomeBridge.familyBridge
+  const marchBillsEst = incomeBridge.monthlyOutflow
+  const cashBuffer = totalLiquid - marchBillsEst
 
   return (
     <div className="space-y-5">
@@ -34,7 +45,7 @@ export default function OverviewTab({ data }: { data: FinancialData }) {
         <KPICard
           label="Total Debt (excl. mortgage)"
           value={fmtK(totals.total)}
-          note="Mortgage: $498,903 @ 3.375%"
+          note={mortgageNote}
           accent="red"
         />
         <KPICard
@@ -49,9 +60,9 @@ export default function OverviewTab({ data }: { data: FinancialData }) {
           accent="green"
         />
         <KPICard
-          label="March Cash Buffer"
-          value="~$3,686"
-          note="After all March obligations"
+          label="Cash Buffer"
+          value={`~${fmtRound(cashBuffer)}`}
+          note="Liquid minus 1 month outflow"
           accent="amber"
         />
         <KPICard

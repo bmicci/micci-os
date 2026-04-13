@@ -79,6 +79,94 @@ export interface DbDeadline {
   updated_at: string
 }
 
+// ── Bills ────────────────────────────────────────────────────────
+
+export interface DbBill {
+  id: string
+  due_date: string
+  payee: string
+  amount: number
+  bill_type: string
+  status: 'autopay' | 'paid' | 'confirm' | 'manual' | 'recurring'
+  note: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+// ── Burn Rate ────────────────────────────────────────────────────
+
+export interface DbBurnRateItem {
+  id: string
+  label: string
+  current_amount: number
+  survival_amount: number
+  note: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+// ── Promo Deadlines ──────────────────────────────────────────────
+
+export interface DbPromoDeadline {
+  id: string
+  name: string
+  balance: number
+  expires: string
+  deferred_interest: number | null
+  account_name: string
+  note: string | null
+  status: 'active' | 'paid' | 'expired'
+  created_at: string
+  updated_at: string
+}
+
+// ── Tax Snapshots ────────────────────────────────────────────────
+
+export interface DbTaxSnapshot {
+  id: string
+  tax_year: number
+  w2_income: number
+  federal_withheld: number
+  filing_status: string
+  state: string
+  scenario_a_label: string
+  scenario_a_owed: number
+  scenario_a_note: string | null
+  scenario_b_label: string
+  scenario_b_owed: number
+  scenario_b_note: string | null
+  key_items: string[]
+  filing_deadline: string
+  caveat: string | null
+  property_tax_details: { auth: string; amount: number; pct: number }[] | null
+  created_at: string
+  updated_at: string
+}
+
+// ── Wealth Scenarios ─────────────────────────────────────────────
+
+export interface DbWealthScenario {
+  id: string
+  name: string
+  annual_savings: number
+  return_rate: number
+  color: string
+  label: string | null
+  sort_order: number
+  created_at: string
+}
+
+// ── Financial Settings (JSONB catch-all) ─────────────────────────
+
+export interface DbFinancialSetting {
+  id: string
+  key: string
+  value: unknown
+  updated_at: string
+}
+
 // ── Simulator (Phase 1) ──────────────────────────────────────────
 
 export interface DbPaycheckSettings {

@@ -1,6 +1,6 @@
 'use client'
 
-import type { PromoDeadline } from '@/lib/financial-data'
+import type { PromoDeadline, HelocKPIs } from '@/lib/financial-data'
 import { fmt } from '@/lib/financial-data'
 
 function daysUntil(dateStr: string): number {
@@ -12,7 +12,7 @@ function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function PromoDeadlinesTab({ promos }: { promos: PromoDeadline[] }) {
+export default function PromoDeadlinesTab({ promos, helocKPIs }: { promos: PromoDeadline[]; helocKPIs: HelocKPIs }) {
   const sorted = [...promos].sort((a, b) => new Date(a.expires).getTime() - new Date(b.expires).getTime())
   const totalPromo = promos.reduce((s, p) => s + p.balance, 0)
 
@@ -27,7 +27,7 @@ export default function PromoDeadlinesTab({ promos }: { promos: PromoDeadline[] 
         <span style={{ color: 'var(--text-secondary)' }}>
           All 0% promo balances are safe as long as they're paid from HELOC BEFORE expiry.
           Total promo balance: <strong style={{ color: 'var(--text-primary)' }}>{fmt(totalPromo)}</strong> across {promos.length} accounts.
-          HELOC has <strong style={{ color: 'var(--text-primary)' }}>$79,370</strong> available after initial roll — more than enough to cover all promos.
+          HELOC has <strong style={{ color: 'var(--text-primary)' }}>{fmt(helocKPIs.finalBuffer)}</strong> available after initial roll — {helocKPIs.finalBuffer >= totalPromo ? 'more than enough to cover all promos' : 'may need additional funds for full coverage'}.
         </span>
       </div>
 

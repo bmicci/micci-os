@@ -15,41 +15,32 @@ import {
   PieChart,
   Pie,
 } from 'recharts'
-import type { DebtAccount, HelocKPIs } from '@/lib/financial-data'
+import type { DebtAccount, HelocKPIs, Assets } from '@/lib/financial-data'
 import { fmt, fmtK } from '@/lib/financial-data'
 import KPICard from './KPICard'
-
-// ── Hardcoded Assets ──────────────────────────────────
-const ASSETS = {
-  home: 850000,
-  retirement: 180000,
-  brokerage: 25000,
-  cash: 8000,
-  vehicles: 35000,
-}
-
-const TOTAL_ASSETS = Object.values(ASSETS).reduce((a, b) => a + b, 0)
 
 // ── Props ────────────────────────────────────────────
 interface NetWorthTabProps {
   debts: DebtAccount[]
   helocKPIs: HelocKPIs
+  assets: Assets
 }
 
 // ── Helpers ──────────────────────────────────────────
-function calculateNetWorthData(debts: DebtAccount[]) {
+function calculateNetWorthData(debts: DebtAccount[], assets: Assets) {
+  const totalAssets = Object.values(assets).reduce((a, b) => a + b, 0)
   const totalLiabilities = debts.reduce((sum, d) => sum + d.balance, 0)
-  const netWorth = TOTAL_ASSETS - totalLiabilities
+  const netWorth = totalAssets - totalLiabilities
   const mortgageDebt = debts.find(d => d.category === 'Mortgage')?.balance ?? 0
   const nonMortgageDebt = totalLiabilities - mortgageDebt
-  const homeEquity = ASSETS.home - mortgageDebt
-  const homeEquityPct = (homeEquity / ASSETS.home) * 100
+  const homeEquity = assets.home - mortgageDebt
+  const homeEquityPct = assets.home > 0 ? (homeEquity / assets.home) * 100 : 0
 
   return {
-    totalAssets: TOTAL_ASSETS,
+    totalAssets,
     totalLiabilities,
     netWorth,
-    debtToAssetRatio: (totalLiabilities / TOTAL_ASSETS) * 100,
+    debtToAssetRatio: totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0,
     homeEquity,
     homeEquityPct,
     nonMortgageDebt,
@@ -90,8 +81,8 @@ function getDebtByCategory(debts: DebtAccount[]) {
   }))
 }
 
-export default function NetWorthTab({ debts, helocKPIs }: NetWorthTabProps) {
-  const nwData = useMemo(() => calculateNetWorthData(debts), [debts])
+export default function NetWorthTab({ debts, helocKPIs, assets }: NetWorthTabProps) {
+  const nwData = useMemo(() => calculateNetWorthData(debts, assets), [debts, assets])
   const projectionData = useMemo(() => generateNetWorthProjection(nwData.netWorth), [nwData.netWorth])
   const debtByCategory = useMemo(() => getDebtByCategory(debts), [debts])
 
@@ -214,11 +205,11 @@ export default function NetWorthTab({ debts, helocKPIs }: NetWorthTabProps) {
           </h3>
           <div className="space-y-0">
             {[
-              { name: 'Home (2214 N Carroll)', value: ASSETS.home, color: '#00d4ff' },
-              { name: '401(k) / Retirement', value: ASSETS.retirement, color: '#8b5cf6' },
-              { name: 'Brokerage Account', value: ASSETS.brokerage, color: '#14b8a6' },
-              { name: 'Cash / Checking', value: ASSETS.cash, color: '#3b82f6' },
-              { name: 'Vehicles', value: ASSETS.vehicles, color: '#06b6d4' },
+              { name: 'Home (2214 N Carroll)', value: assets.home, color: '#00d4ff' },
+              { name: '401(k) / Retirement', value: assets.retirement, color: '#8b5cf6' },
+              { name: 'Brokerage Account', value: assets.brokerage, color: '#14b8a6' },
+              { name: 'Cash / Checking', value: assets.cash, color: '#3b82f6' },
+              { name: 'Vehicles', value: assets.vehicles, color: '#06b6d4' },
             ].map((asset, i) => (
               <div
                 key={i}
@@ -457,7 +448,7 @@ export default function NetWorthTab({ debts, helocKPIs }: NetWorthTabProps) {
               {fmtK(nwData.mortgageDebt)}
             </div>
             <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              vs. {fmtK(ASSETS.home)} home value
+              vs. {fmtK(assets.home)} home value
             </div>
           </div>
 
@@ -484,7 +475,7 @@ export default function NetWorthTab({ debts, helocKPIs }: NetWorthTabProps) {
               Liquid Assets
             </div>
             <div className="text-[16px] font-bold font-mono mt-1" style={{ color: '#22c55e' }}>
-              {fmtK(ASSETS.cash + ASSETS.brokerage)}
+              {fmtK(assets.cash + assets.brokerage)}
             </div>
             <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
               Cash + brokerage

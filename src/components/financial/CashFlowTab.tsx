@@ -34,15 +34,18 @@ interface CashFlowTabProps {
   promos: PromoDeadline[]
   debts: DebtAccount[]
   helocKPIs: HelocKPIs
+  incomeBridge: { targetSalary: number; newJobMonthlyNet: number; monthlyOutflow: number }
 }
 
-export default function CashFlowTab({ bills, promos, debts, helocKPIs }: CashFlowTabProps) {
+export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBridge }: CashFlowTabProps) {
   // ── Derive inputs from live data ──
   const cashFlowData = useMemo(() => {
-    // Income: semi-monthly $153,400/yr gross → ~$4,652 net per period (24 periods)
-    const grossAnnual = 153400
-    const netPayPerPeriod = 4652
+    // Income: semi-monthly gross → net per period (24 periods)
+    const grossAnnual = incomeBridge.targetSalary > 0 ? incomeBridge.targetSalary : 153400
     const payFrequency = 24 // semi-monthly
+    const netPayPerPeriod = incomeBridge.newJobMonthlyNet > 0
+      ? Math.round(incomeBridge.newJobMonthlyNet * 12 / payFrequency)
+      : Math.round(grossAnnual * 0.73 / payFrequency) // ~73% take-home estimate
 
     // HELOC monthly interest from live KPIs
     const helocMonthlyInterest = helocKPIs.monthlyHelocInterest
@@ -88,10 +91,10 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs }: CashFlo
       scheduledEvents,
     })
 
-    return { monthlyFlow, projections, inputs }
-  }, [debts, promos, helocKPIs])
+    return { monthlyFlow, projections, inputs, grossAnnual }
+  }, [debts, promos, helocKPIs, incomeBridge])
 
-  const { monthlyFlow, projections } = cashFlowData
+  const { monthlyFlow, projections, grossAnnual } = cashFlowData
 
   // ── Upcoming bills (next 30 days) ──
   const upcomingBills = useMemo(() => {
@@ -116,7 +119,7 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs }: CashFlo
         <KPICard
           label="Monthly Income"
           value={fmtRound(monthlyFlow.totalIncome)}
-          note="Semi-monthly · $153.4K/yr"
+          note={`Semi-monthly · ${fmtK(grossAnnual)}/yr`}
           accent="green"
         />
         <KPICard
