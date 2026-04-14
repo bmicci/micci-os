@@ -303,3 +303,19 @@ export interface DbScheduleBlock {
   created_at: string
   updated_at: string
 }
+
+// ── Perks & Points ────────────────────────────────────────────────
+
+export interface DbPerkCredit {
+  id: string
+  card_name: string
+  credit_name: string
+  amount: number
+  reset_period: 'monthly' | 'quarterly' | 'annual' | 'one_time'
+  period_start: string
+  period_end: string
+  used: boolean
+  used_amount: number
+  notes: string | null
+  updated_at: string
+}
