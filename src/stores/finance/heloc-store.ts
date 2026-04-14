@@ -30,7 +30,9 @@ function computeDerived(accounts: HELOCDebtAccount[], rate: number, limit: numbe
   const promoAccounts = accounts.filter(a => a.status === 'promo_hold')
   const deferredAccounts = accounts.filter(a => a.status === 'deferred')
 
-  const totalDrawn = rolledAccounts.reduce((s, a) => s + a.currentBalance, 0)
+  // Total draw = HELOC line balance (the vehicle), not sum of rolled items
+  const helocLine = accounts.find(a => a.accountType === 'heloc')
+  const totalDrawn = helocLine ? helocLine.currentBalance : rolledAccounts.reduce((s, a) => s + a.currentBalance, 0)
   const monthlyInterest = calculateMonthlyInterest(totalDrawn, rate)
   const monthlyPromoMinimums = promoAccounts.reduce((s, a) => s + a.monthlyPayment, 0)
   const monthlyDeferredPayments = deferredAccounts.reduce((s, a) => s + a.monthlyPayment, 0)

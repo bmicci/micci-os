@@ -18,7 +18,7 @@ const STATUS_COLORS: Record<HELOCDebtAccount['status'], { bg: string; text: stri
   promo_hold: { bg: 'rgba(251,191,36,0.15)', text: '#fbbf24', label: '0% Promo' },
   deferred: { bg: 'rgba(239,68,68,0.15)', text: '#ef4444', label: 'Deferred ⚠' },
   keep: { bg: 'rgba(96,165,250,0.15)', text: '#60a5fa', label: 'Keep' },
-  paid_off: { bg: 'rgba(100,100,100,0.15)', text: '#6b7280', label: 'Paid Off' },
+  paid_off: { bg: 'rgba(100,100,100,0.15)', text: '#6b7280', label: 'Paid Off via HELOC' },
 }
 
 type Tab = 'overview' | 'timeline' | 'deadlines' | 'savings'
@@ -58,31 +58,153 @@ const SEED_ACCOUNTS: HELOCDebtAccount[] = [
   { id: '17', userId: '', accountName: 'Best Buy Promo 2', accountType: 'deferred_interest', originalBalance: 917.96, currentBalance: 917.96, interestRate: 29.99, monthlyPayment: 0, status: 'deferred', rollDate: null, promoExpiry: null, deferredExpiry: '2026-12-27', notes: '⚠ Pay before Dec 27 or owe deferred interest' },
 ]
 
-export default function HELOCTracker() {
+// ── Bug 4: Historical accounts paid off via the initial HELOC draw ──────────
+// These are permanently paid-off and won't appear in the debt_accounts table,
+// so we hardcode them here for display and cash-flow-relief calculations.
+const HISTORICAL_PAID_OFF_VIA_HELOC: HELOCDebtAccount[] = [
+  {
+    id: 'hist-1', userId: '', accountName: 'SoFi Personal Loan',
+    accountType: 'personal_loan', originalBalance: 57813, currentBalance: 0,
+    interestRate: 12.41, monthlyPayment: 1464,
+    status: 'paid_off', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null,
+    notes: 'Paid off via HELOC draw Mar 2026',
+  },
+  {
+    id: 'hist-2', userId: '', accountName: 'LightStream Auto Loan',
+    accountType: 'auto_loan', originalBalance: 44463, currentBalance: 0,
+    interestRate: 5.87, monthlyPayment: 577,
+    status: 'paid_off', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null,
+    notes: 'Paid off via HELOC draw Mar 2026',
+  },
+  {
+    id: 'hist-3', userId: '', accountName: 'Wells Fargo (Dad)',
+    accountType: 'personal_loan', originalBalance: 20000, currentBalance: 0,
+    interestRate: 0, monthlyPayment: 600,
+    status: 'paid_off', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null,
+    notes: 'Paid off via HELOC draw Mar 2026 (interest-free family loan)',
+  },
+  {
+    id: 'hist-4', userId: '', accountName: 'AmEx Personal Loan',
+    accountType: 'personal_loan', originalBalance: 3707, currentBalance: 0,
+    interestRate: 7.33, monthlyPayment: 407,
+    status: 'paid_off', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null,
+    notes: 'Paid off via HELOC draw Mar 2026',
+  },
+  {
+    id: 'hist-5', userId: '', accountName: 'Virginia FCU Auto (Dad)',
+    accountType: 'auto_loan', originalBalance: 18600, currentBalance: 0,
+    interestRate: 9.25, monthlyPayment: 350,
+    status: 'paid_off', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null,
+    notes: 'Paid off via HELOC draw Mar 2026',
+  },
+  {
+    id: 'hist-6', userId: '', accountName: 'Nordstrom',
+    accountType: 'credit_card', originalBalance: 653, currentBalance: 0,
+    interestRate: 29.40, monthlyPayment: 40,
+    status: 'paid_off', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null,
+    notes: 'Paid off via HELOC draw Mar 2026',
+  },
+  {
+    id: 'hist-7', userId: '', accountName: 'AmEx Gold Pay Over Time',
+    accountType: 'credit_card', originalBalance: 1930, currentBalance: 0,
+    interestRate: 27.49, monthlyPayment: 40,
+    status: 'paid_off', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null,
+    notes: 'Paid off via HELOC draw Mar 2026',
+  },
+  {
+    id: 'hist-8', userId: '', accountName: 'AmEx Plat Pay Over Time',
+    accountType: 'credit_card', originalBalance: 513, currentBalance: 0,
+    interestRate: 27.49, monthlyPayment: 15,
+    status: 'paid_off', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null,
+    notes: 'Paid off via HELOC draw Mar 2026',
+  },
+  {
+    id: 'hist-9', userId: '', accountName: 'AmEx Gold Plan It',
+    accountType: 'charge_plan', originalBalance: 1754, currentBalance: 0,
+    interestRate: 15.51, monthlyPayment: 182,
+    status: 'paid_off', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null,
+    notes: 'Paid off via HELOC draw Mar 2026',
+  },
+  {
+    id: 'hist-10', userId: '', accountName: 'AmEx Plat Plan It #1',
+    accountType: 'charge_plan', originalBalance: 2021, currentBalance: 0,
+    interestRate: 17.09, monthlyPayment: 231,
+    status: 'paid_off', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null,
+    notes: 'Paid off via HELOC draw Mar 2026',
+  },
+  {
+    id: 'hist-11', userId: '', accountName: 'AmEx Plat Plan It #2',
+    accountType: 'charge_plan', originalBalance: 2835, currentBalance: 0,
+    interestRate: 14.31, monthlyPayment: 270,
+    status: 'paid_off', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null,
+    notes: 'Paid off via HELOC draw Mar 2026',
+  },
+]
+
+// Names of historical accounts — used to avoid double-counting when live Supabase
+// data happens to include a zero-balance version of the same account.
+const HISTORICAL_NAMES = new Set(HISTORICAL_PAID_OFF_VIA_HELOC.map(a => a.accountName))
+
+// Bug 3: pre-computed sum of all old minimum payments for cash-flow-relief KPI.
+const HISTORICAL_MONTHLY_MINIMUMS = HISTORICAL_PAID_OFF_VIA_HELOC.reduce(
+  (s, a) => s + a.monthlyPayment, 0,
+)
+
+export default function HELOCTracker({ initialAccounts }: { initialAccounts?: HELOCDebtAccount[] }) {
   const store = useHELOCStore()
   const [tab, setTab] = useState<Tab>('overview')
   const [editId, setEditId] = useState<string | null>(null)
   const [editVal, setEditVal] = useState('')
 
-  // Use store accounts if hydrated, otherwise seed data
-  const accounts = store.accounts.length > 0 ? store.accounts : SEED_ACCOUNTS
-
-  // Ensure store is seeded if empty
+  // Hydrate store on first render:
+  // 1. Use server-fetched Supabase data if available (initialAccounts)
+  // 2. Fall back to SEED_ACCOUNTS if Supabase returned nothing
   useMemo(() => {
     if (!store.hydrated && store.accounts.length === 0) {
-      store.hydrate(SEED_ACCOUNTS)
+      const source =
+        initialAccounts && initialAccounts.length > 0 ? initialAccounts : SEED_ACCOUNTS
+      store.hydrate(source)
     }
-  }, [store])
+  }, [store, initialAccounts])
 
-  const rolled = accounts.filter(a => a.status === 'rolled')
+  // When real Supabase data is available, paid-off accounts won't be in the DB.
+  // We detect "live mode" so we can inject hardcoded historical accounts.
+  const usingLiveData = !!(initialAccounts && initialAccounts.length > 0)
+
+  // Use store accounts (always populated after hydration above)
+  const rawAccounts =
+    store.accounts.length > 0
+      ? store.accounts
+      : (initialAccounts && initialAccounts.length > 0 ? initialAccounts : SEED_ACCOUNTS)
+
+  // Bug 4: In live mode, filter out any zero-balance duplicates that might exist
+  // in Supabase, then append the canonical hardcoded historical accounts.
+  const accounts = usingLiveData
+    ? [
+        ...rawAccounts.filter(a => !HISTORICAL_NAMES.has(a.accountName)),
+        ...HISTORICAL_PAID_OFF_VIA_HELOC,
+      ]
+    : rawAccounts
+
   const promoHold = accounts.filter(a => a.status === 'promo_hold')
   const deferred = accounts.filter(a => a.status === 'deferred')
-  const totalDraw = rolled.reduce((s, a) => s + a.currentBalance, 0)
+  // Total draw = the HELOC line's own balance (the vehicle), NOT the sum of rolled items
+  const helocLine = accounts.find(a => a.accountType === 'heloc')
+  const rolledFallback = accounts.filter(a => a.status === 'rolled')
+  const totalDraw = helocLine
+    ? helocLine.currentBalance
+    : rolledFallback.reduce((s, a) => s + a.currentBalance, 0)
   const remaining = HELOC_LIMIT - totalDraw
   const monthlyInterest = (totalDraw * 0.0685) / 12
 
+  // Bug 3: Cash-flow relief = what we used to pay on all rolled-in accounts
+  // minus the current HELOC monthly interest-only payment.
+  // Using HISTORICAL_MONTHLY_MINIMUMS ensures the figure is always correct
+  // regardless of whether those accounts are still in the DB.
+  const cashFlowRelief = Math.max(0, Math.round(HISTORICAL_MONTHLY_MINIMUMS - monthlyInterest))
+
   const savings = calculateConsolidationSavings(
-    rolled.filter(a => a.interestRate > 0).map(a => ({
+    rolledFallback.filter(a => a.interestRate > 0).map(a => ({
       balance: a.currentBalance,
       monthlyPayment: a.monthlyPayment,
       rate: a.interestRate,
@@ -114,7 +236,7 @@ export default function HELOCTracker() {
         <KpiCard label="Total HELOC Draw" value={fmt(totalDraw)} accent />
         <KpiCard label="Remaining Availability" value={fmt(remaining)} />
         <KpiCard label="Monthly Interest" value={fmt(monthlyInterest)} />
-        <KpiCard label="Monthly Cash Flow Relief" value={fmt(savings.monthlyRelief)} positive />
+        <KpiCard label="Monthly Cash Flow Relief" value={fmt(cashFlowRelief)} positive />
       </div>
 
       {/* Tab nav */}
@@ -237,7 +359,12 @@ function AccountTable({
                         {acct.accountName}
                       </td>
                       <td className="px-4 py-2.5">
-                        {isEditing ? (
+                        {acct.status === 'paid_off' ? (
+                          // Show original rolled-in balance struck through for historical context
+                          <span className="font-mono text-xs line-through" style={{ color: 'var(--text-muted)' }}>
+                            {fmt(acct.originalBalance)}
+                          </span>
+                        ) : isEditing ? (
                           <input
                             type="number"
                             value={editVal}
@@ -265,12 +392,28 @@ function AccountTable({
                         {acct.monthlyPayment > 0 ? fmt(acct.monthlyPayment) : '—'}
                       </td>
                       <td className="px-4 py-2.5">
-                        {deadline && days !== null ? (
-                          <span className="text-xs font-mono"
-                            style={{ color: days < 30 ? '#ef4444' : days < 90 ? '#f59e0b' : 'var(--text-muted)' }}>
-                            {days > 0 ? `${days}d` : 'Past due'}
-                          </span>
-                        ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                        {deadline ? (() => {
+                          const urgencyColor = days !== null && days < 30
+                            ? '#ef4444'
+                            : days !== null && days < 90
+                              ? '#f59e0b'
+                              : 'var(--text-muted)'
+                          // Parse as local date to avoid UTC-offset display shift
+                          const d = new Date(deadline + 'T00:00:00')
+                          const label = d.toLocaleDateString('en-US', {
+                            month: '2-digit', day: '2-digit', year: '2-digit',
+                          })
+                          return (
+                            <span className="text-xs font-mono" style={{ color: urgencyColor }}>
+                              {label}
+                              {days !== null && (
+                                <span className="text-[9px] ml-1 opacity-60">
+                                  ({days > 0 ? `${days}d` : '!'})
+                                </span>
+                              )}
+                            </span>
+                          )
+                        })() : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                       </td>
                       <td className="px-4 py-2.5">
                         <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
