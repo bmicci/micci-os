@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useTransition } from 'react'
+import { useState, useMemo, useTransition, useRef, useCallback } from 'react'
 import {
   PieChart,
   Pie,
@@ -127,6 +127,16 @@ export default function InvestmentsPortfolioTab({
   const [updateMsg, setUpdateMsg]           = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [localPrices, setLocalPrices]       = useState<Record<string, number>>({})
   const [isPending, startTransition]        = useTransition()
+
+  // Price refresh state
+  const [refreshing, setRefreshing]         = useState(false)
+  const [refreshMsg, setRefreshMsg]         = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [lastRefreshed, setLastRefreshed]   = useState<string | null>(null)
+
+  // CSV import state
+  const [importing, setImporting]           = useState(false)
+  const [importMsg, setImportMsg]           = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const fileInputRef                        = useRef<HTMLInputElement>(null)
 
   // Suppress unused-variable warnings for server-passed totals
   void totalValue; void totalCost; void totalGL; void totalGLPct
@@ -269,6 +279,60 @@ export default function InvestmentsPortfolioTab({
     })
   }
 
+  // Handle bulk price refresh via Yahoo Finance API route
+  const handleRefreshPrices = useCallback(async () => {
+    setRefreshing(true)
+    setRefreshMsg(null)
+    try {
+      const res  = await fetch('/api/investments/refresh-prices', { method: 'POST' })
+      const json = await res.json() as { updated?: number; failed?: number; timestamp?: string; error?: string }
+      if (!res.ok) {
+        setRefreshMsg({ type: 'err', text: json.error ?? 'Refresh failed' })
+      } else {
+        setLastRefreshed(json.timestamp ?? new Date().toISOString())
+        setRefreshMsg({
+          type: 'ok',
+          text: `Updated ${json.updated ?? 0} prices${json.failed ? ` · ${json.failed} failed` : ''}. Reload to see new values.`,
+        })
+      }
+    } catch (err) {
+      setRefreshMsg({ type: 'err', text: String(err) })
+    } finally {
+      setRefreshing(false)
+    }
+  }, [])
+
+  // Handle Chase CSV file import
+  const handleCSVImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setImporting(true)
+    setImportMsg(null)
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const res  = await fetch('/api/investments/import-csv', { method: 'POST', body: formData })
+      const json = await res.json() as { imported?: number; tickers?: string[]; warnings?: string[]; error?: string }
+      if (!res.ok) {
+        setImportMsg({ type: 'err', text: json.error ?? 'Import failed' })
+      } else {
+        const warn = json.warnings?.length ? ` (${json.warnings.join('; ')})` : ''
+        setImportMsg({
+          type: 'ok',
+          text: `Imported ${json.imported ?? 0} positions: ${(json.tickers ?? []).join(', ')}${warn}. Reload to see updated values.`,
+        })
+      }
+    } catch (err) {
+      setImportMsg({ type: 'err', text: String(err) })
+    } finally {
+      setImporting(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }, [])
+
   const card: React.CSSProperties = {
     background: 'rgba(255,255,255,0.04)',
     border: '1px solid rgba(0,212,255,0.15)',
@@ -340,6 +404,97 @@ export default function InvestmentsPortfolioTab({
           <p style={{ color: 'var(--text-muted)', fontSize: 10, marginTop: 4 }}>
             {effectiveTotalValue < YEAR_END_TARGET ? `${fmt(YEAR_END_TARGET - effectiveTotalValue)} to go` : 'Target reached! 🎉'}
           </p>
+        </div>
+      </div>
+
+      {/* ── A2. Data Controls Bar ────────────────────────────────── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+          marginBottom: 20,
+          padding: '12px 16px',
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(0,212,255,0.1)',
+          borderRadius: 12,
+        }}
+      >
+        {/* Refresh Prices */}
+        <button
+          onClick={handleRefreshPrices}
+          disabled={refreshing}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            background: refreshing ? 'rgba(0,212,255,0.06)' : 'rgba(0,212,255,0.12)',
+            border: '1px solid rgba(0,212,255,0.3)',
+            borderRadius: 8,
+            color: '#00D4FF',
+            fontSize: 12,
+            fontWeight: 600,
+            padding: '7px 14px',
+            cursor: refreshing ? 'wait' : 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          <span style={{ fontSize: 14 }}>{refreshing ? '⏳' : '🔄'}</span>
+          {refreshing ? 'Fetching prices…' : 'Refresh Prices'}
+        </button>
+
+        {/* CSV Import */}
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            background: importing ? 'rgba(251,191,36,0.06)' : 'rgba(251,191,36,0.1)',
+            border: '1px solid rgba(251,191,36,0.3)',
+            borderRadius: 8,
+            color: '#f59e0b',
+            fontSize: 12,
+            fontWeight: 600,
+            padding: '7px 14px',
+            cursor: importing ? 'wait' : 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          <span style={{ fontSize: 14 }}>{importing ? '⏳' : '📂'}</span>
+          {importing ? 'Importing…' : 'Import Chase CSV'}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.txt"
+            onChange={handleCSVImport}
+            disabled={importing}
+            style={{ display: 'none' }}
+          />
+        </label>
+
+        {/* Status / timestamps */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {refreshMsg && (
+            <p style={{ fontSize: 11, color: refreshMsg.type === 'ok' ? '#22c55e' : '#ef4444', margin: 0 }}>
+              {refreshMsg.type === 'ok' ? '✓ ' : '✗ '}{refreshMsg.text}
+            </p>
+          )}
+          {importMsg && (
+            <p style={{ fontSize: 11, color: importMsg.type === 'ok' ? '#22c55e' : '#ef4444', margin: 0, marginTop: refreshMsg ? 4 : 0 }}>
+              {importMsg.type === 'ok' ? '✓ ' : '✗ '}{importMsg.text}
+            </p>
+          )}
+          {!refreshMsg && !importMsg && lastRefreshed && (
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
+              Last refreshed: {new Date(lastRefreshed).toLocaleTimeString()}
+            </p>
+          )}
+          {!refreshMsg && !importMsg && !lastRefreshed && (
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
+              Prices auto-refresh every 30 min on weekdays · or click to refresh now
+            </p>
+          )}
         </div>
       </div>
 
