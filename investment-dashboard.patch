@@ -1,0 +1,3623 @@
+From f18742d4ceb03314240dbf66d6ce0a2c907d088d Mon Sep 17 00:00:00 2001
+From: Brandon Micci <brandon.micci@gmail.com>
+Date: Mon, 13 Apr 2026 15:37:39 -0500
+Subject: [PATCH] =?UTF-8?q?feat:=20investment=20dashboard=20=E2=80=94=20sc?=
+ =?UTF-8?q?hema,=20import=20parser,=20data=20service,=20and=20tab?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Add 3 new Supabase tables (investment_accounts, tax_lots, investment_transactions)
+with full schema, indexes, RLS, and dedup constraints. Extend CSV import parser to
+auto-detect Chase IRA tax lots and transaction history formats. Wire investment data
+through financial-data-service with graceful fallback. Build InvestmentsTab with 4
+sub-views: Overview (allocation donut, top positions bar chart, tax term breakdown),
+Positions, Tax Lots (sortable), and Trade History. Also includes prior session fixes:
+remove hardcoded values from CashFlowTab, NetWorthTab, PromoDeadlinesTab, and wire
+propertyTax + assets through Supabase financial_settings JSONB pipeline.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+---
+ src/app/api/import/route.ts                   | 350 ++++++++-
+ src/components/financial/BudgetActualTab.tsx  | 273 ++-----
+ src/components/financial/CashFlowTab.tsx      |  19 +-
+ src/components/financial/InvestmentsTab.tsx   | 703 ++++++++++++++++++
+ src/components/financial/NetWorthTab.tsx      |  45 +-
+ src/components/financial/OverviewTab.tsx      |  21 +-
+ .../financial/PromoDeadlinesTab.tsx           |   6 +-
+ .../financial/SpendingBudgetTab.tsx           | 237 +++---
+ src/components/financial/SubscriptionsTab.tsx |  13 +-
+ src/components/financial/TabContainer.tsx     |  11 +-
+ src/lib/financial-data-service.ts             | 407 +++++++++-
+ src/lib/financial-data.ts                     | 190 +++++
+ src/lib/supabase/types.ts                     |   6 +
+ src/types/database.ts                         |  88 +++
+ .../20260410_remove_hardcoded_data.sql        | 276 +++++++
+ .../migrations/20260413_investment_tables.sql | 149 ++++
+ 16 files changed, 2422 insertions(+), 372 deletions(-)
+ create mode 100644 src/components/financial/InvestmentsTab.tsx
+ create mode 100644 supabase/migrations/20260410_remove_hardcoded_data.sql
+ create mode 100644 supabase/migrations/20260413_investment_tables.sql
+
+diff --git a/src/app/api/import/route.ts b/src/app/api/import/route.ts
+index 08b9be3..c79f62b 100644
+--- a/src/app/api/import/route.ts
++++ b/src/app/api/import/route.ts
+@@ -154,9 +154,41 @@ function isTransactionCSV(headers: string[]): boolean {
+   return hasDate && hasAmount && hasDesc
+ }
+ 
+-type DataType = 'debt_accounts' | 'subscriptions' | 'budget_categories' | 'transactions'
++type DataType = 'debt_accounts' | 'subscriptions' | 'budget_categories' | 'transactions' | 'tax_lots' | 'investment_transactions'
++
++// ── Investment CSV detection ──────────────────────────────────────────────
++
++function isTaxLotCSV(headers: string[]): boolean {
++  const hLower = headers.map(h => h.toLowerCase().trim())
++  // Chase tax lots have: Ticker, Quantity, Value, Cost, Acquisition Date, Tax term
++  const hasTicker = hLower.some(h => h === 'ticker')
++  const hasQuantity = hLower.some(h => h === 'quantity')
++  const hasCost = hLower.some(h => h === 'cost')
++  const hasAcqDate = hLower.some(h => h.includes('acquisition date'))
++  const hasTaxTerm = hLower.some(h => h.includes('tax term'))
++  const hasAssetClass = hLower.some(h => h.includes('asset class'))
++  // Need at least 4 of these signals
++  return [hasTicker, hasQuantity, hasCost, hasAcqDate, hasTaxTerm, hasAssetClass]
++    .filter(Boolean).length >= 4
++}
++
++function isInvestmentTransactionCSV(headers: string[]): boolean {
++  const hLower = headers.map(h => h.toLowerCase().trim())
++  // Chase investment transactions: Trade Date, Type (Buy/Sell/Dividend), Ticker, Amount USD, Tran Code
++  const hasTradeDate = hLower.some(h => h === 'trade date')
++  const hasTicker = hLower.some(h => h === 'ticker')
++  const hasTranCode = hLower.some(h => h.includes('tran code'))
++  const hasAmountUSD = hLower.some(h => h === 'amount usd')
++  const hasSecurityType = hLower.some(h => h === 'security type')
++  return [hasTradeDate, hasTicker, hasTranCode, hasAmountUSD, hasSecurityType]
++    .filter(Boolean).length >= 3
++}
+ 
+ function detectDataType(headers: string[]): DataType {
++  // Check investment types FIRST (they also have date/amount/desc columns)
++  if (isTaxLotCSV(headers)) return 'tax_lots'
++  if (isInvestmentTransactionCSV(headers)) return 'investment_transactions'
++
+   // Check for transaction CSV first (bank statements)
+   if (isTransactionCSV(headers)) {
+     const bankFmt = detectBankFormat(headers)
+@@ -416,6 +448,175 @@ function parseTransactionRows(
+   return { rows, bankFormat }
+ }
+ 
++// ── Investment row parsers ─────────────────────────────────────────────────
++
++function parseDate(val: unknown): string | null {
++  if (val == null || val === '') return null
++  const s = String(val).trim()
++  // Handle "MM/DD/YYYY HH:MM:SS" or "MM/DD/YYYY"
++  const datePart = s.split(' ')[0]
++  const parts = datePart.split('/')
++  if (parts.length === 3) {
++    const [m, d, y] = parts
++    const year = y.length === 2 ? `20${y}` : y
++    return `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
++  }
++  // Try ISO format
++  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10)
++  return null
++}
++
++function parseNum(val: unknown): number | null {
++  if (val == null || val === '') return null
++  const n = parseFloat(String(val).replace(/[$,%\s]/g, ''))
++  return isNaN(n) ? null : n
++}
++
++function findHeader(headers: string[], exact: string): string | undefined {
++  return headers.find(h => h.toLowerCase().trim() === exact.toLowerCase())
++}
++
++function findHeaderIncludes(headers: string[], pattern: string): string | undefined {
++  return headers.find(h => h.toLowerCase().trim().includes(pattern.toLowerCase()))
++}
++
++function parseTaxLotRows(
++  rawRows: Record<string, unknown>[],
++  headers: string[]
++): { rows: Record<string, unknown>[]; accountName: string; accountNumber: string } {
++  const colAccountName = findHeader(headers, 'Account name')
++  const colAccountNumber = findHeader(headers, 'Account number')
++  const colTicker = findHeader(headers, 'Ticker')
++  const colCusip = findHeader(headers, 'CUSIP')
++  const colDescription = findHeader(headers, 'Description')
++  const colAssetClass = findHeader(headers, 'Asset Class')
++  const colAssetStrategy = findHeader(headers, 'Asset Strategy')
++  const colQuantity = findHeader(headers, 'Quantity')
++  const colPrice = findHeader(headers, 'Price')
++  const colValue = findHeader(headers, 'Value')
++  const colCost = findHeader(headers, 'Cost')
++  const colOrigCost = findHeaderIncludes(headers, 'orig cost')
++  const colUnitCost = findHeader(headers, 'Unit Cost')
++  const colUnrealizedGL = findHeaderIncludes(headers, 'unrealized g/l amt')
++  const colUnrealizedGLPct = findHeaderIncludes(headers, 'unrealized gain/loss (%)')
++  const colAcqDate = findHeader(headers, 'Acquisition Date')
++  const colTaxTerm = findHeader(headers, 'Tax term')
++  const colDaysHeld = findHeader(headers, 'Days held')
++  const colDaysUntilLong = findHeader(headers, 'Days until long')
++  const colEstAnnualIncome = findHeader(headers, 'Est. Annual Income')
++  const colAccruedIncome = findHeader(headers, 'Accrued Income')
++  const colPricingDate = findHeader(headers, 'Pricing Date')
++  const colAsOf = findHeader(headers, 'As of')
++  const colCurrency = findHeader(headers, 'Base CCY')
++
++  let accountName = ''
++  let accountNumber = ''
++  const rows: Record<string, unknown>[] = []
++
++  for (const raw of rawRows) {
++    const ticker = colTicker ? String(raw[colTicker] ?? '').trim() : ''
++    if (!ticker) continue
++
++    if (!accountName && colAccountName) accountName = String(raw[colAccountName] ?? '').trim()
++    if (!accountNumber && colAccountNumber) accountNumber = String(raw[colAccountNumber] ?? '').trim()
++
++    rows.push({
++      account_name: colAccountName ? String(raw[colAccountName] ?? '').trim() : '',
++      account_number: colAccountNumber ? String(raw[colAccountNumber] ?? '').trim() : '',
++      ticker,
++      cusip: colCusip ? String(raw[colCusip] ?? '').trim() : null,
++      description: colDescription ? String(raw[colDescription] ?? '').trim() : null,
++      asset_class: colAssetClass ? String(raw[colAssetClass] ?? '').trim() : null,
++      asset_strategy: colAssetStrategy ? String(raw[colAssetStrategy] ?? '').trim() : null,
++      quantity: colQuantity ? parseNum(raw[colQuantity]) : 0,
++      price: colPrice ? parseNum(raw[colPrice]) : null,
++      value: colValue ? parseNum(raw[colValue]) : null,
++      cost: colCost ? parseNum(raw[colCost]) : null,
++      original_cost: colOrigCost ? parseNum(raw[colOrigCost]) : null,
++      unit_cost: colUnitCost ? parseNum(raw[colUnitCost]) : null,
++      unrealized_gl: colUnrealizedGL ? parseNum(raw[colUnrealizedGL]) : null,
++      unrealized_gl_pct: colUnrealizedGLPct ? parseNum(raw[colUnrealizedGLPct]) : null,
++      acquisition_date: colAcqDate ? parseDate(raw[colAcqDate]) : null,
++      tax_term: colTaxTerm ? String(raw[colTaxTerm] ?? '').trim() : null,
++      days_held: colDaysHeld ? parseNum(raw[colDaysHeld]) : null,
++      days_until_long: colDaysUntilLong ? parseNum(raw[colDaysUntilLong]) : null,
++      est_annual_income: colEstAnnualIncome ? parseNum(raw[colEstAnnualIncome]) : null,
++      accrued_income: colAccruedIncome ? parseNum(raw[colAccruedIncome]) : null,
++      pricing_date: colPricingDate ? parseDate(raw[colPricingDate]) : null,
++      as_of_date: colAsOf ? parseDate(raw[colAsOf]) : null,
++      currency: colCurrency ? String(raw[colCurrency] ?? 'USD').trim() : 'USD',
++    })
++  }
++
++  return { rows, accountName, accountNumber }
++}
++
++function parseInvestmentTransactionRows(
++  rawRows: Record<string, unknown>[],
++  headers: string[]
++): { rows: Record<string, unknown>[]; accountName: string; accountNumber: string } {
++  const colTradeDate = findHeader(headers, 'Trade Date')
++  const colPostDate = findHeader(headers, 'Post Date')
++  const colSettleDate = findHeader(headers, 'Settlement Date')
++  const colAccountName = findHeader(headers, 'Account Name')
++  const colAccountNumber = findHeader(headers, 'Account Number')
++  const colType = findHeader(headers, 'Type')
++  const colDescription = findHeader(headers, 'Description')
++  const colCusip = findHeader(headers, 'Cusip')
++  const colTicker = findHeader(headers, 'Ticker')
++  const colSecurityType = findHeader(headers, 'Security Type')
++  const colPriceUSD = findHeader(headers, 'Price USD')
++  const colQuantity = findHeader(headers, 'Quantity')
++  const colAmountUSD = findHeader(headers, 'Amount USD')
++  const colIncomeUSD = findHeader(headers, 'Income USD')
++  const colGLShort = findHeaderIncludes(headers, 'g/l short')
++  const colGLLong = findHeaderIncludes(headers, 'g/l long')
++  const colCommissions = findHeaderIncludes(headers, 'commissions')
++  const colTranCode = findHeader(headers, 'Tran Code')
++  const colTranCodeDesc = findHeaderIncludes(headers, 'tran code description')
++  const colTaxWithheld = findHeader(headers, 'Tax Withheld')
++
++  let accountName = ''
++  let accountNumber = ''
++  const rows: Record<string, unknown>[] = []
++
++  for (const raw of rawRows) {
++    const tradeDate = colTradeDate ? parseDate(raw[colTradeDate]) : null
++    if (!tradeDate) continue
++
++    if (!accountName && colAccountName) accountName = String(raw[colAccountName] ?? '').trim()
++    if (!accountNumber && colAccountNumber) accountNumber = String(raw[colAccountNumber] ?? '').trim()
++
++    const txnType = colType ? String(raw[colType] ?? '').trim() : 'Unknown'
++
++    rows.push({
++      account_name: colAccountName ? String(raw[colAccountName] ?? '').trim() : '',
++      account_number: colAccountNumber ? String(raw[colAccountNumber] ?? '').trim() : '',
++      trade_date: tradeDate,
++      post_date: colPostDate ? parseDate(raw[colPostDate]) : null,
++      settlement_date: colSettleDate ? parseDate(raw[colSettleDate]) : null,
++      transaction_type: txnType,
++      description: colDescription ? String(raw[colDescription] ?? '').trim() : null,
++      cusip: colCusip ? String(raw[colCusip] ?? '').trim() || null : null,
++      ticker: colTicker ? String(raw[colTicker] ?? '').trim() || null : null,
++      security_type: colSecurityType ? String(raw[colSecurityType] ?? '').trim() || null : null,
++      price: colPriceUSD ? parseNum(raw[colPriceUSD]) : null,
++      quantity: colQuantity ? parseNum(raw[colQuantity]) : null,
++      amount: colAmountUSD ? parseNum(raw[colAmountUSD]) : null,
++      income: colIncomeUSD ? parseNum(raw[colIncomeUSD]) : null,
++      gl_short: colGLShort ? parseNum(raw[colGLShort]) : null,
++      gl_long: colGLLong ? parseNum(raw[colGLLong]) : null,
++      commissions: colCommissions ? parseNum(raw[colCommissions]) : null,
++      tran_code: colTranCode ? String(raw[colTranCode] ?? '').trim() || null : null,
++      tran_code_description: colTranCodeDesc ? String(raw[colTranCodeDesc] ?? '').trim() || null : null,
++      tax_withheld: colTaxWithheld ? parseNum(raw[colTaxWithheld]) : null,
++      currency: 'USD',
++    })
++  }
++
++  return { rows, accountName, accountNumber }
++}
++
+ // ── Parse handler ──────────────────────────────────────────────────────────
+ 
+ async function handleParse(request: NextRequest): Promise<NextResponse> {
+@@ -473,6 +674,36 @@ async function handleParse(request: NextRequest): Promise<NextResponse> {
+     })
+   }
+ 
++  // Handle investment tax lots
++  if (detectedType === 'tax_lots') {
++    const { rows: parsed, accountName: acctName, accountNumber: acctNum } = parseTaxLotRows(rawRows, headers)
++    return NextResponse.json({
++      detectedType: 'tax_lots',
++      headers,
++      rows: parsed,
++      sheetName,
++      totalRaw: rawRows.length,
++      totalParsed: parsed.length,
++      accountName: acctName,
++      accountNumber: acctNum,
++    })
++  }
++
++  // Handle investment transactions
++  if (detectedType === 'investment_transactions') {
++    const { rows: parsed, accountName: acctName, accountNumber: acctNum } = parseInvestmentTransactionRows(rawRows, headers)
++    return NextResponse.json({
++      detectedType: 'investment_transactions',
++      headers,
++      rows: parsed,
++      sheetName,
++      totalRaw: rawRows.length,
++      totalParsed: parsed.length,
++      accountName: acctName,
++      accountNumber: acctNum,
++    })
++  }
++
+   const patterns =
+     detectedType === 'debt_accounts'
+       ? DEBT_PATTERNS
+@@ -577,6 +808,123 @@ async function handleCommit(request: NextRequest): Promise<NextResponse> {
+     return NextResponse.json({ imported, errors, dataType, mode: 'dedup', skipped: rows.length - imported - errors })
+   }
+ 
++  // Investment tax lots: upsert with account auto-creation
++  if (dataType === 'tax_lots') {
++    const acctName = String(rows[0]?.account_name ?? '')
++    const acctNumber = String(rows[0]?.account_number ?? '')
++
++    // Upsert investment_account
++    const { data: acctData } = await service
++      .from('investment_accounts')
++      .upsert({
++        user_id: user.id,
++        account_name: acctName,
++        account_number: acctNumber,
++        account_type: 'Brokerage',
++        institution: 'Chase',
++        as_of_date: rows[0]?.as_of_date || new Date().toISOString().split('T')[0],
++        updated_at: new Date().toISOString(),
++      }, { onConflict: 'user_id,account_name,account_number' })
++      .select('id')
++      .single()
++
++    const accountId = acctData?.id || null
++
++    // Clear existing lots for this account and re-import (replace strategy)
++    if (accountId) {
++      await service.from('tax_lots').delete().eq('account_id', accountId)
++    }
++
++    const rowsWithUser = rows.map(r => ({
++      ...r,
++      user_id: user.id,
++      account_id: accountId,
++    }))
++
++    const BATCH = 100
++    for (let i = 0; i < rowsWithUser.length; i += BATCH) {
++      const chunk = rowsWithUser.slice(i, i + BATCH)
++      const { data, error } = await service
++        .from('tax_lots')
++        .upsert(chunk, {
++          onConflict: 'user_id,account_name,ticker,acquisition_date,quantity',
++          ignoreDuplicates: false,
++        })
++        .select('id')
++
++      if (error) {
++        console.error('[import] Tax lot batch error:', error)
++        errors += chunk.length
++      } else {
++        imported += data?.length ?? 0
++      }
++    }
++
++    // Update account totals
++    if (accountId) {
++      const totalValue = rows.reduce((s, r) => s + (Number(r.value) || 0), 0)
++      const totalCost = rows.reduce((s, r) => s + (Number(r.cost) || 0), 0)
++      const totalGL = rows.reduce((s, r) => s + (Number(r.unrealized_gl) || 0), 0)
++      await service.from('investment_accounts').update({
++        total_value: Math.round(totalValue * 100) / 100,
++        total_cost: Math.round(totalCost * 100) / 100,
++        unrealized_gl: Math.round(totalGL * 100) / 100,
++        updated_at: new Date().toISOString(),
++      }).eq('id', accountId)
++    }
++
++    return NextResponse.json({ imported, errors, dataType, mode: 'replace', accountId })
++  }
++
++  // Investment transactions: upsert with dedup
++  if (dataType === 'investment_transactions') {
++    const acctName = String(rows[0]?.account_name ?? '')
++    const acctNumber = String(rows[0]?.account_number ?? '')
++
++    // Upsert investment_account
++    const { data: acctData } = await service
++      .from('investment_accounts')
++      .upsert({
++        user_id: user.id,
++        account_name: acctName,
++        account_number: acctNumber,
++        account_type: 'Brokerage',
++        institution: 'Chase',
++        updated_at: new Date().toISOString(),
++      }, { onConflict: 'user_id,account_name,account_number' })
++      .select('id')
++      .single()
++
++    const accountId = acctData?.id || null
++
++    const rowsWithUser = rows.map(r => ({
++      ...r,
++      user_id: user.id,
++      account_id: accountId,
++    }))
++
++    const BATCH = 100
++    for (let i = 0; i < rowsWithUser.length; i += BATCH) {
++      const chunk = rowsWithUser.slice(i, i + BATCH)
++      const { data, error } = await service
++        .from('investment_transactions')
++        .upsert(chunk, {
++          onConflict: 'user_id,account_name,trade_date,ticker,transaction_type,amount',
++          ignoreDuplicates: true,
++        })
++        .select('id')
++
++      if (error) {
++        console.error('[import] Investment txn batch error:', error)
++        errors += chunk.length
++      } else {
++        imported += data?.length ?? 0
++      }
++    }
++
++    return NextResponse.json({ imported, errors, dataType, mode: 'dedup', accountId, skipped: rows.length - imported - errors })
++  }
++
+   if (mode === 'replace') {
+     // Delete all existing rows first, then insert
+     const { error: deleteError } = await service.from(dataType).delete().neq('id', '00000000-0000-0000-0000-000000000000')
+diff --git a/src/components/financial/BudgetActualTab.tsx b/src/components/financial/BudgetActualTab.tsx
+index 710d318..1948a4d 100644
+--- a/src/components/financial/BudgetActualTab.tsx
++++ b/src/components/financial/BudgetActualTab.tsx
+@@ -1,6 +1,6 @@
+ 'use client'
+ 
+-import type { SpendingCategory, BurnRateItem, WealthScenario, TaxSnapshot } from '@/lib/financial-data'
++import type { SpendingCategory, BurnRateItem, WealthScenario, TaxSnapshot, IncomeBridge } from '@/lib/financial-data'
+ import { fmt, calcWealth } from '@/lib/financial-data'
+ import KPICard from './KPICard'
+ import WealthProjectionChart from './WealthProjectionChart'
+@@ -18,21 +18,28 @@ import {
+   ResponsiveContainer,
+ } from 'recharts'
+ 
++function fmtK(n: number): string {
++  return n >= 1000 ? '$' + (n / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 }) + 'K' : '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 })
++}
++
++function fmtWhole(n: number): string {
++  return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 })
++}
++
+ export default function BudgetActualTab({
+   spendingCategories,
+   burnRate,
+   wealthScenarios,
+   taxSnapshot,
++  incomeBridge,
+ }: {
+   spendingCategories: SpendingCategory[]
+   burnRate: BurnRateItem[]
+   wealthScenarios: WealthScenario[]
+   taxSnapshot: TaxSnapshot
++  incomeBridge: IncomeBridge
+ }) {
+-  // ═════════════════════════════════════════════════
+   // KPI Calculations
+-  // ═════════════════════════════════════════════════
+-
+   const totalBudget = spendingCategories.reduce((s, c) => s + c.survival, 0)
+   const totalActual = spendingCategories.reduce((s, c) => s + c.monthly, 0)
+   const overUnder = totalActual - totalBudget
+@@ -43,10 +50,15 @@ export default function BudgetActualTab({
+   const totalSurvival = burnRate.reduce((s, b) => s + b.survival, 0)
+   const monthlySaved = totalCurrent - totalSurvival
+ 
+-  // ═════════════════════════════════════════════════
+-  // Chart Data
+-  // ═════════════════════════════════════════════════
++  // Income Bridge computed values
++  const ib = incomeBridge
++  const totalLiquid = ib.liquidCash + ib.marchPaychecks + ib.severanceEstimate + ib.familyBridge
++  const runwayNoIncome = ib.monthlyOutflow > 0 ? totalLiquid / ib.monthlyOutflow : 0
++  const consultingDeficit = ib.monthlyOutflow - ib.consultingMonthlyNet
++  const runwayConsulting = consultingDeficit > 0 ? totalLiquid / consultingDeficit : 99
++  const newJobSurplus = ib.newJobMonthlyNet - ib.monthlyOutflow
+ 
++  // Chart Data
+   const budgetVsActualData = spendingCategories.map(c => ({
+     category: c.cat,
+     Budget: c.survival,
+@@ -54,38 +66,14 @@ export default function BudgetActualTab({
+     color: c.color,
+   }))
+ 
+-  // ═════════════════════════════════════════════════
+-  // Component
+-  // ═════════════════════════════════════════════════
+-
+   return (
+     <div className="space-y-5">
+-      {/* 1. KPI Cards - Budget vs Actual Overview */}
++      {/* 1. KPI Cards */}
+       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+-        <KPICard
+-          label="Monthly Budget"
+-          value={fmt(totalBudget)}
+-          note="Sum of survival targets"
+-          accent="green"
+-        />
+-        <KPICard
+-          label="Actual Monthly Spend"
+-          value={fmt(totalActual)}
+-          note="Sum of current spend"
+-          accent="amber"
+-        />
+-        <KPICard
+-          label="Over/Under Budget"
+-          value={fmt(Math.abs(overUnder))}
+-          note={overUnder <= 0 ? 'Under budget (good!)' : 'Over budget'}
+-          accent={overUnder <= 0 ? 'green' : 'red'}
+-        />
+-        <KPICard
+-          label="Savings Potential"
+-          value={fmt(savingsPotential)}
+-          note="Gap between actual & budget"
+-          accent="cyan"
+-        />
++        <KPICard label="Monthly Budget" value={fmt(totalBudget)} note="Sum of survival targets" accent="green" />
++        <KPICard label="Actual Monthly Spend" value={fmt(totalActual)} note="Sum of current spend" accent="amber" />
++        <KPICard label="Over/Under Budget" value={fmt(Math.abs(overUnder))} note={overUnder <= 0 ? 'Under budget (good!)' : 'Over budget'} accent={overUnder <= 0 ? 'green' : 'red'} />
++        <KPICard label="Savings Potential" value={fmt(savingsPotential)} note="Gap between actual & budget" accent="cyan" />
+       </div>
+ 
+       {/* Spend Trend + Balance History */}
+@@ -98,26 +86,13 @@ export default function BudgetActualTab({
+           Budget vs. Actual by Category
+         </h3>
+         <ResponsiveContainer width="100%" height={400}>
+-          <BarChart
+-            data={budgetVsActualData}
+-            layout="vertical"
+-            margin={{ top: 5, right: 20, left: 150, bottom: 5 }}
+-          >
++          <BarChart data={budgetVsActualData} layout="vertical" margin={{ top: 5, right: 20, left: 150, bottom: 5 }}>
+             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+             <XAxis type="number" stroke="var(--text-muted)" />
+-            <YAxis
+-              type="category"
+-              dataKey="category"
+-              width={140}
+-              tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
+-            />
++            <YAxis type="category" dataKey="category" width={140} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+             <Tooltip
+-              contentStyle={{
+-                background: 'rgba(20,20,40,0.95)',
+-                border: '1px solid rgba(255,255,255,0.1)',
+-                borderRadius: '8px',
+-              }}
+-              formatter={(value: any) => [fmt(value), '']}
++              contentStyle={{ background: 'rgba(20,20,40,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
++              formatter={(value: number | undefined) => [fmt(value ?? 0), '']}
+               labelStyle={{ color: 'var(--text-primary)' }}
+             />
+             <Legend wrapperStyle={{ color: 'var(--text-secondary)' }} />
+@@ -137,13 +112,7 @@ export default function BudgetActualTab({
+             <thead>
+               <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
+                 {['Category', 'Budget/mo', 'Actual/mo', 'Variance', '% of Actual'].map(h => (
+-                  <th
+-                    key={h}
+-                    className="text-left py-2 px-3 text-[11px] font-bold uppercase tracking-wider"
+-                    style={{ color: 'var(--text-muted)' }}
+-                  >
+-                    {h}
+-                  </th>
++                  <th key={h} className="text-left py-2 px-3 text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                 ))}
+               </tr>
+             </thead>
+@@ -151,32 +120,15 @@ export default function BudgetActualTab({
+               {spendingCategories.map((c, i) => {
+                 const variance = c.monthly - c.survival
+                 return (
+-                  <tr
+-                    key={c.cat}
+-                    style={{
+-                      borderBottom:
+-                        i < spendingCategories.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+-                    }}
+-                  >
++                  <tr key={c.cat} style={{ borderBottom: i < spendingCategories.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                     <td className="py-2 px-3 text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+-                      <span
+-                        className="inline-block w-2 h-2 rounded-full mr-2"
+-                        style={{ background: c.color }}
+-                      />
++                      <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ background: c.color }} />
+                       {c.cat}
+                     </td>
+-                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>
+-                      {fmt(c.survival)}
+-                    </td>
+-                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>
+-                      {fmt(c.monthly)}
+-                    </td>
+-                    <td
+-                      className="py-2 px-3 text-[12px] font-mono"
+-                      style={{ color: variance <= 0 ? '#22c55e' : '#ef4444' }}
+-                    >
+-                      {variance <= 0 ? '−' : '+'}
+-                      {fmt(Math.abs(variance))}
++                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>{fmt(c.survival)}</td>
++                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>{fmt(c.monthly)}</td>
++                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: variance <= 0 ? '#22c55e' : '#ef4444' }}>
++                      {variance <= 0 ? '−' : '+'}{fmt(Math.abs(variance))}
+                     </td>
+                     <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>
+                       {((c.monthly / totalActual) * 100).toFixed(1)}%
+@@ -187,32 +139,20 @@ export default function BudgetActualTab({
+             </tbody>
+             <tfoot>
+               <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)' }}>
+-                <td className="py-3 px-3 text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>
+-                  TOTAL
+-                </td>
+-                <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>
+-                  {fmt(totalBudget)}
+-                </td>
+-                <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>
+-                  {fmt(totalActual)}
+-                </td>
+-                <td
+-                  className="py-3 px-3 text-[12px] font-mono font-bold"
+-                  style={{ color: overUnder <= 0 ? '#22c55e' : '#ef4444' }}
+-                >
+-                  {overUnder <= 0 ? '−' : '+'}
+-                  {fmt(Math.abs(overUnder))}
+-                </td>
+-                <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>
+-                  100.0%
++                <td className="py-3 px-3 text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>TOTAL</td>
++                <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{fmt(totalBudget)}</td>
++                <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{fmt(totalActual)}</td>
++                <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: overUnder <= 0 ? '#22c55e' : '#ef4444' }}>
++                  {overUnder <= 0 ? '−' : '+'}{fmt(Math.abs(overUnder))}
+                 </td>
++                <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>100.0%</td>
+               </tr>
+             </tfoot>
+           </table>
+         </div>
+       </div>
+ 
+-      {/* 4. Burn Rate — Current vs. Survival */}
++      {/* 4. Burn Rate */}
+       <div className="glass-card p-5">
+         <h3 className="text-[13px] font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+           Burn Rate Comparison — Current vs. Survival Budget
+@@ -222,13 +162,7 @@ export default function BudgetActualTab({
+             <thead>
+               <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
+                 {['Category', 'Current /mo', 'Survival /mo', 'Delta'].map(h => (
+-                  <th
+-                    key={h}
+-                    className="text-left py-2 px-3 text-[11px] font-bold uppercase tracking-wider"
+-                    style={{ color: 'var(--text-muted)' }}
+-                  >
+-                    {h}
+-                  </th>
++                  <th key={h} className="text-left py-2 px-3 text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                 ))}
+               </tr>
+             </thead>
+@@ -236,25 +170,11 @@ export default function BudgetActualTab({
+               {burnRate.map((b, i) => {
+                 const delta = b.survival - b.current
+                 return (
+-                  <tr
+-                    key={b.label}
+-                    style={{
+-                      borderBottom: i < burnRate.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+-                    }}
+-                  >
+-                    <td className="py-2 px-3 text-[12px]" style={{ color: 'var(--text-primary)' }}>
+-                      {b.label}
+-                    </td>
+-                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>
+-                      {fmt(b.current)}
+-                    </td>
+-                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>
+-                      {fmt(b.survival)}
+-                    </td>
+-                    <td
+-                      className="py-2 px-3 text-[12px] font-mono"
+-                      style={{ color: delta < 0 ? '#22c55e' : delta > 0 ? '#ef4444' : 'var(--text-muted)' }}
+-                    >
++                  <tr key={b.label} style={{ borderBottom: i < burnRate.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
++                    <td className="py-2 px-3 text-[12px]" style={{ color: 'var(--text-primary)' }}>{b.label}</td>
++                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>{fmt(b.current)}</td>
++                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>{fmt(b.survival)}</td>
++                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: delta < 0 ? '#22c55e' : delta > 0 ? '#ef4444' : 'var(--text-muted)' }}>
+                       {delta === 0 ? '—' : (delta > 0 ? '+' : '') + fmt(delta)}
+                     </td>
+                   </tr>
+@@ -263,104 +183,83 @@ export default function BudgetActualTab({
+             </tbody>
+             <tfoot>
+               <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)' }}>
+-                <td className="py-3 px-3 text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>
+-                  TOTAL
+-                </td>
+-                <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: '#ef4444' }}>
+-                  {fmt(totalCurrent)}
+-                </td>
+-                <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: '#22c55e' }}>
+-                  {fmt(totalSurvival)}
+-                </td>
+-                <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: '#22c55e' }}>
+-                  −{fmt(monthlySaved)}/mo
+-                </td>
++                <td className="py-3 px-3 text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>TOTAL</td>
++                <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: '#ef4444' }}>{fmt(totalCurrent)}</td>
++                <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: '#22c55e' }}>{fmt(totalSurvival)}</td>
++                <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: '#22c55e' }}>−{fmt(monthlySaved)}/mo</td>
+               </tr>
+             </tfoot>
+           </table>
+         </div>
+       </div>
+ 
+-      {/* 5. Income Bridge & Runway */}
++      {/* 5. Income Bridge */}
+       <div className="glass-card p-5">
+         <h3 className="text-[13px] font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+-          Income Bridge & Runway (Post-JPMC Exit: March 19, 2026)
++          Income Bridge &amp; Runway (Post-JPMC Exit)
+         </h3>
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+-          {/* Scenario A — No Income */}
+           <div className="p-4 rounded-lg" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+             <div className="font-bold text-[13px] mb-3" style={{ color: '#ef4444' }}>Scenario A — No Income</div>
+             <div className="space-y-2 text-[12px]">
+               <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
+-                <span>Monthly outflow</span>
+-                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>$7,234</span>
++                <span>Monthly outflow</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(ib.monthlyOutflow)}</span>
+               </div>
+               <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
+-                <span>Liquid (cash+sev est.)</span>
+-                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>$41,250</span>
++                <span>Liquid (cash+sev est.)</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(totalLiquid)}</span>
+               </div>
+               <div className="flex justify-between pt-2" style={{ borderTop: '1px solid rgba(239,68,68,0.25)' }}>
+                 <span className="font-bold" style={{ color: '#ef4444' }}>Runway</span>
+-                <span className="font-bold" style={{ color: '#ef4444' }}>~5.7 months</span>
++                <span className="font-bold" style={{ color: '#ef4444' }}>~{runwayNoIncome.toFixed(1)} months</span>
+               </div>
+             </div>
+-            <div className="text-[11px] mt-3" style={{ color: '#ef4444' }}>⚠️ Must land job by ~Sep 2026</div>
+           </div>
+ 
+-          {/* Scenario B — Consulting */}
+           <div className="p-4 rounded-lg" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)' }}>
+             <div className="font-bold text-[13px] mb-3" style={{ color: '#f59e0b' }}>Scenario B — Consulting</div>
+             <div className="space-y-2 text-[12px]">
+               <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
+-                <span>Monthly income</span>
+-                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>$2,500 net</span>
++                <span>Monthly income</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(ib.consultingMonthlyNet)} net</span>
+               </div>
+               <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
+-                <span>Monthly outflow</span>
+-                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>$7,234</span>
++                <span>Monthly outflow</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(ib.monthlyOutflow)}</span>
+               </div>
+               <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
+-                <span>Monthly deficit</span>
+-                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>−$4,734</span>
++                <span>Monthly deficit</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>−{fmtWhole(consultingDeficit)}</span>
+               </div>
+               <div className="flex justify-between pt-2" style={{ borderTop: '1px solid rgba(245,158,11,0.25)' }}>
+                 <span className="font-bold" style={{ color: '#f59e0b' }}>Extended runway</span>
+-                <span className="font-bold" style={{ color: '#f59e0b' }}>~8.7 months</span>
++                <span className="font-bold" style={{ color: '#f59e0b' }}>~{runwayConsulting.toFixed(1)} months</span>
+               </div>
+             </div>
+-            <div className="text-[11px] mt-3" style={{ color: '#f59e0b' }}>Consulting bridges the gap significantly</div>
+           </div>
+ 
+-          {/* Scenario C — New Job */}
+           <div className="p-4 rounded-lg" style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)' }}>
+-            <div className="font-bold text-[13px] mb-3" style={{ color: '#22c55e' }}>Scenario C — New Job ($240K)</div>
++            <div className="font-bold text-[13px] mb-3" style={{ color: '#22c55e' }}>Scenario C — New Job ({fmtK(ib.targetSalary)})</div>
+             <div className="space-y-2 text-[12px]">
+               <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
+-                <span>Monthly income net</span>
+-                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>$13,670</span>
++                <span>Monthly income net</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(ib.newJobMonthlyNet)}</span>
+               </div>
+               <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
+-                <span>Monthly outflow</span>
+-                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>$7,234</span>
++                <span>Monthly outflow</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(ib.monthlyOutflow)}</span>
+               </div>
+               <div className="flex justify-between pt-2" style={{ borderTop: '1px solid rgba(34,197,94,0.25)' }}>
+                 <span className="font-bold" style={{ color: '#22c55e' }}>Monthly surplus</span>
+-                <span className="font-bold" style={{ color: '#22c55e' }}>+$6,436/mo</span>
++                <span className="font-bold" style={{ color: '#22c55e' }}>+{fmtWhole(newJobSurplus)}/mo</span>
+               </div>
+             </div>
+-            <div className="text-[11px] mt-3" style={{ color: '#22c55e' }}>Target: $240K base / $312K total comp</div>
++            <div className="text-[11px] mt-3" style={{ color: '#22c55e' }}>Target: {fmtK(ib.targetSalary)} base / {fmtK(ib.targetTotalComp)} total comp</div>
+           </div>
+         </div>
+ 
+-        {/* Liquid cash breakdown */}
+         <div
+           className="mt-4 p-3 rounded-lg text-[12px]"
+           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}
+         >
+           <strong style={{ color: 'var(--text-primary)' }}>Liquid Cash Breakdown:</strong>{' '}
+           <span style={{ color: 'var(--text-muted)' }}>
+-            Checking ~$8,000 + Mar paychecks ~$6,250 + Severance est. $25,000 + Family bridge ~$2,000
+-            = <strong style={{ color: 'var(--text-primary)' }}>$41,250 total</strong>
++            Checking ~{fmtWhole(ib.liquidCash)} + Mar paychecks ~{fmtWhole(ib.marchPaychecks)} + Severance est. {fmtWhole(ib.severanceEstimate)} + Family bridge ~{fmtWhole(ib.familyBridge)}
++            = <strong style={{ color: 'var(--text-primary)' }}>{fmtWhole(totalLiquid)} total</strong>
+             {' '}|{' '}
+             <span style={{ color: '#f59e0b' }}>⚠️ Confirm exact JPMC severance with HR</span>
+           </span>
+@@ -370,13 +269,13 @@ export default function BudgetActualTab({
+       {/* 6. Wealth Projection */}
+       <div className="glass-card p-5">
+         <h3 className="text-[13px] font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+-          20-Year Net Worth Projection — 3 Scenarios (Age 40→60, Starting NW: $410K)
++          20-Year Net Worth Projection — {wealthScenarios.length} Scenarios
+         </h3>
+         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4" style={{ alignItems: 'start' }}>
+           <div className="lg:col-span-2">
+             <WealthProjectionChart scenarios={wealthScenarios} />
+             <div className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>
+-              ★ Based on $312K total comp ($240K base + 30% bonus) · Texas 0% state tax
++              ★ Based on {fmtK(ib.targetTotalComp)} total comp ({fmtK(ib.targetSalary)} base + 30% bonus) · Texas 0% state tax
+             </div>
+           </div>
+           <div className="space-y-3">
+@@ -385,22 +284,14 @@ export default function BudgetActualTab({
+                 <thead>
+                   <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
+                     {['Scenario', 'Age 45', 'Age 50', 'Age 55', 'Age 60'].map(h => (
+-                      <th
+-                        key={h}
+-                        className="text-left py-2 px-2 text-[10px] font-bold uppercase tracking-wider"
+-                        style={{ color: 'var(--text-muted)' }}
+-                      >
+-                        {h}
+-                      </th>
++                      <th key={h} className="text-left py-2 px-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                     ))}
+                   </tr>
+                 </thead>
+                 <tbody>
+                   {wealthScenarios.map(s => (
+                     <tr key={s.name} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+-                      <td className="py-2 px-2 font-semibold" style={{ color: s.color }}>
+-                        {s.name}
+-                      </td>
++                      <td className="py-2 px-2 font-semibold" style={{ color: s.color }}>{s.name}</td>
+                       {[5, 10, 15, 20].map(n => (
+                         <td key={n} className="py-2 px-2 font-mono" style={{ color: 'var(--text-secondary)' }}>
+                           ${(calcWealth(410000, s.pmt, s.r, n) / 1e6).toFixed(1)}M
+@@ -411,26 +302,6 @@ export default function BudgetActualTab({
+                 </tbody>
+               </table>
+             </div>
+-            <div
+-              className="p-3 rounded-lg text-[12px]"
+-              style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)' }}
+-            >
+-              <strong style={{ color: '#f59e0b' }}>⚠️ Gap vs. $15M target at 60:</strong>
+-              <br />
+-              <span style={{ color: 'var(--text-muted)' }}>
+-                Accelerators: Income growth to $500K+, equity comp, side income, real estate
+-              </span>
+-            </div>
+-            <div
+-              className="p-3 rounded-lg text-[12px]"
+-              style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)' }}
+-            >
+-              <strong style={{ color: '#22c55e' }}>✅ $1M by age 45 is achievable</strong>
+-              <br />
+-              <span style={{ color: 'var(--text-muted)' }}>
+-                All 3 scenarios clear $1M milestone by age 45
+-              </span>
+-            </div>
+           </div>
+         </div>
+       </div>
+diff --git a/src/components/financial/CashFlowTab.tsx b/src/components/financial/CashFlowTab.tsx
+index 870e1ef..d32a9a7 100644
+--- a/src/components/financial/CashFlowTab.tsx
++++ b/src/components/financial/CashFlowTab.tsx
+@@ -34,15 +34,18 @@ interface CashFlowTabProps {
+   promos: PromoDeadline[]
+   debts: DebtAccount[]
+   helocKPIs: HelocKPIs
++  incomeBridge: { targetSalary: number; newJobMonthlyNet: number; monthlyOutflow: number }
+ }
+ 
+-export default function CashFlowTab({ bills, promos, debts, helocKPIs }: CashFlowTabProps) {
++export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBridge }: CashFlowTabProps) {
+   // ── Derive inputs from live data ──
+   const cashFlowData = useMemo(() => {
+-    // Income: semi-monthly $153,400/yr gross → ~$4,652 net per period (24 periods)
+-    const grossAnnual = 153400
+-    const netPayPerPeriod = 4652
++    // Income: semi-monthly gross → net per period (24 periods)
++    const grossAnnual = incomeBridge.targetSalary > 0 ? incomeBridge.targetSalary : 153400
+     const payFrequency = 24 // semi-monthly
++    const netPayPerPeriod = incomeBridge.newJobMonthlyNet > 0
++      ? Math.round(incomeBridge.newJobMonthlyNet * 12 / payFrequency)
++      : Math.round(grossAnnual * 0.73 / payFrequency) // ~73% take-home estimate
+ 
+     // HELOC monthly interest from live KPIs
+     const helocMonthlyInterest = helocKPIs.monthlyHelocInterest
+@@ -88,10 +91,10 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs }: CashFlo
+       scheduledEvents,
+     })
+ 
+-    return { monthlyFlow, projections, inputs }
+-  }, [debts, promos, helocKPIs])
++    return { monthlyFlow, projections, inputs, grossAnnual }
++  }, [debts, promos, helocKPIs, incomeBridge])
+ 
+-  const { monthlyFlow, projections } = cashFlowData
++  const { monthlyFlow, projections, grossAnnual } = cashFlowData
+ 
+   // ── Upcoming bills (next 30 days) ──
+   const upcomingBills = useMemo(() => {
+@@ -116,7 +119,7 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs }: CashFlo
+         <KPICard
+           label="Monthly Income"
+           value={fmtRound(monthlyFlow.totalIncome)}
+-          note="Semi-monthly · $153.4K/yr"
++          note={`Semi-monthly · ${fmtK(grossAnnual)}/yr`}
+           accent="green"
+         />
+         <KPICard
+diff --git a/src/components/financial/InvestmentsTab.tsx b/src/components/financial/InvestmentsTab.tsx
+new file mode 100644
+index 0000000..4462c0a
+--- /dev/null
++++ b/src/components/financial/InvestmentsTab.tsx
+@@ -0,0 +1,703 @@
++'use client'
++
++import { useMemo, useState } from 'react'
++import type { InvestmentData, TaxLot } from '@/lib/financial-data'
++import {
++  PieChart,
++  Pie,
++  Cell,
++  ResponsiveContainer,
++  Tooltip,
++  BarChart,
++  Bar,
++  XAxis,
++  YAxis,
++  CartesianGrid,
++} from 'recharts'
++
++// ── Helpers ──────────────────────────────────────────────────────
++
++const fmt = (n: number) =>
++  n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
++
++const fmtPct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
++
++const fmtShares = (n: number) =>
++  n < 1 ? n.toFixed(6) : n < 100 ? n.toFixed(4) : n.toFixed(2)
++
++const COLORS = [
++  '#00d4ff', '#1e90ff', '#00e5a0', '#ff6b6b', '#ffd93d',
++  '#c084fc', '#fb923c', '#67e8f9', '#a78bfa', '#34d399',
++  '#f472b6', '#facc15', '#38bdf8', '#818cf8', '#4ade80',
++]
++
++// ── Sub-views ────────────────────────────────────────────────────
++
++type SubView = 'overview' | 'positions' | 'taxlots' | 'history'
++
++const SUB_VIEWS: { id: SubView; label: string }[] = [
++  { id: 'overview', label: 'Overview' },
++  { id: 'positions', label: 'Positions' },
++  { id: 'taxlots', label: 'Tax Lots' },
++  { id: 'history', label: 'Trade History' },
++]
++
++// ── Types for aggregated data ────────────────────────────────────
++
++interface PositionGroup {
++  ticker: string
++  description: string
++  assetClass: string
++  assetStrategy: string
++  totalQuantity: number
++  totalValue: number
++  totalCost: number
++  unrealizedGL: number
++  unrealizedGLPct: number
++  price: number
++  estAnnualIncome: number
++  lots: TaxLot[]
++}
++
++// ── Main Component ───────────────────────────────────────────────
++
++export default function InvestmentsTab({ investments }: { investments: InvestmentData }) {
++  const [subView, setSubView] = useState<SubView>('overview')
++
++  // Aggregate tax lots by ticker into positions
++  const positions = useMemo<PositionGroup[]>(() => {
++    const map = new Map<string, PositionGroup>()
++
++    for (const lot of investments.taxLots) {
++      const existing = map.get(lot.ticker)
++      if (existing) {
++        existing.totalQuantity += lot.quantity
++        existing.totalValue += lot.value ?? 0
++        existing.totalCost += lot.cost ?? 0
++        existing.unrealizedGL += lot.unrealizedGL ?? 0
++        existing.estAnnualIncome += lot.estAnnualIncome ?? 0
++        existing.lots.push(lot)
++      } else {
++        map.set(lot.ticker, {
++          ticker: lot.ticker,
++          description: lot.description ?? lot.ticker,
++          assetClass: lot.assetClass ?? 'Other',
++          assetStrategy: lot.assetStrategy ?? 'Other',
++          totalQuantity: lot.quantity,
++          totalValue: lot.value ?? 0,
++          totalCost: lot.cost ?? 0,
++          unrealizedGL: lot.unrealizedGL ?? 0,
++          unrealizedGLPct: 0,
++          price: lot.price ?? 0,
++          estAnnualIncome: lot.estAnnualIncome ?? 0,
++          lots: [lot],
++        })
++      }
++    }
++
++    // Compute pct after aggregation
++    for (const pos of map.values()) {
++      pos.unrealizedGLPct = pos.totalCost > 0 ? (pos.unrealizedGL / pos.totalCost) * 100 : 0
++    }
++
++    return Array.from(map.values()).sort((a, b) => b.totalValue - a.totalValue)
++  }, [investments.taxLots])
++
++  // Account-level KPIs
++  const kpis = useMemo(() => {
++    const totalValue = positions.reduce((s, p) => s + p.totalValue, 0)
++    const totalCost = positions.reduce((s, p) => s + p.totalCost, 0)
++    const totalGL = positions.reduce((s, p) => s + p.unrealizedGL, 0)
++    const totalIncome = positions.reduce((s, p) => s + p.estAnnualIncome, 0)
++    const glPct = totalCost > 0 ? (totalGL / totalCost) * 100 : 0
++
++    const shortLots = investments.taxLots.filter(l => l.taxTerm === 'Short')
++    const longLots = investments.taxLots.filter(l => l.taxTerm === 'Long')
++    const shortValue = shortLots.reduce((s, l) => s + (l.value ?? 0), 0)
++    const longValue = longLots.reduce((s, l) => s + (l.value ?? 0), 0)
++
++    return { totalValue, totalCost, totalGL, glPct, totalIncome, shortValue, longValue, totalPositions: positions.length, totalLots: investments.taxLots.length }
++  }, [positions, investments.taxLots])
++
++  // Allocation by strategy
++  const strategyData = useMemo(() => {
++    const map = new Map<string, number>()
++    for (const pos of positions) {
++      const key = pos.assetStrategy || 'Other'
++      map.set(key, (map.get(key) ?? 0) + pos.totalValue)
++    }
++    return Array.from(map.entries())
++      .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
++      .sort((a, b) => b.value - a.value)
++  }, [positions])
++
++  // Positions bar chart (top 10 by value)
++  const topPositions = useMemo(() => {
++    return positions
++      .filter(p => p.ticker !== 'QDERQ') // Exclude cash sweep
++      .slice(0, 10)
++      .map(p => ({
++        ticker: p.ticker,
++        value: Math.round(p.totalValue * 100) / 100,
++        gl: Math.round(p.unrealizedGL * 100) / 100,
++      }))
++  }, [positions])
++
++  const hasData = investments.taxLots.length > 0 || investments.transactions.length > 0
++
++  if (!hasData) {
++    return (
++      <div style={{ padding: 40, textAlign: 'center' }}>
++        <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
++        <h3 style={{ color: 'var(--text-primary)', marginBottom: 8 }}>No Investment Data Yet</h3>
++        <p style={{ color: 'var(--text-secondary)', maxWidth: 400, margin: '0 auto' }}>
++          Import your brokerage CSV files (tax lots or transaction history) using the Import tool to see your investment dashboard.
++        </p>
++      </div>
++    )
++  }
++
++  return (
++    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
++      {/* Sub-nav */}
++      <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--card-border)', paddingBottom: 0 }}>
++        {SUB_VIEWS.map(sv => (
++          <button
++            key={sv.id}
++            onClick={() => setSubView(sv.id)}
++            style={{
++              padding: '8px 16px',
++              background: subView === sv.id ? 'rgba(0,212,255,0.08)' : 'transparent',
++              border: 'none',
++              borderBottom: subView === sv.id ? '2px solid var(--accent-cyan)' : '2px solid transparent',
++              color: subView === sv.id ? 'var(--text-primary)' : 'var(--text-muted)',
++              cursor: 'pointer',
++              fontSize: 13,
++              fontWeight: 500,
++              transition: 'all 0.2s',
++            }}
++          >
++            {sv.label}
++          </button>
++        ))}
++      </nav>
++
++      {/* KPI Strip */}
++      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
++        <KPICard label="Total Value" value={fmt(kpis.totalValue)} />
++        <KPICard label="Cost Basis" value={fmt(kpis.totalCost)} />
++        <KPICard
++          label="Unrealized G/L"
++          value={fmt(kpis.totalGL)}
++          sub={fmtPct(kpis.glPct)}
++          positive={kpis.totalGL >= 0}
++        />
++        <KPICard label="Est. Annual Income" value={fmt(kpis.totalIncome)} />
++        <KPICard label="Positions / Lots" value={`${kpis.totalPositions} / ${kpis.totalLots}`} />
++      </div>
++
++      {/* Content area */}
++      {subView === 'overview' && (
++        <OverviewView
++          strategyData={strategyData}
++          topPositions={topPositions}
++          kpis={kpis}
++        />
++      )}
++      {subView === 'positions' && <PositionsView positions={positions} totalValue={kpis.totalValue} />}
++      {subView === 'taxlots' && <TaxLotsView lots={investments.taxLots} />}
++      {subView === 'history' && <HistoryView transactions={investments.transactions} />}
++    </div>
++  )
++}
++
++// ── KPI Card ─────────────────────────────────────────────────────
++
++function KPICard({
++  label,
++  value,
++  sub,
++  positive,
++}: {
++  label: string
++  value: string
++  sub?: string
++  positive?: boolean
++}) {
++  return (
++    <div
++      style={{
++        background: 'var(--card-bg)',
++        border: '1px solid var(--card-border)',
++        borderRadius: 12,
++        padding: '16px 14px',
++        backdropFilter: 'blur(20px)',
++      }}
++    >
++      <div style={{ color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
++        {label}
++      </div>
++      <div style={{ color: 'var(--text-primary)', fontSize: 20, fontWeight: 700 }}>{value}</div>
++      {sub && (
++        <div style={{ color: positive ? '#00e5a0' : '#ff6b6b', fontSize: 12, marginTop: 4, fontWeight: 500 }}>
++          {sub}
++        </div>
++      )}
++    </div>
++  )
++}
++
++// ── Overview View ────────────────────────────────────────────────
++
++function OverviewView({
++  strategyData,
++  topPositions,
++  kpis,
++}: {
++  strategyData: { name: string; value: number }[]
++  topPositions: { ticker: string; value: number; gl: number }[]
++  kpis: { shortValue: number; longValue: number; totalValue: number }
++}) {
++  return (
++    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
++      {/* Allocation Donut */}
++      <div
++        style={{
++          background: 'var(--card-bg)',
++          border: '1px solid var(--card-border)',
++          borderRadius: 16,
++          padding: 20,
++          backdropFilter: 'blur(20px)',
++        }}
++      >
++        <h4 style={{ color: 'var(--text-primary)', margin: '0 0 16px', fontSize: 14, fontWeight: 600 }}>
++          Allocation by Strategy
++        </h4>
++        <div style={{ height: 260 }}>
++          <ResponsiveContainer width="100%" height="100%">
++            <PieChart>
++              <Pie
++                data={strategyData}
++                cx="50%"
++                cy="50%"
++                innerRadius={60}
++                outerRadius={100}
++                paddingAngle={2}
++                dataKey="value"
++                stroke="none"
++              >
++                {strategyData.map((_entry, idx) => (
++                  <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
++                ))}
++              </Pie>
++              <Tooltip
++                contentStyle={{
++                  background: 'rgba(10,14,39,0.95)',
++                  border: '1px solid var(--card-border)',
++                  borderRadius: 8,
++                  color: 'var(--text-primary)',
++                  fontSize: 12,
++                }}
++                formatter={(val: number | undefined) => fmt(val ?? 0)}
++              />
++            </PieChart>
++          </ResponsiveContainer>
++        </div>
++        {/* Legend */}
++        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', marginTop: 8 }}>
++          {strategyData.map((s, i) => (
++            <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
++              <div style={{ width: 8, height: 8, borderRadius: 2, background: COLORS[i % COLORS.length] }} />
++              <span style={{ color: 'var(--text-secondary)' }}>{s.name}</span>
++            </div>
++          ))}
++        </div>
++      </div>
++
++      {/* Top Positions Bar */}
++      <div
++        style={{
++          background: 'var(--card-bg)',
++          border: '1px solid var(--card-border)',
++          borderRadius: 16,
++          padding: 20,
++          backdropFilter: 'blur(20px)',
++        }}
++      >
++        <h4 style={{ color: 'var(--text-primary)', margin: '0 0 16px', fontSize: 14, fontWeight: 600 }}>
++          Top 10 Positions by Value
++        </h4>
++        <div style={{ height: 280 }}>
++          <ResponsiveContainer width="100%" height="100%">
++            <BarChart data={topPositions} layout="vertical" margin={{ left: 40, right: 10 }}>
++              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
++              <XAxis type="number" tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`} stroke="var(--text-muted)" fontSize={11} />
++              <YAxis type="category" dataKey="ticker" stroke="var(--text-muted)" fontSize={11} width={45} />
++              <Tooltip
++                contentStyle={{
++                  background: 'rgba(10,14,39,0.95)',
++                  border: '1px solid var(--card-border)',
++                  borderRadius: 8,
++                  color: 'var(--text-primary)',
++                  fontSize: 12,
++                }}
++                formatter={(val: number | undefined) => fmt(val ?? 0)}
++              />
++              <Bar dataKey="value" fill="var(--accent-cyan)" radius={[0, 4, 4, 0]} />
++            </BarChart>
++          </ResponsiveContainer>
++        </div>
++      </div>
++
++      {/* Tax Term Breakdown */}
++      <div
++        style={{
++          background: 'var(--card-bg)',
++          border: '1px solid var(--card-border)',
++          borderRadius: 16,
++          padding: 20,
++          backdropFilter: 'blur(20px)',
++          gridColumn: '1 / -1',
++        }}
++      >
++        <h4 style={{ color: 'var(--text-primary)', margin: '0 0 12px', fontSize: 14, fontWeight: 600 }}>
++          Tax Term Breakdown
++        </h4>
++        <div style={{ display: 'flex', gap: 24 }}>
++          <div style={{ flex: 1 }}>
++            <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 4 }}>Short-Term</div>
++            <div style={{ color: '#ff6b6b', fontSize: 22, fontWeight: 700 }}>{fmt(kpis.shortValue)}</div>
++            <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
++              {kpis.totalValue > 0 ? ((kpis.shortValue / kpis.totalValue) * 100).toFixed(1) : '0'}% of portfolio
++            </div>
++          </div>
++          <div style={{ flex: 1 }}>
++            <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 4 }}>Long-Term</div>
++            <div style={{ color: '#00e5a0', fontSize: 22, fontWeight: 700 }}>{fmt(kpis.longValue)}</div>
++            <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
++              {kpis.totalValue > 0 ? ((kpis.longValue / kpis.totalValue) * 100).toFixed(1) : '0'}% of portfolio
++            </div>
++          </div>
++          <div style={{ flex: 1 }}>
++            <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 4 }}>Roth Conversion Note</div>
++            <div style={{ color: 'var(--accent-cyan)', fontSize: 13 }}>
++              2026 is a low-income year — consider converting up to $23K at 22% bracket before Dec 31.
++            </div>
++          </div>
++        </div>
++      </div>
++    </div>
++  )
++}
++
++// ── Positions View ───────────────────────────────────────────────
++
++function PositionsView({ positions, totalValue }: { positions: PositionGroup[]; totalValue: number }) {
++  return (
++    <div
++      style={{
++        background: 'var(--card-bg)',
++        border: '1px solid var(--card-border)',
++        borderRadius: 16,
++        padding: 20,
++        backdropFilter: 'blur(20px)',
++        overflowX: 'auto',
++      }}
++    >
++      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
++        <thead>
++          <tr style={{ borderBottom: '1px solid var(--card-border)' }}>
++            {['Ticker', 'Name', 'Strategy', 'Shares', 'Price', 'Value', 'Cost', 'G/L', 'G/L %', '% Port', 'Est. Income'].map(h => (
++              <th
++                key={h}
++                style={{
++                  textAlign: h === 'Ticker' || h === 'Name' || h === 'Strategy' ? 'left' : 'right',
++                  padding: '10px 8px',
++                  color: 'var(--text-muted)',
++                  fontWeight: 500,
++                  fontSize: 11,
++                  textTransform: 'uppercase',
++                  letterSpacing: 0.5,
++                }}
++              >
++                {h}
++              </th>
++            ))}
++          </tr>
++        </thead>
++        <tbody>
++          {positions.map(pos => {
++            const isGain = pos.unrealizedGL >= 0
++            const pctPort = totalValue > 0 ? (pos.totalValue / totalValue) * 100 : 0
++            return (
++              <tr
++                key={pos.ticker}
++                style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
++              >
++                <td style={{ padding: '10px 8px', color: 'var(--accent-cyan)', fontWeight: 600 }}>
++                  {pos.ticker}
++                </td>
++                <td style={{ padding: '10px 8px', color: 'var(--text-secondary)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
++                  {pos.description}
++                </td>
++                <td style={{ padding: '10px 8px', color: 'var(--text-muted)', fontSize: 11 }}>
++                  {pos.assetStrategy}
++                </td>
++                <td style={{ padding: '10px 8px', textAlign: 'right', color: 'var(--text-secondary)' }}>
++                  {fmtShares(pos.totalQuantity)}
++                </td>
++                <td style={{ padding: '10px 8px', textAlign: 'right', color: 'var(--text-secondary)' }}>
++                  ${pos.price.toFixed(2)}
++                </td>
++                <td style={{ padding: '10px 8px', textAlign: 'right', color: 'var(--text-primary)', fontWeight: 500 }}>
++                  {fmt(pos.totalValue)}
++                </td>
++                <td style={{ padding: '10px 8px', textAlign: 'right', color: 'var(--text-secondary)' }}>
++                  {fmt(pos.totalCost)}
++                </td>
++                <td style={{ padding: '10px 8px', textAlign: 'right', color: isGain ? '#00e5a0' : '#ff6b6b', fontWeight: 500 }}>
++                  {fmt(pos.unrealizedGL)}
++                </td>
++                <td style={{ padding: '10px 8px', textAlign: 'right', color: isGain ? '#00e5a0' : '#ff6b6b' }}>
++                  {fmtPct(pos.unrealizedGLPct)}
++                </td>
++                <td style={{ padding: '10px 8px', textAlign: 'right', color: 'var(--text-secondary)' }}>
++                  {pctPort.toFixed(1)}%
++                </td>
++                <td style={{ padding: '10px 8px', textAlign: 'right', color: 'var(--text-secondary)' }}>
++                  {pos.estAnnualIncome > 0 ? fmt(pos.estAnnualIncome) : '—'}
++                </td>
++              </tr>
++            )
++          })}
++        </tbody>
++      </table>
++    </div>
++  )
++}
++
++// ── Tax Lots View ────────────────────────────────────────────────
++
++function TaxLotsView({ lots }: { lots: TaxLot[] }) {
++  const [sortBy, setSortBy] = useState<'value' | 'gl' | 'date' | 'ticker'>('value')
++
++  const sorted = useMemo(() => {
++    const copy = [...lots]
++    switch (sortBy) {
++      case 'value':
++        return copy.sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
++      case 'gl':
++        return copy.sort((a, b) => (b.unrealizedGL ?? 0) - (a.unrealizedGL ?? 0))
++      case 'date':
++        return copy.sort((a, b) => (a.acquisitionDate ?? '').localeCompare(b.acquisitionDate ?? ''))
++      case 'ticker':
++        return copy.sort((a, b) => a.ticker.localeCompare(b.ticker))
++    }
++  }, [lots, sortBy])
++
++  return (
++    <div
++      style={{
++        background: 'var(--card-bg)',
++        border: '1px solid var(--card-border)',
++        borderRadius: 16,
++        padding: 20,
++        backdropFilter: 'blur(20px)',
++        overflowX: 'auto',
++      }}
++    >
++      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
++        <h4 style={{ color: 'var(--text-primary)', margin: 0, fontSize: 14, fontWeight: 600 }}>
++          {lots.length} Tax Lots
++        </h4>
++        <div style={{ display: 'flex', gap: 4 }}>
++          {(['value', 'gl', 'date', 'ticker'] as const).map(s => (
++            <button
++              key={s}
++              onClick={() => setSortBy(s)}
++              style={{
++                padding: '4px 10px',
++                background: sortBy === s ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.04)',
++                border: '1px solid',
++                borderColor: sortBy === s ? 'var(--accent-cyan)' : 'transparent',
++                borderRadius: 6,
++                color: sortBy === s ? 'var(--accent-cyan)' : 'var(--text-muted)',
++                cursor: 'pointer',
++                fontSize: 11,
++              }}
++            >
++              {s === 'gl' ? 'G/L' : s.charAt(0).toUpperCase() + s.slice(1)}
++            </button>
++          ))}
++        </div>
++      </div>
++      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
++        <thead>
++          <tr style={{ borderBottom: '1px solid var(--card-border)' }}>
++            {['Ticker', 'Acquired', 'Tax Term', 'Qty', 'Unit Cost', 'Price', 'Cost', 'Value', 'G/L', 'G/L %', 'Days Held'].map(h => (
++              <th
++                key={h}
++                style={{
++                  textAlign: h === 'Ticker' || h === 'Tax Term' ? 'left' : 'right',
++                  padding: '8px 6px',
++                  color: 'var(--text-muted)',
++                  fontWeight: 500,
++                  fontSize: 10,
++                  textTransform: 'uppercase',
++                  letterSpacing: 0.5,
++                }}
++              >
++                {h}
++              </th>
++            ))}
++          </tr>
++        </thead>
++        <tbody>
++          {sorted.map((lot, i) => {
++            const isGain = (lot.unrealizedGL ?? 0) >= 0
++            return (
++              <tr key={`${lot.ticker}-${lot.acquisitionDate}-${i}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
++                <td style={{ padding: '8px 6px', color: 'var(--accent-cyan)', fontWeight: 600, fontSize: 12 }}>{lot.ticker}</td>
++                <td style={{ padding: '8px 6px', textAlign: 'right', color: 'var(--text-secondary)' }}>
++                  {lot.acquisitionDate ?? '—'}
++                </td>
++                <td style={{ padding: '8px 6px' }}>
++                  <span
++                    style={{
++                      padding: '2px 8px',
++                      borderRadius: 4,
++                      fontSize: 10,
++                      fontWeight: 600,
++                      background: lot.taxTerm === 'Long' ? 'rgba(0,229,160,0.12)' : 'rgba(255,107,107,0.12)',
++                      color: lot.taxTerm === 'Long' ? '#00e5a0' : '#ff6b6b',
++                    }}
++                  >
++                    {lot.taxTerm ?? '?'}
++                  </span>
++                </td>
++                <td style={{ padding: '8px 6px', textAlign: 'right', color: 'var(--text-secondary)' }}>{fmtShares(lot.quantity)}</td>
++                <td style={{ padding: '8px 6px', textAlign: 'right', color: 'var(--text-secondary)' }}>
++                  {lot.unitCost != null ? `$${lot.unitCost.toFixed(2)}` : '—'}
++                </td>
++                <td style={{ padding: '8px 6px', textAlign: 'right', color: 'var(--text-secondary)' }}>
++                  {lot.price != null ? `$${lot.price.toFixed(2)}` : '—'}
++                </td>
++                <td style={{ padding: '8px 6px', textAlign: 'right', color: 'var(--text-secondary)' }}>
++                  {lot.cost != null ? fmt(lot.cost) : '—'}
++                </td>
++                <td style={{ padding: '8px 6px', textAlign: 'right', color: 'var(--text-primary)', fontWeight: 500 }}>
++                  {lot.value != null ? fmt(lot.value) : '—'}
++                </td>
++                <td style={{ padding: '8px 6px', textAlign: 'right', color: isGain ? '#00e5a0' : '#ff6b6b', fontWeight: 500 }}>
++                  {lot.unrealizedGL != null ? fmt(lot.unrealizedGL) : '—'}
++                </td>
++                <td style={{ padding: '8px 6px', textAlign: 'right', color: isGain ? '#00e5a0' : '#ff6b6b' }}>
++                  {lot.unrealizedGLPct != null ? fmtPct(lot.unrealizedGLPct) : '—'}
++                </td>
++                <td style={{ padding: '8px 6px', textAlign: 'right', color: 'var(--text-muted)' }}>
++                  {lot.daysHeld ?? '—'}
++                </td>
++              </tr>
++            )
++          })}
++        </tbody>
++      </table>
++    </div>
++  )
++}
++
++// ── History View ─────────────────────────────────────────────────
++
++function HistoryView({ transactions }: { transactions: InvestmentData['transactions'] }) {
++  const typeColors: Record<string, string> = {
++    Buy: '#00d4ff',
++    Sell: '#ff6b6b',
++    Dividend: '#00e5a0',
++    'STK SPLT': '#c084fc',
++    BNK: '#ffd93d',
++    WDL: '#fb923c',
++    DBS: '#67e8f9',
++  }
++
++  return (
++    <div
++      style={{
++        background: 'var(--card-bg)',
++        border: '1px solid var(--card-border)',
++        borderRadius: 16,
++        padding: 20,
++        backdropFilter: 'blur(20px)',
++        overflowX: 'auto',
++      }}
++    >
++      <h4 style={{ color: 'var(--text-primary)', margin: '0 0 12px', fontSize: 14, fontWeight: 600 }}>
++        {transactions.length} Transactions
++      </h4>
++      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
++        <thead>
++          <tr style={{ borderBottom: '1px solid var(--card-border)' }}>
++            {['Date', 'Type', 'Ticker', 'Description', 'Qty', 'Price', 'Amount', 'Income', 'G/L'].map(h => (
++              <th
++                key={h}
++                style={{
++                  textAlign: h === 'Date' || h === 'Type' || h === 'Ticker' || h === 'Description' ? 'left' : 'right',
++                  padding: '8px 6px',
++                  color: 'var(--text-muted)',
++                  fontWeight: 500,
++                  fontSize: 10,
++                  textTransform: 'uppercase',
++                  letterSpacing: 0.5,
++                }}
++              >
++                {h}
++              </th>
++            ))}
++          </tr>
++        </thead>
++        <tbody>
++          {transactions.map((txn, i) => {
++            const gl = (txn.glShort ?? 0) + (txn.glLong ?? 0)
++            return (
++              <tr key={`${txn.tradeDate}-${txn.ticker}-${i}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
++                <td style={{ padding: '8px 6px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{txn.tradeDate}</td>
++                <td style={{ padding: '8px 6px' }}>
++                  <span
++                    style={{
++                      padding: '2px 8px',
++                      borderRadius: 4,
++                      fontSize: 10,
++                      fontWeight: 600,
++                      background: `${typeColors[txn.transactionType] ?? 'var(--text-muted)'}20`,
++                      color: typeColors[txn.transactionType] ?? 'var(--text-muted)',
++                    }}
++                  >
++                    {txn.transactionType}
++                  </span>
++                </td>
++                <td style={{ padding: '8px 6px', color: 'var(--accent-cyan)', fontWeight: 600 }}>{txn.ticker ?? '—'}</td>
++                <td style={{ padding: '8px 6px', color: 'var(--text-secondary)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
++                  {txn.description ?? '—'}
++                </td>
++                <td style={{ padding: '8px 6px', textAlign: 'right', color: 'var(--text-secondary)' }}>
++                  {txn.quantity != null && txn.quantity !== 0 ? fmtShares(txn.quantity) : '—'}
++                </td>
++                <td style={{ padding: '8px 6px', textAlign: 'right', color: 'var(--text-secondary)' }}>
++                  {txn.price != null && txn.price > 0 ? `$${txn.price.toFixed(2)}` : '—'}
++                </td>
++                <td style={{ padding: '8px 6px', textAlign: 'right', color: 'var(--text-primary)', fontWeight: 500 }}>
++                  {txn.amount != null ? fmt(txn.amount) : '—'}
++                </td>
++                <td style={{ padding: '8px 6px', textAlign: 'right', color: '#00e5a0' }}>
++                  {txn.income != null && txn.income > 0 ? fmt(txn.income) : '—'}
++                </td>
++                <td style={{ padding: '8px 6px', textAlign: 'right', color: gl >= 0 ? '#00e5a0' : '#ff6b6b' }}>
++                  {gl !== 0 ? fmt(gl) : '—'}
++                </td>
++              </tr>
++            )
++          })}
++        </tbody>
++      </table>
++    </div>
++  )
++}
+diff --git a/src/components/financial/NetWorthTab.tsx b/src/components/financial/NetWorthTab.tsx
+index dca851a..7cd0864 100644
+--- a/src/components/financial/NetWorthTab.tsx
++++ b/src/components/financial/NetWorthTab.tsx
+@@ -15,41 +15,32 @@ import {
+   PieChart,
+   Pie,
+ } from 'recharts'
+-import type { DebtAccount, HelocKPIs } from '@/lib/financial-data'
++import type { DebtAccount, HelocKPIs, Assets } from '@/lib/financial-data'
+ import { fmt, fmtK } from '@/lib/financial-data'
+ import KPICard from './KPICard'
+ 
+-// ── Hardcoded Assets ──────────────────────────────────
+-const ASSETS = {
+-  home: 850000,
+-  retirement: 180000,
+-  brokerage: 25000,
+-  cash: 8000,
+-  vehicles: 35000,
+-}
+-
+-const TOTAL_ASSETS = Object.values(ASSETS).reduce((a, b) => a + b, 0)
+-
+ // ── Props ────────────────────────────────────────────
+ interface NetWorthTabProps {
+   debts: DebtAccount[]
+   helocKPIs: HelocKPIs
++  assets: Assets
+ }
+ 
+ // ── Helpers ──────────────────────────────────────────
+-function calculateNetWorthData(debts: DebtAccount[]) {
++function calculateNetWorthData(debts: DebtAccount[], assets: Assets) {
++  const totalAssets = Object.values(assets).reduce((a, b) => a + b, 0)
+   const totalLiabilities = debts.reduce((sum, d) => sum + d.balance, 0)
+-  const netWorth = TOTAL_ASSETS - totalLiabilities
++  const netWorth = totalAssets - totalLiabilities
+   const mortgageDebt = debts.find(d => d.category === 'Mortgage')?.balance ?? 0
+   const nonMortgageDebt = totalLiabilities - mortgageDebt
+-  const homeEquity = ASSETS.home - mortgageDebt
+-  const homeEquityPct = (homeEquity / ASSETS.home) * 100
++  const homeEquity = assets.home - mortgageDebt
++  const homeEquityPct = assets.home > 0 ? (homeEquity / assets.home) * 100 : 0
+ 
+   return {
+-    totalAssets: TOTAL_ASSETS,
++    totalAssets,
+     totalLiabilities,
+     netWorth,
+-    debtToAssetRatio: (totalLiabilities / TOTAL_ASSETS) * 100,
++    debtToAssetRatio: totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0,
+     homeEquity,
+     homeEquityPct,
+     nonMortgageDebt,
+@@ -90,8 +81,8 @@ function getDebtByCategory(debts: DebtAccount[]) {
+   }))
+ }
+ 
+-export default function NetWorthTab({ debts, helocKPIs }: NetWorthTabProps) {
+-  const nwData = useMemo(() => calculateNetWorthData(debts), [debts])
++export default function NetWorthTab({ debts, helocKPIs, assets }: NetWorthTabProps) {
++  const nwData = useMemo(() => calculateNetWorthData(debts, assets), [debts, assets])
+   const projectionData = useMemo(() => generateNetWorthProjection(nwData.netWorth), [nwData.netWorth])
+   const debtByCategory = useMemo(() => getDebtByCategory(debts), [debts])
+ 
+@@ -214,11 +205,11 @@ export default function NetWorthTab({ debts, helocKPIs }: NetWorthTabProps) {
+           </h3>
+           <div className="space-y-0">
+             {[
+-              { name: 'Home (2214 N Carroll)', value: ASSETS.home, color: '#00d4ff' },
+-              { name: '401(k) / Retirement', value: ASSETS.retirement, color: '#8b5cf6' },
+-              { name: 'Brokerage Account', value: ASSETS.brokerage, color: '#14b8a6' },
+-              { name: 'Cash / Checking', value: ASSETS.cash, color: '#3b82f6' },
+-              { name: 'Vehicles', value: ASSETS.vehicles, color: '#06b6d4' },
++              { name: 'Home (2214 N Carroll)', value: assets.home, color: '#00d4ff' },
++              { name: '401(k) / Retirement', value: assets.retirement, color: '#8b5cf6' },
++              { name: 'Brokerage Account', value: assets.brokerage, color: '#14b8a6' },
++              { name: 'Cash / Checking', value: assets.cash, color: '#3b82f6' },
++              { name: 'Vehicles', value: assets.vehicles, color: '#06b6d4' },
+             ].map((asset, i) => (
+               <div
+                 key={i}
+@@ -457,7 +448,7 @@ export default function NetWorthTab({ debts, helocKPIs }: NetWorthTabProps) {
+               {fmtK(nwData.mortgageDebt)}
+             </div>
+             <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+-              vs. {fmtK(ASSETS.home)} home value
++              vs. {fmtK(assets.home)} home value
+             </div>
+           </div>
+ 
+@@ -484,7 +475,7 @@ export default function NetWorthTab({ debts, helocKPIs }: NetWorthTabProps) {
+               Liquid Assets
+             </div>
+             <div className="text-[16px] font-bold font-mono mt-1" style={{ color: '#22c55e' }}>
+-              {fmtK(ASSETS.cash + ASSETS.brokerage)}
++              {fmtK(assets.cash + assets.brokerage)}
+             </div>
+             <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+               Cash + brokerage
+diff --git a/src/components/financial/OverviewTab.tsx b/src/components/financial/OverviewTab.tsx
+index 2b5e8bc..3250608 100644
+--- a/src/components/financial/OverviewTab.tsx
++++ b/src/components/financial/OverviewTab.tsx
+@@ -23,10 +23,21 @@ const statusStyle = {
+ }
+ 
+ export default function OverviewTab({ data }: { data: FinancialData }) {
+-  const { debts, modules, deadlines, actionItems, helocKPIs } = data
++  const { debts, modules, deadlines, actionItems, helocKPIs, incomeBridge } = data
+   const totals = getDebtTotals(debts)
+   const modCounts = getModuleCounts(modules)
+ 
++  // Mortgage info from live debt data
++  const mortgage = debts.find(d => d.category === 'Mortgage')
++  const mortgageNote = mortgage
++    ? `Mortgage: ${fmtRound(mortgage.balance)} @ ${mortgage.rate}%`
++    : 'No mortgage found'
++
++  // Cash buffer computed from income bridge
++  const totalLiquid = incomeBridge.liquidCash + incomeBridge.marchPaychecks + incomeBridge.severanceEstimate + incomeBridge.familyBridge
++  const marchBillsEst = incomeBridge.monthlyOutflow
++  const cashBuffer = totalLiquid - marchBillsEst
++
+   return (
+     <div className="space-y-5">
+       {/* KPI Strip — all derived from live data */}
+@@ -34,7 +45,7 @@ export default function OverviewTab({ data }: { data: FinancialData }) {
+         <KPICard
+           label="Total Debt (excl. mortgage)"
+           value={fmtK(totals.total)}
+-          note="Mortgage: $498,903 @ 3.375%"
++          note={mortgageNote}
+           accent="red"
+         />
+         <KPICard
+@@ -49,9 +60,9 @@ export default function OverviewTab({ data }: { data: FinancialData }) {
+           accent="green"
+         />
+         <KPICard
+-          label="March Cash Buffer"
+-          value="~$3,686"
+-          note="After all March obligations"
++          label="Cash Buffer"
++          value={`~${fmtRound(cashBuffer)}`}
++          note="Liquid minus 1 month outflow"
+           accent="amber"
+         />
+         <KPICard
+diff --git a/src/components/financial/PromoDeadlinesTab.tsx b/src/components/financial/PromoDeadlinesTab.tsx
+index 43cf4d2..1923c37 100644
+--- a/src/components/financial/PromoDeadlinesTab.tsx
++++ b/src/components/financial/PromoDeadlinesTab.tsx
+@@ -1,6 +1,6 @@
+ 'use client'
+ 
+-import type { PromoDeadline } from '@/lib/financial-data'
++import type { PromoDeadline, HelocKPIs } from '@/lib/financial-data'
+ import { fmt } from '@/lib/financial-data'
+ 
+ function daysUntil(dateStr: string): number {
+@@ -12,7 +12,7 @@ function formatDate(dateStr: string): string {
+   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+ }
+ 
+-export default function PromoDeadlinesTab({ promos }: { promos: PromoDeadline[] }) {
++export default function PromoDeadlinesTab({ promos, helocKPIs }: { promos: PromoDeadline[]; helocKPIs: HelocKPIs }) {
+   const sorted = [...promos].sort((a, b) => new Date(a.expires).getTime() - new Date(b.expires).getTime())
+   const totalPromo = promos.reduce((s, p) => s + p.balance, 0)
+ 
+@@ -27,7 +27,7 @@ export default function PromoDeadlinesTab({ promos }: { promos: PromoDeadline[]
+         <span style={{ color: 'var(--text-secondary)' }}>
+           All 0% promo balances are safe as long as they're paid from HELOC BEFORE expiry.
+           Total promo balance: <strong style={{ color: 'var(--text-primary)' }}>{fmt(totalPromo)}</strong> across {promos.length} accounts.
+-          HELOC has <strong style={{ color: 'var(--text-primary)' }}>$79,370</strong> available after initial roll — more than enough to cover all promos.
++          HELOC has <strong style={{ color: 'var(--text-primary)' }}>{fmt(helocKPIs.finalBuffer)}</strong> available after initial roll — {helocKPIs.finalBuffer >= totalPromo ? 'more than enough to cover all promos' : 'may need additional funds for full coverage'}.
+         </span>
+       </div>
+ 
+diff --git a/src/components/financial/SpendingBudgetTab.tsx b/src/components/financial/SpendingBudgetTab.tsx
+index 5203584..6bdcd92 100644
+--- a/src/components/financial/SpendingBudgetTab.tsx
++++ b/src/components/financial/SpendingBudgetTab.tsx
+@@ -1,6 +1,13 @@
+ 'use client'
+ 
+-import type { SpendingCategory, BurnRateItem, WealthScenario, TaxSnapshot } from '@/lib/financial-data'
++import type {
++  SpendingCategory,
++  BurnRateItem,
++  WealthScenario,
++  TaxSnapshot,
++  IncomeBridge,
++  SpendingSummary,
++} from '@/lib/financial-data'
+ import { fmt, calcWealth } from '@/lib/financial-data'
+ import KPICard from './KPICard'
+ import SpendingDonut from './SpendingDonut'
+@@ -10,29 +17,85 @@ import TaxSnapshotCard from './TaxSnapshotCard'
+ import SpendTrendChart from './SpendTrendChart'
+ import BalanceHistoryChart from './BalanceHistoryChart'
+ 
++function fmtK(n: number): string {
++  return n >= 1000 ? '$' + (n / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 }) + 'K' : '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 })
++}
++
++function fmtWhole(n: number): string {
++  return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 })
++}
++
+ export default function SpendingBudgetTab({
+   spendingCategories,
+   burnRate,
+   wealthScenarios,
+   taxSnapshot,
++  incomeBridge,
++  spendingSummary,
+ }: {
+   spendingCategories: SpendingCategory[]
+   burnRate: BurnRateItem[]
+   wealthScenarios: WealthScenario[]
+   taxSnapshot: TaxSnapshot
++  incomeBridge: IncomeBridge
++  spendingSummary: SpendingSummary
+ }) {
+   const totalCurrent = burnRate.reduce((s, b) => s + b.current, 0)
+   const totalSurvival = burnRate.reduce((s, b) => s + b.survival, 0)
+   const monthlySaved = totalCurrent - totalSurvival
+ 
++  // Computed from spendingCategories
++  const totalAnnual = spendingCategories.reduce((s, c) => s + c.annual, 0)
++  const totalMonthly = spendingCategories.reduce((s, c) => s + c.monthly, 0)
++  const totalSurvivalSpend = spendingCategories.reduce((s, c) => s + c.survival, 0)
++  const topCat = spendingCategories.length > 0 ? spendingCategories[0] : null
++
++  // Use spendingSummary for transaction count and card info (not derivable from categories)
++  const txnCount = spendingSummary.totalTransactions
++  const cardsAnalyzed = spendingSummary.cardsAnalyzed
++  const savingsTarget = totalMonthly - totalSurvivalSpend
++
++  // Income bridge computed values
++  const ib = incomeBridge
++  const totalLiquid = ib.liquidCash + ib.marchPaychecks + ib.severanceEstimate + ib.familyBridge
++  const runwayNoIncome = ib.monthlyOutflow > 0 ? totalLiquid / ib.monthlyOutflow : 0
++  const consultingDeficit = ib.monthlyOutflow - ib.consultingMonthlyNet
++  const runwayConsulting = consultingDeficit > 0 ? totalLiquid / consultingDeficit : 99
++  const newJobSurplus = ib.newJobMonthlyNet - ib.monthlyOutflow
++  const mustLandBy = Math.ceil(runwayNoIncome)
++
++  // Property tax from taxSnapshot
++  const propTaxDetails = taxSnapshot.propertyTaxDetails ?? []
++  const propTaxTotal = propTaxDetails.reduce((s, t) => s + t.amount, 0)
++  const propTaxMonthly = propTaxTotal / 12
++
+   return (
+     <div className="space-y-5">
+       {/* KPIs */}
+       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+-        <KPICard label="2025 CC Spend (full year)" value="$76,052" note="AmEx Gold + Plat + Chase 9313 · 1,615 txns" accent="red" />
+-        <KPICard label="Monthly Average" value="$6,338/mo" note="Credit cards only — does not include ACH" accent="amber" />
+-        <KPICard label="#1 Category" value="Food & Dining" note="$27,441 · 36% of total CC spend" />
+-        <KPICard label="Monthly Savings Target" value="~$3,800/mo" note="Cards only: $6,338 → $2,500 survival" accent="green" />
++        <KPICard
++          label="2025 CC Spend (full year)"
++          value={fmtWhole(totalAnnual)}
++          note={`${cardsAnalyzed} · ${txnCount.toLocaleString()} txns`}
++          accent="red"
++        />
++        <KPICard
++          label="Monthly Average"
++          value={`${fmtWhole(totalMonthly)}/mo`}
++          note="Credit cards only — does not include ACH"
++          accent="amber"
++        />
++        <KPICard
++          label="#1 Category"
++          value={topCat?.cat ?? '—'}
++          note={topCat ? `${fmtWhole(topCat.annual)} · ${topCat.pct}% of total CC spend` : ''}
++        />
++        <KPICard
++          label="Monthly Savings Target"
++          value={`~${fmtWhole(savingsTarget)}/mo`}
++          note={`Cards only: ${fmtWhole(totalMonthly)} → ${fmtWhole(totalSurvivalSpend)} survival`}
++          accent="green"
++        />
+       </div>
+ 
+       {/* Spend Trend + Balance History (live from transactions table) */}
+@@ -81,10 +144,10 @@ export default function SpendingBudgetTab({
+               <tfoot>
+                 <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)' }}>
+                   <td className="py-3 px-3 text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>TOTAL (CC)</td>
+-                  <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>$76,052</td>
+-                  <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>$6,338</td>
++                  <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(totalAnnual)}</td>
++                  <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(totalMonthly)}</td>
+                   <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>100%</td>
+-                  <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: '#22c55e' }}>~$2,500</td>
++                  <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: '#22c55e' }}>~{fmtWhole(totalSurvivalSpend)}</td>
+                 </tr>
+               </tfoot>
+             </table>
+@@ -140,11 +203,7 @@ export default function SpendingBudgetTab({
+               className="mt-3 p-3 rounded-lg text-[12px]"
+               style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)' }}
+             >
+-              <strong style={{ color: '#22c55e' }}>✅ Post-HELOC + spending cuts = ${Math.round(monthlySaved).toLocaleString()}/mo relief</strong>
+-              <br />
+-              <span style={{ color: 'var(--text-muted)' }}>
+-                $4,484 debt service eliminated + $632 HELOC interest + $3,559 discretionary cuts
+-              </span>
++              <strong style={{ color: '#22c55e' }}>✅ Post-HELOC + spending cuts = {fmtWhole(Math.round(monthlySaved))}/mo relief</strong>
+             </div>
+           </div>
+         </div>
+@@ -153,13 +212,13 @@ export default function SpendingBudgetTab({
+       {/* Wealth Projection */}
+       <div className="glass-card p-5">
+         <h3 className="text-[13px] font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+-          20-Year Net Worth Projection — 3 Scenarios (Age 40→60, Starting NW: $410K)
++          20-Year Net Worth Projection — {wealthScenarios.length} Scenarios
+         </h3>
+         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4" style={{ alignItems: 'start' }}>
+           <div className="lg:col-span-2">
+             <WealthProjectionChart scenarios={wealthScenarios} />
+             <div className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>
+-              ★ Based on $312K total comp ($240K base + 30% bonus) · Texas 0% state tax
++              ★ Based on {fmtK(ib.targetTotalComp)} total comp ({fmtK(ib.targetSalary)} base + 30% bonus) · Texas 0% state tax
+             </div>
+           </div>
+           <div className="space-y-3">
+@@ -188,20 +247,6 @@ export default function SpendingBudgetTab({
+                 </tbody>
+               </table>
+             </div>
+-            <div className="p-3 rounded-lg text-[12px]" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)' }}>
+-              <strong style={{ color: '#f59e0b' }}>⚠️ Gap vs. $15M target at 60:</strong>
+-              <br />
+-              <span style={{ color: 'var(--text-muted)' }}>
+-                Accelerators: Income growth to $500K+, equity comp, side income, real estate
+-              </span>
+-            </div>
+-            <div className="p-3 rounded-lg text-[12px]" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)' }}>
+-              <strong style={{ color: '#22c55e' }}>✅ $1M by age 45 is achievable</strong>
+-              <br />
+-              <span style={{ color: 'var(--text-muted)' }}>
+-                All 3 scenarios clear $1M milestone by age 45
+-              </span>
+-            </div>
+           </div>
+         </div>
+       </div>
+@@ -209,7 +254,7 @@ export default function SpendingBudgetTab({
+       {/* Income Bridge */}
+       <div className="glass-card p-5">
+         <h3 className="text-[13px] font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+-          Income Bridge & Runway (Post-JPMC Exit: March 19, 2026)
++          Income Bridge &amp; Runway (Post-JPMC Exit)
+         </h3>
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+           {/* Scenario A — No Income */}
+@@ -217,17 +262,17 @@ export default function SpendingBudgetTab({
+             <div className="font-bold text-[13px] mb-3" style={{ color: '#ef4444' }}>Scenario A — No Income</div>
+             <div className="space-y-2 text-[12px]">
+               <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
+-                <span>Monthly outflow</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>$7,234</span>
++                <span>Monthly outflow</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(ib.monthlyOutflow)}</span>
+               </div>
+               <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
+-                <span>Liquid (cash+sev est.)</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>$41,250</span>
++                <span>Liquid (cash+sev est.)</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(totalLiquid)}</span>
+               </div>
+               <div className="flex justify-between pt-2" style={{ borderTop: '1px solid rgba(239,68,68,0.25)' }}>
+                 <span className="font-bold" style={{ color: '#ef4444' }}>Runway</span>
+-                <span className="font-bold" style={{ color: '#ef4444' }}>~5.7 months</span>
++                <span className="font-bold" style={{ color: '#ef4444' }}>~{runwayNoIncome.toFixed(1)} months</span>
+               </div>
+             </div>
+-            <div className="text-[11px] mt-3" style={{ color: '#ef4444' }}>⚠️ Must land job by ~Sep 2026</div>
++            <div className="text-[11px] mt-3" style={{ color: '#ef4444' }}>⚠️ Must land job by ~{mustLandBy} months out</div>
+           </div>
+ 
+           {/* Scenario B — Consulting */}
+@@ -235,17 +280,17 @@ export default function SpendingBudgetTab({
+             <div className="font-bold text-[13px] mb-3" style={{ color: '#f59e0b' }}>Scenario B — Consulting</div>
+             <div className="space-y-2 text-[12px]">
+               <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
+-                <span>Monthly income</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>$2,500 net</span>
++                <span>Monthly income</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(ib.consultingMonthlyNet)} net</span>
+               </div>
+               <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
+-                <span>Monthly outflow</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>$7,234</span>
++                <span>Monthly outflow</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(ib.monthlyOutflow)}</span>
+               </div>
+               <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
+-                <span>Monthly deficit</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>−$4,734</span>
++                <span>Monthly deficit</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>−{fmtWhole(consultingDeficit)}</span>
+               </div>
+               <div className="flex justify-between pt-2" style={{ borderTop: '1px solid rgba(245,158,11,0.25)' }}>
+                 <span className="font-bold" style={{ color: '#f59e0b' }}>Extended runway</span>
+-                <span className="font-bold" style={{ color: '#f59e0b' }}>~8.7 months</span>
++                <span className="font-bold" style={{ color: '#f59e0b' }}>~{runwayConsulting.toFixed(1)} months</span>
+               </div>
+             </div>
+             <div className="text-[11px] mt-3" style={{ color: '#f59e0b' }}>Consulting bridges the gap significantly</div>
+@@ -253,20 +298,20 @@ export default function SpendingBudgetTab({
+ 
+           {/* Scenario C — New Job */}
+           <div className="p-4 rounded-lg" style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)' }}>
+-            <div className="font-bold text-[13px] mb-3" style={{ color: '#22c55e' }}>Scenario C — New Job ($240K)</div>
++            <div className="font-bold text-[13px] mb-3" style={{ color: '#22c55e' }}>Scenario C — New Job ({fmtK(ib.targetSalary)})</div>
+             <div className="space-y-2 text-[12px]">
+               <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
+-                <span>Monthly income net</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>$13,670</span>
++                <span>Monthly income net</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(ib.newJobMonthlyNet)}</span>
+               </div>
+               <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
+-                <span>Monthly outflow</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>$7,234</span>
++                <span>Monthly outflow</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(ib.monthlyOutflow)}</span>
+               </div>
+               <div className="flex justify-between pt-2" style={{ borderTop: '1px solid rgba(34,197,94,0.25)' }}>
+                 <span className="font-bold" style={{ color: '#22c55e' }}>Monthly surplus</span>
+-                <span className="font-bold" style={{ color: '#22c55e' }}>+$6,436/mo</span>
++                <span className="font-bold" style={{ color: '#22c55e' }}>+{fmtWhole(newJobSurplus)}/mo</span>
+               </div>
+             </div>
+-            <div className="text-[11px] mt-3" style={{ color: '#22c55e' }}>Target: $240K base / $312K total comp</div>
++            <div className="text-[11px] mt-3" style={{ color: '#22c55e' }}>Target: {fmtK(ib.targetSalary)} base / {fmtK(ib.targetTotalComp)} total comp</div>
+           </div>
+         </div>
+ 
+@@ -277,8 +322,8 @@ export default function SpendingBudgetTab({
+         >
+           <strong style={{ color: 'var(--text-primary)' }}>Liquid Cash Breakdown:</strong>{' '}
+           <span style={{ color: 'var(--text-muted)' }}>
+-            Checking ~$8,000 + Mar paychecks ~$6,250 + Severance est. $25,000 + Family bridge ~$2,000
+-            = <strong style={{ color: 'var(--text-primary)' }}>$41,250 total</strong>
++            Checking ~{fmtWhole(ib.liquidCash)} + Mar paychecks ~{fmtWhole(ib.marchPaychecks)} + Severance est. {fmtWhole(ib.severanceEstimate)} + Family bridge ~{fmtWhole(ib.familyBridge)}
++            = <strong style={{ color: 'var(--text-primary)' }}>{fmtWhole(totalLiquid)} total</strong>
+             {' '}|{' '}
+             <span style={{ color: '#f59e0b' }}>⚠️ Confirm exact JPMC severance with HR</span>
+           </span>
+@@ -291,66 +336,60 @@ export default function SpendingBudgetTab({
+       </div>
+ 
+       {/* Property Tax Detail */}
+-      <div className="glass-card p-5">
+-        <h3 className="text-[13px] font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
+-          Property Tax Detail — 2214 N Carroll Ave, Dallas TX 75204
+-        </h3>
+-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{ alignItems: 'start' }}>
+-          <div className="overflow-x-auto">
+-            <table className="w-full text-[13px]" style={{ borderCollapse: 'collapse' }}>
+-              <thead>
+-                <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
+-                  {['Taxing Authority', '2025 Tax Due', '% of Total'].map(h => (
+-                    <th key={h} className="text-left py-2 px-3 text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+-                      {h}
+-                    </th>
++      {propTaxDetails.length > 0 && (
++        <div className="glass-card p-5">
++          <h3 className="text-[13px] font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
++            Property Tax Detail
++          </h3>
++          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{ alignItems: 'start' }}>
++            <div className="overflow-x-auto">
++              <table className="w-full text-[13px]" style={{ borderCollapse: 'collapse' }}>
++                <thead>
++                  <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
++                    {['Taxing Authority', '2025 Tax Due', '% of Total'].map(h => (
++                      <th key={h} className="text-left py-2 px-3 text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
++                        {h}
++                      </th>
++                    ))}
++                  </tr>
++                </thead>
++                <tbody>
++                  {propTaxDetails.map((t, i) => (
++                    <tr key={t.auth} style={{ borderBottom: i < propTaxDetails.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
++                      <td className="py-2 px-3 text-[12px]" style={{ color: 'var(--text-primary)' }}>{t.auth}</td>
++                      <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>{fmt(t.amount)}</td>
++                      <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>{t.pct}%</td>
++                    </tr>
+                   ))}
+-                </tr>
+-              </thead>
+-              <tbody>
+-                {[
+-                  { auth: 'Dallas ISD', amount: 6211.47, pct: 42.6 },
+-                  { auth: 'City of Dallas', amount: 4751.84, pct: 32.6 },
+-                  { auth: 'Dallas County', amount: 1465.40, pct: 10.0 },
+-                  { auth: 'Parkland Hospital', amount: 1441.60, pct: 9.9 },
+-                  { auth: 'Dallas College', amount: 724.71, pct: 5.0 },
+-                ].map((t, i) => (
+-                  <tr key={t.auth} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+-                    <td className="py-2 px-3 text-[12px]" style={{ color: 'var(--text-primary)' }}>{t.auth}</td>
+-                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>{fmt(t.amount)}</td>
+-                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>{t.pct}%</td>
++                </tbody>
++                <tfoot>
++                  <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)' }}>
++                    <td className="py-3 px-3 text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>TOTAL</td>
++                    <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{fmt(propTaxTotal)}/yr</td>
++                    <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{fmt(Math.round(propTaxMonthly * 100) / 100)}/mo</td>
+                   </tr>
+-                ))}
+-              </tbody>
+-              <tfoot>
+-                <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)' }}>
+-                  <td className="py-3 px-3 text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>TOTAL</td>
+-                  <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>$14,595.02/yr</td>
+-                  <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: 'var(--text-primary)' }}>$1,216.25/mo</td>
+-                </tr>
+-              </tfoot>
+-            </table>
+-          </div>
+-          <div className="space-y-3">
+-            <div className="p-3 rounded-lg text-[12px]" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)' }}>
+-              <strong style={{ color: '#f59e0b' }}>🏠 DCAD Protest Opportunity (Module 6)</strong>
+-              <br />
+-              <span style={{ color: 'var(--text-muted)' }}>
+-                Market value: <strong>$850,000</strong> · Reducing to $750K saves ~<strong>$1,700/yr</strong>
+-                <br />
+-                <strong>Filing deadline: May 15, 2026</strong>
+-              </span>
++                </tfoot>
++              </table>
+             </div>
+-            <div className="p-3 rounded-lg text-[12px]" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)' }}>
+-              <strong style={{ color: '#22c55e' }}>✅ 2025 taxes already paid</strong>
+-              <br />
+-              <span style={{ color: 'var(--text-muted)' }}>
+-                All 5 jurisdictions confirmed paid · Next bill: ~Oct 2026 · Budget: $1,216/mo set aside
+-              </span>
++            <div className="space-y-3">
++              <div className="p-3 rounded-lg text-[12px]" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)' }}>
++                <strong style={{ color: '#f59e0b' }}>🏠 DCAD Protest Opportunity (Module 6)</strong>
++                <br />
++                <span style={{ color: 'var(--text-muted)' }}>
++                  Filing deadline: May 15, 2026
++                </span>
++              </div>
++              <div className="p-3 rounded-lg text-[12px]" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)' }}>
++                <strong style={{ color: '#22c55e' }}>✅ 2025 taxes already paid</strong>
++                <br />
++                <span style={{ color: 'var(--text-muted)' }}>
++                  All {propTaxDetails.length} jurisdictions confirmed paid · Budget: {fmt(Math.round(propTaxMonthly * 100) / 100)}/mo set aside
++                </span>
++              </div>
+             </div>
+           </div>
+         </div>
+-      </div>
++      )}
+     </div>
+   )
+ }
+diff --git a/src/components/financial/SubscriptionsTab.tsx b/src/components/financial/SubscriptionsTab.tsx
+index d8d6532..074889e 100644
+--- a/src/components/financial/SubscriptionsTab.tsx
++++ b/src/components/financial/SubscriptionsTab.tsx
+@@ -1,6 +1,6 @@
+ 'use client'
+ 
+-import type { Subscription, EssentialBill, TopAction } from '@/lib/financial-data'
++import type { Subscription, EssentialBill, TopAction, SubscriptionSummary } from '@/lib/financial-data'
+ import { fmt } from '@/lib/financial-data'
+ import KPICard from './KPICard'
+ import SubscriptionDonut from './SubscriptionDonut'
+@@ -10,15 +10,20 @@ export default function SubscriptionsTab({
+   reviewSubs,
+   essentialBills,
+   topActions,
++  subscriptionSummary,
+ }: {
+   cancelSubs: Subscription[]
+   reviewSubs: Subscription[]
+   essentialBills: EssentialBill[]
+   topActions: TopAction[]
++  subscriptionSummary: SubscriptionSummary
+ }) {
+   const cancelTotal = cancelSubs.reduce((s, c) => s + c.mo, 0)
+   const reviewTotal = reviewSubs.reduce((s, r) => s + r.mo, 0)
+   const essentialTotal = essentialBills.reduce((s, b) => s + b.mo, 0)
++  const keepTotal = subscriptionSummary.keepTotalMonthly
++  const keepCount = subscriptionSummary.keepCount
++  const merchantCount = subscriptionSummary.totalRecurringMerchants
+ 
+   return (
+     <div className="space-y-5">
+@@ -27,8 +32,8 @@ export default function SubscriptionsTab({
+         <KPICard label="Cancel Now (Monthly)" value={`$${cancelTotal.toFixed(2)}`} note={`${cancelSubs.length} services · $${(cancelTotal * 12).toFixed(0)}/yr`} accent="red" />
+         <KPICard label="Under Review (Monthly)" value={`$${reviewTotal.toFixed(2)}`} note={`${reviewSubs.length} services · $${(reviewTotal * 12).toFixed(0)}/yr if all cut`} accent="amber" />
+         <KPICard label="Conservative Savings" value={`$${(cancelTotal + reviewTotal * 0.5).toFixed(2)}/mo`} note="Cancels + 50% of reviews cut" accent="green" />
+-        <KPICard label="Keep (Justified)" value="$36.29/mo" note="3 services — clear ROI" />
+-        <KPICard label="Recurring Merchants Found" value="102" note="Appearing in 3+ months of 2025" />
++        <KPICard label="Keep (Justified)" value={`$${keepTotal.toFixed(2)}/mo`} note={`${keepCount} services — clear ROI`} />
++        <KPICard label="Recurring Merchants Found" value={String(merchantCount)} note="Appearing in 3+ months of 2025" />
+       </div>
+ 
+       {/* Cancel + Review Tables */}
+@@ -139,7 +144,7 @@ export default function SubscriptionsTab({
+           <h3 className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
+             Subscription Spend Breakdown
+           </h3>
+-          <SubscriptionDonut cancelTotal={cancelTotal} reviewTotal={reviewTotal} keepTotal={36.29} />
++          <SubscriptionDonut cancelTotal={cancelTotal} reviewTotal={reviewTotal} keepTotal={keepTotal} />
+         </div>
+ 
+         <div className="glass-card p-5">
+diff --git a/src/components/financial/TabContainer.tsx b/src/components/financial/TabContainer.tsx
+index c4554b9..365b26d 100644
+--- a/src/components/financial/TabContainer.tsx
++++ b/src/components/financial/TabContainer.tsx
+@@ -10,12 +10,14 @@ import NetWorthTab from './NetWorthTab'
+ import DebtPayoffTab from './DebtPayoffTab'
+ import PromoDeadlinesTab from './PromoDeadlinesTab'
+ import SubscriptionsTab from './SubscriptionsTab'
++import InvestmentsTab from './InvestmentsTab'
+ 
+ const TABS = [
+   { id: 'overview', label: 'Overview', icon: '⬡' },
+   { id: 'cashflow', label: 'Cash Flow', icon: '📈' },
+   { id: 'budget', label: 'Budget vs Actual', icon: '📊' },
+   { id: 'networth', label: 'Net Worth', icon: '💰' },
++  { id: 'investments', label: 'Investments', icon: '📈' },
+   { id: 'heloc', label: 'HELOC Plan', icon: '🏦' },
+   { id: 'debtpayoff', label: 'Debt Payoff', icon: '💳' },
+   { id: 'promos', label: 'Promo Deadlines', icon: '⏰' },
+@@ -90,8 +92,12 @@ export default function TabContainer({ data }: { data: FinancialData }) {
+             promos={data.promos}
+             debts={data.debts}
+             helocKPIs={data.helocKPIs}
++            incomeBridge={data.incomeBridge}
+           />
+         )}
++        {activeTab === 'investments' && (
++          <InvestmentsTab investments={data.investments} />
++        )}
+         {activeTab === 'heloc' && (
+           <HELOCPlanTab
+             helocAccounts={data.helocAccounts}
+@@ -105,12 +111,14 @@ export default function TabContainer({ data }: { data: FinancialData }) {
+             burnRate={data.burnRate}
+             wealthScenarios={data.wealthScenarios}
+             taxSnapshot={data.taxSnapshot}
++            incomeBridge={data.incomeBridge}
+           />
+         )}
+         {activeTab === 'networth' && (
+           <NetWorthTab
+             debts={data.debts}
+             helocKPIs={data.helocKPIs}
++            assets={data.assets}
+           />
+         )}
+         {activeTab === 'debtpayoff' && (
+@@ -120,13 +128,14 @@ export default function TabContainer({ data }: { data: FinancialData }) {
+             promos={data.promos}
+           />
+         )}
+-        {activeTab === 'promos' && <PromoDeadlinesTab promos={data.promos} />}
++        {activeTab === 'promos' && <PromoDeadlinesTab promos={data.promos} helocKPIs={data.helocKPIs} />}
+         {activeTab === 'subscriptions' && (
+           <SubscriptionsTab
+             cancelSubs={data.cancelSubs}
+             reviewSubs={data.reviewSubs}
+             essentialBills={data.essentialBills}
+             topActions={data.topActions}
++            subscriptionSummary={data.subscriptionSummary}
+           />
+         )}
+       </div>
+diff --git a/src/lib/financial-data-service.ts b/src/lib/financial-data-service.ts
+index b7ede31..c9bb04a 100644
+--- a/src/lib/financial-data-service.ts
++++ b/src/lib/financial-data-service.ts
+@@ -4,13 +4,42 @@
+ // zero changes needed in any component or chart file.
+ 
+ import { createServiceClient } from './supabase/service'
+-import type { DbDebtAccount, DbFinancialModule, DbSubscription } from './supabase/types'
++import type {
++  DbDebtAccount,
++  DbFinancialModule,
++  DbSubscription,
++  DbBudgetCategory,
++  DbBill,
++  DbBurnRateItem,
++  DbPromoDeadline,
++  DbTaxSnapshot,
++  DbWealthScenario,
++  DbFinancialSetting,
++} from './supabase/types'
+ import {
+   type FinancialData,
+   type DebtAccount,
+   type FinancialModule,
+   type Subscription,
+   type EssentialBill,
++  type SpendingCategory,
++  type Bill,
++  type BurnRateItem,
++  type PromoDeadline,
++  type TaxSnapshot,
++  type WealthScenario,
++  type ActionItem,
++  type TopAction,
++  type IncomeBridge,
++  type SpendingSummary,
++  type SubscriptionSummary,
++  type PropertyTaxConfig,
++  type Assets,
++  type InvestmentData,
++  type InvestmentAccount,
++  type TaxLot,
++  type InvestmentTransaction,
++  EMPTY_INVESTMENT_DATA,
+   getAllData,
+   deriveHelocAccounts,
+   computeHelocKPIs,
+@@ -26,6 +55,11 @@ import {
+   TOP_ACTIONS,
+   TAX_SNAPSHOT,
+   SPENDING_CATEGORIES,
++  INCOME_BRIDGE,
++  SPENDING_SUMMARY,
++  SUBSCRIPTION_SUMMARY,
++  PROPERTY_TAX,
++  ASSETS as ASSETS_FALLBACK,
+ } from './financial-data'
+ 
+ // ── Mappers ──────────────────────────────────────────────────────────────────
+@@ -45,12 +79,10 @@ function mapAccountType(dbType: string): DebtAccount['category'] {
+ function mapDecision(notes: string | null, rate: number): DebtAccount['decision'] {
+   if (notes) {
+     const lower = notes.toLowerCase()
+-    // Explicit notes from spreadsheet take priority
+     if (lower.includes('roll') || lower.includes('heloc')) return 'roll'
+     if (lower.includes('keep') || lower.includes('do not roll')) return 'keep'
+     if (lower.includes('promo') || lower.includes('0%') || lower.includes('hold') || lower.includes('pay by')) return 'promo'
+   }
+-  // Fallback: rate-based logic using HELOC_RATE constant
+   if (rate === 0) return 'promo'
+   if (rate > HELOC_RATE) return 'roll'
+   return 'keep'
+@@ -79,7 +111,6 @@ function mapModuleStatus(dbStatus: string): FinancialModule['status'] {
+ }
+ 
+ function mapFinancialModule(row: DbFinancialModule, index: number): FinancialModule {
+-  // Use hardcoded module details as fallback when Supabase details column is null/empty
+   const fallback = MODULES.find(m => m.name === row.name) ?? MODULES[index]
+   return {
+     id: index + 1,
+@@ -112,6 +143,137 @@ function mapToEssentialBill(row: DbSubscription): EssentialBill {
+   }
+ }
+ 
++function mapBudgetCategory(row: DbBudgetCategory): SpendingCategory {
++  return {
++    cat: row.name,
++    monthly: Number(row.monthly_actual ?? 0),
++    annual: Number(row.annual_actual ?? 0),
++    survival: Number(row.survival_budget ?? 0),
++    pct: Number(row.pct_of_total ?? 0),
++    color: row.color ?? '#64748b',
++  }
++}
++
++function mapBill(row: DbBill): Bill {
++  return {
++    date: row.due_date,
++    payee: row.payee,
++    amount: Number(row.amount),
++    type: row.bill_type,
++    status: row.status,
++    note: row.note ?? '',
++  }
++}
++
++function mapBurnRateItem(row: DbBurnRateItem): BurnRateItem {
++  return {
++    label: row.label,
++    current: Number(row.current_amount),
++    survival: Number(row.survival_amount),
++    note: row.note ?? '',
++  }
++}
++
++function mapPromoDeadline(row: DbPromoDeadline): PromoDeadline {
++  return {
++    name: row.name,
++    balance: Number(row.balance),
++    expires: row.expires,
++    risk: row.deferred_interest != null ? Number(row.deferred_interest) : null,
++    acct: row.account_name,
++    note: row.note ?? '',
++  }
++}
++
++function mapTaxSnapshot(row: DbTaxSnapshot): TaxSnapshot {
++  return {
++    w2Income: Number(row.w2_income),
++    federalWithheld: Number(row.federal_withheld),
++    scenarioA: {
++      label: row.scenario_a_label,
++      owed: Number(row.scenario_a_owed),
++      note: row.scenario_a_note ?? '',
++    },
++    scenarioB: {
++      label: row.scenario_b_label,
++      owed: Number(row.scenario_b_owed),
++      note: row.scenario_b_note ?? '',
++    },
++    keyItems: Array.isArray(row.key_items) ? row.key_items : [],
++    filingDeadline: row.filing_deadline,
++    caveat: row.caveat ?? '',
++    propertyTaxDetails: Array.isArray(row.property_tax_details) ? row.property_tax_details : [],
++  }
++}
++
++function mapWealthScenario(row: DbWealthScenario): WealthScenario {
++  return {
++    name: row.name,
++    pmt: Number(row.annual_savings),
++    r: Number(row.return_rate),
++    color: row.color,
++    label: row.label ?? '',
++  }
++}
++
++function mapIncomeBridge(val: Record<string, unknown>): IncomeBridge {
++  return {
++    liquidCash: Number(val.liquid_cash ?? 0),
++    marchPaychecks: Number(val.march_paychecks ?? 0),
++    severanceEstimate: Number(val.severance_estimate ?? 0),
++    familyBridge: Number(val.family_bridge ?? 0),
++    consultingMonthlyNet: Number(val.consulting_monthly_net ?? 0),
++    targetSalary: Number(val.target_salary ?? 0),
++    targetTotalComp: Number(val.target_total_comp ?? 0),
++    monthlyOutflow: Number(val.monthly_outflow ?? 0),
++    newJobMonthlyNet: Number(val.new_job_monthly_net ?? 0),
++  }
++}
++
++function mapSpendingSummary(val: Record<string, unknown>): SpendingSummary {
++  return {
++    totalAnnualCC: Number(val.total_annual_cc ?? 0),
++    totalMonthlyAvg: Number(val.total_monthly_avg ?? 0),
++    totalTransactions: Number(val.total_transactions ?? 0),
++    topCategory: String(val.top_category ?? ''),
++    topCategoryAmount: Number(val.top_category_amount ?? 0),
++    topCategoryPct: Number(val.top_category_pct ?? 0),
++    survivalMonthly: Number(val.survival_monthly ?? 0),
++    cardsAnalyzed: String(val.cards_analyzed ?? ''),
++  }
++}
++
++function mapSubscriptionSummary(val: Record<string, unknown>): SubscriptionSummary {
++  return {
++    totalRecurringMerchants: Number(val.total_recurring_merchants ?? 0),
++    keepTotalMonthly: Number(val.keep_total_monthly ?? 0),
++    keepCount: Number(val.keep_count ?? 0),
++  }
++}
++
++function mapPropertyTax(val: Record<string, unknown>): PropertyTaxConfig {
++  return {
++    address: String(val.address ?? ''),
++    assessedValue: Number(val.assessed_value ?? 850000),
++    protestTarget: Number(val.protest_target ?? 750000),
++    annualTotal: Number(val.annual_total ?? 0),
++    monthlyBudget: Number(val.monthly_budget ?? 0),
++    protestSavingsEstimate: Number(val.protest_savings_estimate ?? 0),
++    protestDeadline: String(val.protest_deadline ?? ''),
++    taxesPaid: Boolean(val.taxes_paid ?? false),
++  }
++}
++
++function mapAssets(val: Record<string, unknown>): Assets {
++  return {
++    home: Number(val.home ?? 850000),
++    retirement: Number(val.retirement ?? 0),
++    brokerage: Number(val.brokerage ?? 0),
++    cash: Number(val.cash ?? 0),
++    vehicles: Number(val.vehicles ?? 0),
++  }
++}
++
+ // Canonical module order — matches M1–M9 numbering
+ const MODULE_ORDER: Record<string, number> = {
+   'Spending Analysis': 1,
+@@ -125,6 +287,77 @@ const MODULE_ORDER: Record<string, number> = {
+   'Estate Planning': 9,
+ }
+ 
++// Helper to get a setting by key from the settings array
++function getSetting(settings: DbFinancialSetting[] | null, key: string): unknown | null {
++  if (!settings) return null
++  const row = settings.find(s => s.key === key)
++  return row?.value ?? null
++}
++
++// ── Investment mappers ────────────────────────────────────────────────────────
++
++/* eslint-disable @typescript-eslint/no-explicit-any */
++function mapInvestmentAccount(row: any): InvestmentAccount {
++  return {
++    id: row.id,
++    accountName: row.account_name ?? '',
++    accountNumber: row.account_number ?? '',
++    accountType: row.account_type ?? 'Brokerage',
++    institution: row.institution ?? 'Chase',
++    totalValue: Number(row.total_value ?? 0),
++    totalCost: Number(row.total_cost ?? 0),
++    unrealizedGL: Number(row.unrealized_gl ?? 0),
++    asOfDate: row.as_of_date ?? null,
++  }
++}
++
++function mapTaxLot(row: any): TaxLot {
++  return {
++    id: row.id,
++    ticker: row.ticker ?? '',
++    cusip: row.cusip ?? null,
++    description: row.description ?? null,
++    assetClass: row.asset_class ?? null,
++    assetStrategy: row.asset_strategy ?? null,
++    quantity: Number(row.quantity ?? 0),
++    price: row.price != null ? Number(row.price) : null,
++    value: row.value != null ? Number(row.value) : null,
++    cost: row.cost != null ? Number(row.cost) : null,
++    originalCost: row.original_cost != null ? Number(row.original_cost) : null,
++    unitCost: row.unit_cost != null ? Number(row.unit_cost) : null,
++    unrealizedGL: row.unrealized_gl != null ? Number(row.unrealized_gl) : null,
++    unrealizedGLPct: row.unrealized_gl_pct != null ? Number(row.unrealized_gl_pct) : null,
++    acquisitionDate: row.acquisition_date ?? null,
++    taxTerm: row.tax_term ?? null,
++    daysHeld: row.days_held != null ? Number(row.days_held) : null,
++    daysUntilLong: row.days_until_long != null ? Number(row.days_until_long) : null,
++    estAnnualIncome: row.est_annual_income != null ? Number(row.est_annual_income) : null,
++    asOfDate: row.as_of_date ?? null,
++  }
++}
++
++function mapInvestmentTxn(row: any): InvestmentTransaction {
++  return {
++    id: row.id,
++    tradeDate: row.trade_date ?? '',
++    postDate: row.post_date ?? null,
++    settlementDate: row.settlement_date ?? null,
++    transactionType: row.transaction_type ?? '',
++    description: row.description ?? null,
++    ticker: row.ticker ?? null,
++    cusip: row.cusip ?? null,
++    securityType: row.security_type ?? null,
++    price: row.price != null ? Number(row.price) : null,
++    quantity: row.quantity != null ? Number(row.quantity) : null,
++    amount: row.amount != null ? Number(row.amount) : null,
++    income: row.income != null ? Number(row.income) : null,
++    glShort: row.gl_short != null ? Number(row.gl_short) : null,
++    glLong: row.gl_long != null ? Number(row.gl_long) : null,
++    tranCode: row.tran_code ?? null,
++  }
++}
++/* eslint-enable @typescript-eslint/no-explicit-any */
++
+ // ── Main fetch ────────────────────────────────────────────────────────────────
+ 
+ export async function getFinancialData(): Promise<FinancialData> {
+@@ -136,26 +369,49 @@ export async function getFinancialData(): Promise<FinancialData> {
+   }
+ 
+   try {
+-    const [debtsRes, modulesRes, subsRes] = await Promise.all([
++    const [
++      debtsRes,
++      modulesRes,
++      subsRes,
++      budgetRes,
++      billsRes,
++      burnRes,
++      promosRes,
++      taxRes,
++      wealthRes,
++      settingsRes,
++      invAccountsRes,
++      taxLotsRes,
++      invTxnsRes,
++    ] = await Promise.all([
+       supabase
+         .from('debt_accounts')
+         .select('*')
+-        .gt('balance', 0)            // Exclude zero-balance junk rows (e.g. transaction data)
++        .gt('balance', 0)
+         .order('balance', { ascending: true }),
+       supabase.from('financial_modules').select('*'),
+       supabase.from('subscriptions').select('*').eq('is_active', true),
++      supabase.from('budget_categories').select('*').order('pct_of_total', { ascending: false }),
++      supabase.from('bills').select('*').eq('is_active', true),
++      supabase.from('burn_rate_items').select('*').order('sort_order', { ascending: true }),
++      supabase.from('promo_deadlines').select('*').order('expires', { ascending: true }),
++      supabase.from('tax_snapshots').select('*').order('tax_year', { ascending: false }).limit(1),
++      supabase.from('wealth_scenarios').select('*').order('sort_order', { ascending: true }),
++      supabase.from('financial_settings').select('*'),
++      supabase.from('investment_accounts').select('*').order('total_value', { ascending: false }),
++      supabase.from('tax_lots').select('*').order('value', { ascending: false }),
++      supabase.from('investment_transactions').select('*').order('trade_date', { ascending: false }),
+     ])
+ 
+     const fallback = getAllData()
+ 
+-    // Debt accounts — use Supabase if available and non-empty, otherwise fallback
++    // ── Debt accounts ────────────────────────────────────────────
+     const debts: DebtAccount[] =
+       debtsRes.data && debtsRes.data.length > 0
+         ? debtsRes.data.map(mapDebtAccount)
+         : fallback.debts
+ 
+-    // Modules — use Supabase if available and non-empty, otherwise fallback
+-    // Sort by canonical M1–M9 order (not alphabetical)
++    // ── Modules (sorted M1–M9) ───────────────────────────────────
+     const modules: FinancialModule[] =
+       modulesRes.data && modulesRes.data.length > 0
+         ? [...modulesRes.data]
+@@ -163,7 +419,7 @@ export async function getFinancialData(): Promise<FinancialData> {
+             .map(mapFinancialModule)
+         : fallback.modules
+ 
+-    // Subscriptions — split by action
++    // ── Subscriptions (split by action) ──────────────────────────
+     const allSubs = subsRes.data as DbSubscription[] | null
+     const cancelSubs: Subscription[] =
+       allSubs && allSubs.length > 0
+@@ -178,17 +434,118 @@ export async function getFinancialData(): Promise<FinancialData> {
+         ? allSubs.filter(s => s.action === 'essential').map(mapToEssentialBill)
+         : fallback.essentialBills
+ 
+-    // Spending categories — always hardcoded (Supabase has survival budgets only, not actuals)
+-    const spendingCategories = SPENDING_CATEGORIES
++    // ── Spending categories ──────────────────────────────────────
++    const spendingCategories: SpendingCategory[] =
++      budgetRes.data && budgetRes.data.length > 0
++        ? (budgetRes.data as DbBudgetCategory[]).map(mapBudgetCategory)
++        : SPENDING_CATEGORIES
++
++    // ── Bills ────────────────────────────────────────────────────
++    const bills: Bill[] =
++      billsRes.data && billsRes.data.length > 0
++        ? (billsRes.data as DbBill[]).map(mapBill)
++        : BILLS
++
++    // ── Burn rate ────────────────────────────────────────────────
++    const burnRate: BurnRateItem[] =
++      burnRes.data && burnRes.data.length > 0
++        ? (burnRes.data as DbBurnRateItem[]).map(mapBurnRateItem)
++        : BURN_RATE
++
++    // ── Promo deadlines ──────────────────────────────────────────
++    const promos: PromoDeadline[] =
++      promosRes.data && promosRes.data.length > 0
++        ? (promosRes.data as DbPromoDeadline[]).map(mapPromoDeadline)
++        : PROMOS
++
++    // ── Tax snapshot (most recent year) ──────────────────────────
++    const taxSnapshot: TaxSnapshot =
++      taxRes.data && taxRes.data.length > 0
++        ? mapTaxSnapshot(taxRes.data[0] as DbTaxSnapshot)
++        : TAX_SNAPSHOT
++
++    // ── Wealth scenarios ─────────────────────────────────────────
++    const wealthScenarios: WealthScenario[] =
++      wealthRes.data && wealthRes.data.length > 0
++        ? (wealthRes.data as DbWealthScenario[]).map(mapWealthScenario)
++        : WEALTH_SCENARIOS
++
++    // ── Financial settings (JSONB) ───────────────────────────────
++    const settings = settingsRes.data as DbFinancialSetting[] | null
++
++    const actionItemsRaw = getSetting(settings, 'action_items')
++    const actionItems: ActionItem[] =
++      Array.isArray(actionItemsRaw) ? actionItemsRaw as ActionItem[] : ACTION_ITEMS
+ 
+-    // Derive HELOC data from live debts — single source of truth
++    const topActionsRaw = getSetting(settings, 'top_actions')
++    const topActions: TopAction[] =
++      Array.isArray(topActionsRaw) ? topActionsRaw as TopAction[] : TOP_ACTIONS
++
++    const incomeBridgeRaw = getSetting(settings, 'income_bridge')
++    const incomeBridge: IncomeBridge =
++      incomeBridgeRaw && typeof incomeBridgeRaw === 'object'
++        ? mapIncomeBridge(incomeBridgeRaw as Record<string, unknown>)
++        : INCOME_BRIDGE
++
++    const spendingSummaryRaw = getSetting(settings, 'spending_summary')
++    const spendingSummary: SpendingSummary =
++      spendingSummaryRaw && typeof spendingSummaryRaw === 'object'
++        ? mapSpendingSummary(spendingSummaryRaw as Record<string, unknown>)
++        : SPENDING_SUMMARY
++
++    const subscriptionSummaryRaw = getSetting(settings, 'subscription_summary')
++    const subscriptionSummary: SubscriptionSummary =
++      subscriptionSummaryRaw && typeof subscriptionSummaryRaw === 'object'
++        ? mapSubscriptionSummary(subscriptionSummaryRaw as Record<string, unknown>)
++        : SUBSCRIPTION_SUMMARY
++
++    const propertyTaxRaw = getSetting(settings, 'property_tax')
++    const propertyTax: PropertyTaxConfig =
++      propertyTaxRaw && typeof propertyTaxRaw === 'object'
++        ? mapPropertyTax(propertyTaxRaw as Record<string, unknown>)
++        : PROPERTY_TAX
++
++    const assetsRaw = getSetting(settings, 'assets')
++    const assets: Assets =
++      assetsRaw && typeof assetsRaw === 'object'
++        ? mapAssets(assetsRaw as Record<string, unknown>)
++        : ASSETS_FALLBACK
++
++    // ── Investment data ───────────────────────────────────────────
++    const investments: InvestmentData =
++      invAccountsRes.data && invAccountsRes.data.length > 0
++        ? {
++            accounts: invAccountsRes.data.map(mapInvestmentAccount),
++            taxLots: taxLotsRes.data ? taxLotsRes.data.map(mapTaxLot) : [],
++            transactions: invTxnsRes.data ? invTxnsRes.data.map(mapInvestmentTxn) : [],
++          }
++        : EMPTY_INVESTMENT_DATA
++
++    if (invAccountsRes.error) console.warn('[financial-data-service] investment_accounts:', invAccountsRes.error.message)
++    if (taxLotsRes.error) console.warn('[financial-data-service] tax_lots:', taxLotsRes.error.message)
++    if (invTxnsRes.error) console.warn('[financial-data-service] investment_transactions:', invTxnsRes.error.message)
++
++    // ── Derive HELOC data from live debts ────────────────────────
+     const helocAccounts = deriveHelocAccounts(debts)
+     const helocKPIs = computeHelocKPIs(debts)
+     const waterfallData = computeWaterfall(helocKPIs)
+ 
++    // ── Deadlines (already in Supabase — fetched via API route) ──
++    // The DeadlineTimeline component fetches via /api/finance/deadlines
++    // We pass the hardcoded fallback here for getAllData() compat
++    const deadlines = DEADLINES
++
++    // Log warnings for any failed fetches
+     if (debtsRes.error) console.warn('[financial-data-service] debt_accounts:', debtsRes.error.message)
+     if (modulesRes.error) console.warn('[financial-data-service] financial_modules:', modulesRes.error.message)
+     if (subsRes.error) console.warn('[financial-data-service] subscriptions:', subsRes.error.message)
++    if (budgetRes.error) console.warn('[financial-data-service] budget_categories:', budgetRes.error.message)
++    if (billsRes.error) console.warn('[financial-data-service] bills:', billsRes.error.message)
++    if (burnRes.error) console.warn('[financial-data-service] burn_rate_items:', burnRes.error.message)
++    if (promosRes.error) console.warn('[financial-data-service] promo_deadlines:', promosRes.error.message)
++    if (taxRes.error) console.warn('[financial-data-service] tax_snapshots:', taxRes.error.message)
++    if (wealthRes.error) console.warn('[financial-data-service] wealth_scenarios:', wealthRes.error.message)
++    if (settingsRes.error) console.warn('[financial-data-service] financial_settings:', settingsRes.error.message)
+ 
+     return {
+       debts,
+@@ -197,19 +554,23 @@ export async function getFinancialData(): Promise<FinancialData> {
+       reviewSubs,
+       essentialBills,
+       spendingCategories,
+-      // Derived from debts — auto-updates when debts change
++      bills,
++      burnRate,
++      promos,
++      taxSnapshot,
++      wealthScenarios,
++      actionItems,
++      topActions,
++      incomeBridge,
++      spendingSummary,
++      subscriptionSummary,
++      propertyTax,
++      assets,
++      deadlines,
+       helocAccounts,
+       helocKPIs,
+       waterfallData,
+-      // Hardcoded — no Supabase tables for these
+-      deadlines: DEADLINES,
+-      actionItems: ACTION_ITEMS,
+-      promos: PROMOS,
+-      bills: BILLS,
+-      burnRate: BURN_RATE,
+-      wealthScenarios: WEALTH_SCENARIOS,
+-      topActions: TOP_ACTIONS,
+-      taxSnapshot: TAX_SNAPSHOT,
++      investments,
+     }
+   } catch (err) {
+     console.error('[financial-data-service] Unexpected error, falling back:', err)
+diff --git a/src/lib/financial-data.ts b/src/lib/financial-data.ts
+index 7f518bb..09aa276 100644
+--- a/src/lib/financial-data.ts
++++ b/src/lib/financial-data.ts
+@@ -116,6 +116,129 @@ export interface TaxSnapshot {
+   keyItems: string[]
+   filingDeadline: string
+   caveat: string
++  propertyTaxDetails: PropertyTaxDetail[]
++}
++
++export interface PropertyTaxDetail {
++  auth: string
++  amount: number
++  pct: number
++}
++
++export interface IncomeBridge {
++  liquidCash: number
++  marchPaychecks: number
++  severanceEstimate: number
++  familyBridge: number
++  consultingMonthlyNet: number
++  targetSalary: number
++  targetTotalComp: number
++  monthlyOutflow: number
++  newJobMonthlyNet: number
++}
++
++export interface SpendingSummary {
++  totalAnnualCC: number
++  totalMonthlyAvg: number
++  totalTransactions: number
++  topCategory: string
++  topCategoryAmount: number
++  topCategoryPct: number
++  survivalMonthly: number
++  cardsAnalyzed: string
++}
++
++export interface SubscriptionSummary {
++  totalRecurringMerchants: number
++  keepTotalMonthly: number
++  keepCount: number
++}
++
++export interface PropertyTaxConfig {
++  address: string
++  assessedValue: number
++  protestTarget: number
++  annualTotal: number
++  monthlyBudget: number
++  protestSavingsEstimate: number
++  protestDeadline: string
++  taxesPaid: boolean
++}
++
++export interface Assets {
++  home: number
++  retirement: number
++  brokerage: number
++  cash: number
++  vehicles: number
++}
++
++// ── Investment Types ──────────────────────────────
++
++export interface InvestmentAccount {
++  id: string
++  accountName: string
++  accountNumber: string
++  accountType: string
++  institution: string
++  totalValue: number
++  totalCost: number
++  unrealizedGL: number
++  asOfDate: string | null
++}
++
++export interface TaxLot {
++  id: string
++  ticker: string
++  cusip: string | null
++  description: string | null
++  assetClass: string | null
++  assetStrategy: string | null
++  quantity: number
++  price: number | null
++  value: number | null
++  cost: number | null
++  originalCost: number | null
++  unitCost: number | null
++  unrealizedGL: number | null
++  unrealizedGLPct: number | null
++  acquisitionDate: string | null
++  taxTerm: string | null
++  daysHeld: number | null
++  daysUntilLong: number | null
++  estAnnualIncome: number | null
++  asOfDate: string | null
++}
++
++export interface InvestmentTransaction {
++  id: string
++  tradeDate: string
++  postDate: string | null
++  settlementDate: string | null
++  transactionType: string
++  description: string | null
++  ticker: string | null
++  cusip: string | null
++  securityType: string | null
++  price: number | null
++  quantity: number | null
++  amount: number | null
++  income: number | null
++  glShort: number | null
++  glLong: number | null
++  tranCode: string | null
++}
++
++export interface InvestmentData {
++  accounts: InvestmentAccount[]
++  taxLots: TaxLot[]
++  transactions: InvestmentTransaction[]
++}
++
++export const EMPTY_INVESTMENT_DATA: InvestmentData = {
++  accounts: [],
++  taxLots: [],
++  transactions: [],
+ }
+ 
+ export interface FinancialData {
+@@ -136,6 +259,12 @@ export interface FinancialData {
+   wealthScenarios: WealthScenario[]
+   topActions: TopAction[]
+   taxSnapshot: TaxSnapshot
++  incomeBridge: IncomeBridge
++  spendingSummary: SpendingSummary
++  subscriptionSummary: SubscriptionSummary
++  propertyTax: PropertyTaxConfig
++  assets: Assets
++  investments: InvestmentData
+ }
+ 
+ // ── Data ───────────────────────────────────────────
+@@ -530,6 +659,61 @@ export const TAX_SNAPSHOT: TaxSnapshot = {
+   ],
+   filingDeadline: 'Apr 15, 2026',
+   caveat: 'Confirm HAF program impact on property tax deductibility with accountant before filing.',
++  propertyTaxDetails: [
++    { auth: 'Dallas ISD', amount: 6211.47, pct: 42.6 },
++    { auth: 'City of Dallas', amount: 4751.84, pct: 32.6 },
++    { auth: 'Dallas County', amount: 1465.40, pct: 10.0 },
++    { auth: 'Parkland Hospital', amount: 1441.60, pct: 9.9 },
++    { auth: 'Dallas College', amount: 724.71, pct: 5.0 },
++  ],
++}
++
++export const INCOME_BRIDGE: IncomeBridge = {
++  liquidCash: 8000,
++  marchPaychecks: 6250,
++  severanceEstimate: 25000,
++  familyBridge: 2000,
++  consultingMonthlyNet: 2500,
++  targetSalary: 240000,
++  targetTotalComp: 312000,
++  monthlyOutflow: 7234,
++  newJobMonthlyNet: 13670,
++}
++
++export const SPENDING_SUMMARY: SpendingSummary = {
++  totalAnnualCC: 76052,
++  totalMonthlyAvg: 6338,
++  totalTransactions: 1615,
++  topCategory: 'Food & Dining',
++  topCategoryAmount: 27441,
++  topCategoryPct: 36,
++  survivalMonthly: 2500,
++  cardsAnalyzed: 'AmEx Gold + Plat + Chase 9313',
++}
++
++export const SUBSCRIPTION_SUMMARY: SubscriptionSummary = {
++  totalRecurringMerchants: 102,
++  keepTotalMonthly: 36.29,
++  keepCount: 3,
++}
++
++export const PROPERTY_TAX: PropertyTaxConfig = {
++  address: '2214 N Carroll Ave, Dallas TX 75204',
++  assessedValue: 850000,
++  protestTarget: 750000,
++  annualTotal: 14595.02,
++  monthlyBudget: 1216.25,
++  protestSavingsEstimate: 1700,
++  protestDeadline: '2026-05-15',
++  taxesPaid: true,
++}
++
++export const ASSETS: Assets = {
++  home: 850000,
++  retirement: 180000,
++  brokerage: 25000,
++  cash: 8000,
++  vehicles: 35000,
+ }
+ 
+ export const TOP_ACTIONS: TopAction[] = [
+@@ -682,5 +866,11 @@ export function getAllData(): FinancialData {
+     wealthScenarios: WEALTH_SCENARIOS,
+     topActions: TOP_ACTIONS,
+     taxSnapshot: TAX_SNAPSHOT,
++    incomeBridge: INCOME_BRIDGE,
++    spendingSummary: SPENDING_SUMMARY,
++    subscriptionSummary: SUBSCRIPTION_SUMMARY,
++    propertyTax: PROPERTY_TAX,
++    assets: ASSETS,
++    investments: EMPTY_INVESTMENT_DATA,
+   }
+ }
+diff --git a/src/lib/supabase/types.ts b/src/lib/supabase/types.ts
+index 0944e59..2bd65cd 100644
+--- a/src/lib/supabase/types.ts
++++ b/src/lib/supabase/types.ts
+@@ -10,6 +10,12 @@ export type {
+   DbPaycheckSettings,
+   DbCashflowSettings,
+   DbScenario,
++  DbBill,
++  DbBurnRateItem,
++  DbPromoDeadline,
++  DbTaxSnapshot,
++  DbWealthScenario,
++  DbFinancialSetting,
+ } from '@/types/database'
+ 
+ // ScheduleBlock alias for backward compatibility with planner components
+diff --git a/src/types/database.ts b/src/types/database.ts
+index 5566854..73956dd 100644
+--- a/src/types/database.ts
++++ b/src/types/database.ts
+@@ -79,6 +79,94 @@ export interface DbDeadline {
+   updated_at: string
+ }
+ 
++// ── Bills ────────────────────────────────────────────────────────
++
++export interface DbBill {
++  id: string
++  due_date: string
++  payee: string
++  amount: number
++  bill_type: string
++  status: 'autopay' | 'paid' | 'confirm' | 'manual' | 'recurring'
++  note: string | null
++  is_active: boolean
++  created_at: string
++  updated_at: string
++}
++
++// ── Burn Rate ────────────────────────────────────────────────────
++
++export interface DbBurnRateItem {
++  id: string
++  label: string
++  current_amount: number
++  survival_amount: number
++  note: string | null
++  sort_order: number
++  created_at: string
++  updated_at: string
++}
++
++// ── Promo Deadlines ──────────────────────────────────────────────
++
++export interface DbPromoDeadline {
++  id: string
++  name: string
++  balance: number
++  expires: string
++  deferred_interest: number | null
++  account_name: string
++  note: string | null
++  status: 'active' | 'paid' | 'expired'
++  created_at: string
++  updated_at: string
++}
++
++// ── Tax Snapshots ────────────────────────────────────────────────
++
++export interface DbTaxSnapshot {
++  id: string
++  tax_year: number
++  w2_income: number
++  federal_withheld: number
++  filing_status: string
++  state: string
++  scenario_a_label: string
++  scenario_a_owed: number
++  scenario_a_note: string | null
++  scenario_b_label: string
++  scenario_b_owed: number
++  scenario_b_note: string | null
++  key_items: string[]
++  filing_deadline: string
++  caveat: string | null
++  property_tax_details: { auth: string; amount: number; pct: number }[] | null
++  created_at: string
++  updated_at: string
++}
++
++// ── Wealth Scenarios ─────────────────────────────────────────────
++
++export interface DbWealthScenario {
++  id: string
++  name: string
++  annual_savings: number
++  return_rate: number
++  color: string
++  label: string | null
++  sort_order: number
++  created_at: string
++}
++
++// ── Financial Settings (JSONB catch-all) ─────────────────────────
++
++export interface DbFinancialSetting {
++  id: string
++  key: string
++  value: unknown
++  updated_at: string
++}
++
+ // ── Simulator (Phase 1) ──────────────────────────────────────────
+ 
+ export interface DbPaycheckSettings {
+diff --git a/supabase/migrations/20260410_remove_hardcoded_data.sql b/supabase/migrations/20260410_remove_hardcoded_data.sql
+new file mode 100644
+index 0000000..16f10c1
+--- /dev/null
++++ b/supabase/migrations/20260410_remove_hardcoded_data.sql
+@@ -0,0 +1,276 @@
++-- ============================================================
++-- Micci OS — Remove Hardcoded Data Migration
++-- Creates tables for: bills, burn_rate_items, promo_deadlines,
++--   tax_snapshots, wealth_scenarios, financial_settings
++-- Seeds all with current hardcoded values
++-- Run in Supabase SQL Editor
++-- ============================================================
++
++-- ============================================================
++-- 1. bills — recurring monthly bills (replaces BILLS constant)
++-- ============================================================
++CREATE TABLE IF NOT EXISTS bills (
++  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++  due_date   TEXT NOT NULL,               -- e.g. 'Mar 1', 'Mar 6–22'
++  payee      TEXT NOT NULL,
++  amount     NUMERIC(10,2) NOT NULL,
++  bill_type  TEXT NOT NULL DEFAULT 'other',
++  status     TEXT NOT NULL DEFAULT 'manual'
++             CHECK (status IN ('autopay', 'paid', 'confirm', 'manual', 'recurring')),
++  note       TEXT,
++  is_active  BOOLEAN NOT NULL DEFAULT true,
++  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
++  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
++);
++
++-- ============================================================
++-- 2. burn_rate_items — current vs survival budget (replaces BURN_RATE)
++-- ============================================================
++CREATE TABLE IF NOT EXISTS burn_rate_items (
++  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++  label          TEXT NOT NULL,
++  current_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
++  survival_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
++  note           TEXT,
++  sort_order     INTEGER NOT NULL DEFAULT 0,
++  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
++  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
++);
++
++-- ============================================================
++-- 3. promo_deadlines — 0% promo accounts (replaces PROMOS)
++-- ============================================================
++CREATE TABLE IF NOT EXISTS promo_deadlines (
++  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++  name            TEXT NOT NULL,
++  balance         NUMERIC(10,2) NOT NULL DEFAULT 0,
++  expires         DATE NOT NULL,
++  deferred_interest NUMERIC(10,2),         -- risk amount if missed
++  account_name    TEXT NOT NULL,
++  note            TEXT,
++  status          TEXT NOT NULL DEFAULT 'active'
++                  CHECK (status IN ('active', 'paid', 'expired')),
++  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
++  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
++);
++
++-- ============================================================
++-- 4. tax_snapshots — per-year tax summary (replaces TAX_SNAPSHOT)
++-- ============================================================
++CREATE TABLE IF NOT EXISTS tax_snapshots (
++  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++  tax_year         INTEGER NOT NULL UNIQUE,
++  w2_income        NUMERIC(12,2) NOT NULL DEFAULT 0,
++  federal_withheld NUMERIC(12,2) NOT NULL DEFAULT 0,
++  filing_status    TEXT NOT NULL DEFAULT 'single',
++  state            TEXT NOT NULL DEFAULT 'TX',
++  scenario_a_label TEXT NOT NULL DEFAULT '',
++  scenario_a_owed  NUMERIC(10,2) NOT NULL DEFAULT 0,
++  scenario_a_note  TEXT,
++  scenario_b_label TEXT NOT NULL DEFAULT '',
++  scenario_b_owed  NUMERIC(10,2) NOT NULL DEFAULT 0,
++  scenario_b_note  TEXT,
++  key_items        JSONB NOT NULL DEFAULT '[]',        -- array of strings
++  filing_deadline  TEXT NOT NULL DEFAULT 'Apr 15',
++  caveat           TEXT,
++  property_tax_details JSONB DEFAULT '[]',             -- [{auth, amount, pct}]
++  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
++  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
++);
++
++-- ============================================================
++-- 5. wealth_scenarios — projection scenarios (replaces WEALTH_SCENARIOS)
++-- ============================================================
++CREATE TABLE IF NOT EXISTS wealth_scenarios (
++  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++  name          TEXT NOT NULL,
++  annual_savings NUMERIC(12,2) NOT NULL DEFAULT 0,    -- pmt
++  return_rate   NUMERIC(5,4) NOT NULL DEFAULT 0.07,   -- e.g. 0.07 = 7%
++  color         TEXT NOT NULL DEFAULT '#3b82f6',
++  label         TEXT,
++  sort_order    INTEGER NOT NULL DEFAULT 0,
++  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
++);
++
++-- ============================================================
++-- 6. financial_settings — catch-all JSONB for misc config
++--    (replaces ACTION_ITEMS, TOP_ACTIONS, income bridge inputs)
++-- ============================================================
++CREATE TABLE IF NOT EXISTS financial_settings (
++  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++  key        TEXT NOT NULL UNIQUE,
++  value      JSONB NOT NULL DEFAULT '{}',
++  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
++);
++
++-- ============================================================
++-- Indexes
++-- ============================================================
++CREATE INDEX IF NOT EXISTS idx_promo_deadlines_expires ON promo_deadlines (expires ASC);
++CREATE INDEX IF NOT EXISTS idx_bills_active ON bills (is_active);
++CREATE INDEX IF NOT EXISTS idx_burn_rate_sort ON burn_rate_items (sort_order ASC);
++CREATE INDEX IF NOT EXISTS idx_tax_snapshots_year ON tax_snapshots (tax_year DESC);
++CREATE INDEX IF NOT EXISTS idx_financial_settings_key ON financial_settings (key);
++
++-- ============================================================
++-- RLS
++-- ============================================================
++ALTER TABLE bills              ENABLE ROW LEVEL SECURITY;
++ALTER TABLE burn_rate_items    ENABLE ROW LEVEL SECURITY;
++ALTER TABLE promo_deadlines    ENABLE ROW LEVEL SECURITY;
++ALTER TABLE tax_snapshots      ENABLE ROW LEVEL SECURITY;
++ALTER TABLE wealth_scenarios   ENABLE ROW LEVEL SECURITY;
++ALTER TABLE financial_settings ENABLE ROW LEVEL SECURITY;
++
++CREATE POLICY "Auth users manage bills"
++  ON bills FOR ALL TO authenticated USING (true) WITH CHECK (true);
++CREATE POLICY "Auth users manage burn_rate_items"
++  ON burn_rate_items FOR ALL TO authenticated USING (true) WITH CHECK (true);
++CREATE POLICY "Auth users manage promo_deadlines"
++  ON promo_deadlines FOR ALL TO authenticated USING (true) WITH CHECK (true);
++CREATE POLICY "Auth users manage tax_snapshots"
++  ON tax_snapshots FOR ALL TO authenticated USING (true) WITH CHECK (true);
++CREATE POLICY "Auth users manage wealth_scenarios"
++  ON wealth_scenarios FOR ALL TO authenticated USING (true) WITH CHECK (true);
++CREATE POLICY "Auth users manage financial_settings"
++  ON financial_settings FOR ALL TO authenticated USING (true) WITH CHECK (true);
++
++-- ============================================================
++-- SEED DATA
++-- ============================================================
++
++-- Bills
++INSERT INTO bills (due_date, payee, amount, bill_type, status, note) VALUES
++  ('Feb 28', 'AmEx Platinum — CONFIRM PAID', 501.09, 'Credit Card', 'confirm', 'Both Plan It plans: $230.97 + $270.12'),
++  ('Feb 28', 'Citi Best Buy 4802', 50.00, 'Credit Card', 'paid', '✅ Autopay paid $50'),
++  ('Mar 1', 'BofA Mortgage', 2486.79, 'Mortgage', 'autopay', '3.375% fixed · auto-debit confirmed'),
++  ('Mar 1', 'Transfer to Dad (Wells Fargo)', 1100.00, 'Family', 'recurring', 'Monthly Zelle transfer'),
++  ('Mar 1', 'AmEx Personal Loan', 407.01, 'Personal Loan', 'autopay', '7.33% · KEEP'),
++  ('Mar 2', 'Citizens Pay 6607 — FINAL', 769.78, 'Installment', 'autopay', '✅ FINAL PAYMENT — account closes'),
++  ('Mar 5', 'SoFi Personal Loan', 1464.07, 'Personal Loan', 'autopay', '12.41% · ROLL TO HELOC'),
++  ('Mar 5', 'PayPal Credit', 30.00, 'Credit Card', 'manual', '$124.35 balance · promo exp Aug 4'),
++  ('Mar 6–22', 'Chase Cards (3 accounts)', 452.77, 'Credit Card', 'autopay', 'CFU $225 + Freedom $132 + Prime $95.77'),
++  ('Mar 8', 'Nordstrom (Synchrony)', 40.00, 'Credit Card', 'manual', 'Min only — rolling $653.43 to HELOC'),
++  ('Mar 9', 'NFM (Synchrony)', 15.00, 'Installment', 'autopay', '$191.10 balance remaining'),
++  ('Mar 10', 'AmEx Gold — Adjusted Balance', 2112.43, 'Credit Card', 'confirm', 'Clears revolving · minimize new Gold charges'),
++  ('Mar 10', 'Apple Card (GS Bank)', 104.54, 'Credit Card', 'autopay', 'Feb autopay confirmed'),
++  ('Mar 14', 'Citi Diamond Preferred', 124.00, 'Credit Card', 'autopay', '0% BT promo thru Jun 18 2027'),
++  ('Mar 20', 'LightStream Loan', 577.47, 'Personal Loan', 'autopay', '5.87% · KEEP'),
++  ('Mar 21', 'Virginia FCU Loan (via Dad)', 350.00, 'Loan', 'recurring', '9.25% · ROLL TO HELOC');
++
++-- Burn Rate Items
++INSERT INTO burn_rate_items (label, current_amount, survival_amount, note, sort_order) VALUES
++  ('BofA Mortgage (fixed)', 2486.79, 2486.79, '3.375% — do not touch', 1),
++  ('HELOC Interest (6.85%)', 0, 631.51, 'Interest-only on ~$110.6K draw', 2),
++  ('LightStream Auto', 577.47, 577.47, '5.87% — keep', 3),
++  ('AmEx Personal Loan', 407.01, 407.01, '7.33% — KEEP (close to HELOC rate)', 4),
++  ('Property Tax (escrowed)', 1216.25, 1216.25, '$14,595/yr actual', 5),
++  ('Other fixed + promos', 756.31, 756.31, 'Apple, Chase, Citi, PayPal, NFM', 6),
++  ('Rolled debt (SoFi/WF/VFCU/AmEx)', 4077.34, 0, '✅ Eliminated by HELOC', 7),
++  ('CC variable spend', 5756.00, 2197.00, 'Cuts: dining/shop/fitness/travel', 8);
++
++-- Promo Deadlines
++INSERT INTO promo_deadlines (name, balance, expires, deferred_interest, account_name, note, status) VALUES
++  ('Citizens Pay 6607', 0, '2026-03-02', 0, 'Citizens Pay', '✅ Final payment made Mar 2. Account closing.', 'paid'),
++  ('Citi Best Buy — Promo 1', 1312.44, '2026-06-27', 338.99, 'Citi Best Buy 4802', 'Pay from HELOC or cash before Jun 27', 'active'),
++  ('Chase Freedom Unlim — BT1', 8500.00, '2026-07-09', NULL, 'Chase Freedom Unlim (7117)', '⚠️ Largest single promo — plan HELOC draw now', 'active'),
++  ('PayPal Credit promo', 124.35, '2026-08-04', NULL, 'PayPal', 'Small — pay from cash. Deferred int applies retroactively.', 'active'),
++  ('Chase Freedom — BT1', 7500.00, '2026-08-12', NULL, 'Chase Freedom (9313)', 'Pay from HELOC before Aug 12', 'active'),
++  ('Chase Freedom Unlim — BT2', 2600.00, '2026-09-09', NULL, 'Chase Freedom Unlim (7117)', 'Pay from HELOC', 'active'),
++  ('Chase Freedom — BT2', 2600.00, '2026-09-12', NULL, 'Chase Freedom (9313)', 'Pay from HELOC', 'active'),
++  ('Chase Freedom Unlim — BT3', 7000.00, '2026-10-09', NULL, 'Chase Freedom Unlim (7117)', 'Pay from HELOC', 'active'),
++  ('Chase Freedom Unlim — BT4', 1032.25, '2026-12-09', NULL, 'Chase Freedom Unlim (7117)', 'Pay from HELOC', 'active'),
++  ('Chase Freedom — BT3', 1064.51, '2026-12-12', NULL, 'Chase Freedom (9313)', 'Pay from HELOC', 'active'),
++  ('Citi Best Buy — Promo 2', 917.96, '2026-12-27', 196.33, 'Citi Best Buy 4802', 'Pay $918 from HELOC or cash before Dec 27', 'active'),
++  ('Citi Diamond Preferred BT', 12366.00, '2027-06-18', NULL, 'Citi Diamond', '✅ Confirmed — lowest urgency. Pay from HELOC by Jun 2027.', 'active');
++
++-- Tax Snapshots (2025)
++INSERT INTO tax_snapshots (
++  tax_year, w2_income, federal_withheld, filing_status, state,
++  scenario_a_label, scenario_a_owed, scenario_a_note,
++  scenario_b_label, scenario_b_owed, scenario_b_note,
++  key_items, filing_deadline, caveat,
++  property_tax_details
++) VALUES (
++  2025, 160667.19, 23126.93, 'single', 'TX',
++  'No SALT Deduction', 4164.00, 'Standard deduction only · $15,000',
++  'With $10K SALT', 1764.00, 'Itemized: mortgage int $17,152 + SALT $10K',
++  '[
++    "W-2 Box 1: $160,667.19 · Federal withheld: $23,126.93",
++    "Mortgage interest deduction: $17,152.41 (itemizes > $15K standard)",
++    "Property taxes paid 2025: $14,595.02 — confirm HAF deductibility",
++    "Severance income — verify withholding rate (29.65% supplemental)",
++    "IRS balance resolution pending (Module 7) — consult CPA",
++    "Low income year 2026 — Roth conversion opportunity (deadline Dec 31)"
++  ]'::jsonb,
++  'Apr 15, 2026',
++  'Confirm HAF program impact on property tax deductibility with accountant before filing.',
++  '[
++    {"auth": "Dallas ISD", "amount": 6211.47, "pct": 42.6},
++    {"auth": "City of Dallas", "amount": 4751.84, "pct": 32.6},
++    {"auth": "Dallas County", "amount": 1465.40, "pct": 10.0},
++    {"auth": "Parkland Hospital", "amount": 1441.60, "pct": 9.9},
++    {"auth": "Dallas College", "amount": 724.71, "pct": 5.0}
++  ]'::jsonb
++);
++
++-- Wealth Scenarios
++INSERT INTO wealth_scenarios (name, annual_savings, return_rate, color, label, sort_order) VALUES
++  ('Conservative', 62400, 0.07, '#3b82f6', '20% saved · 7% return', 1),
++  ('Moderate', 93600, 0.08, '#22c55e', '30% saved · 8% return', 2),
++  ('Aggressive', 124800, 0.10, '#f59e0b', '40% saved · 10% return', 3);
++
++-- Financial Settings (JSONB catch-all)
++INSERT INTO financial_settings (key, value) VALUES
++  ('action_items', '[
++    {"priority": "red", "title": "HELOC closing — confirm Texas Credit Union timeline", "detail": "Must close before March 19. VVOE required. Do NOT resign before closing."},
++    {"priority": "red", "title": "Sign Release Agreement — do NOT rush", "detail": "45-day window from notice. Get employment attorney first."},
++    {"priority": "amber", "title": "Life insurance — convert/port by April 19", "detail": "31-day hard deadline from exit date. Call HR immediately after March 19."},
++    {"priority": "amber", "title": "COBRA — elect within 60 days of March 31", "detail": "Healthcare ends March 31. Compare COBRA vs marketplace before electing."},
++    {"priority": "amber", "title": "Confirm personal days payout with HR", "detail": "24 hrs personal days — Texas has no law requiring payout. Confirm JPMC policy."},
++    {"priority": "blue", "title": "Chase Freedom cards — verify all balances are 0% promo", "detail": "Statement balances ($22,531 + $13,269) need promo confirmation. Pull statements."},
++    {"priority": "blue", "title": "Minimize AmEx Gold new charges until HELOC closes", "detail": "Revolving cleared by March payment. New charges accrue at 27.49% until HELOC rolls."}
++  ]'::jsonb),
++  ('top_actions', '[
++    {"icon": "🔴", "text": "Cancel Credit Sesame Premium — use Chase/AmEx free monitoring instead", "save": "$14.28/mo"},
++    {"icon": "🔴", "text": "Cancel Zips Car Wash membership", "save": "$33.38/mo"},
++    {"icon": "🔴", "text": "Cancel Paramount+ — re-subscribe for specific shows only", "save": "$14.06/mo"},
++    {"icon": "🟡", "text": "Investigate Paddle.net charge — check email for receipts", "save": "$12.88/mo"},
++    {"icon": "🟡", "text": "Downgrade Canva to free tier at canva.com", "save": "$15.00/mo"}
++  ]'::jsonb),
++  ('income_bridge', '{
++    "liquid_cash": 8000,
++    "march_paychecks": 6250,
++    "severance_estimate": 25000,
++    "family_bridge": 2000,
++    "consulting_monthly_net": 2500,
++    "target_salary": 240000,
++    "target_total_comp": 312000,
++    "monthly_outflow": 7234,
++    "new_job_monthly_net": 13670
++  }'::jsonb),
++  ('property_tax', '{
++    "address": "2214 N Carroll Ave, Dallas TX 75204",
++    "assessed_value": 850000,
++    "protest_target": 750000,
++    "annual_total": 14595.02,
++    "monthly_budget": 1216.25,
++    "protest_savings_estimate": 1700,
++    "protest_deadline": "2026-05-15",
++    "taxes_paid": true
++  }'::jsonb),
++  ('spending_summary', '{
++    "total_annual_cc": 76052,
++    "total_monthly_avg": 6338,
++    "total_transactions": 1615,
++    "top_category": "Food & Dining",
++    "top_category_amount": 27441,
++    "top_category_pct": 36,
++    "survival_monthly": 2500,
++    "cards_analyzed": "AmEx Gold + Plat + Chase 9313"
++  }'::jsonb),
++  ('subscription_summary', '{
++    "total_recurring_merchants": 102,
++    "keep_total_monthly": 36.29,
++    "keep_count": 3
++  }'::jsonb);
+diff --git a/supabase/migrations/20260413_investment_tables.sql b/supabase/migrations/20260413_investment_tables.sql
+new file mode 100644
+index 0000000..545f119
+--- /dev/null
++++ b/supabase/migrations/20260413_investment_tables.sql
+@@ -0,0 +1,149 @@
++-- ═══════════════════════════════════════════════════════════════
++-- Investment Tables for micci-os
++-- 3 tables: investment_accounts, tax_lots, investment_transactions
++-- Based on Chase Self-Directed Rollover IRA CSV exports
++-- ═══════════════════════════════════════════════════════════════
++
++-- ── 1. investment_accounts ─────────────────────────────────────
++-- Account-level metadata (one row per brokerage account)
++
++CREATE TABLE IF NOT EXISTS investment_accounts (
++  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
++  account_name TEXT NOT NULL,           -- e.g. "Self-Directed-Ret"
++  account_number TEXT,                  -- e.g. "...3509"
++  account_type TEXT DEFAULT 'Brokerage', -- Brokerage, 401k, Roth IRA, etc.
++  institution TEXT DEFAULT 'Chase',
++  total_value NUMERIC(14,2) DEFAULT 0,  -- sum of all positions (updated on import)
++  total_cost NUMERIC(14,2) DEFAULT 0,   -- sum of all cost basis
++  unrealized_gl NUMERIC(14,2) DEFAULT 0,-- total unrealized gain/loss
++  as_of_date DATE,                      -- last data refresh date
++  created_at TIMESTAMPTZ DEFAULT now(),
++  updated_at TIMESTAMPTZ DEFAULT now(),
++  UNIQUE(user_id, account_name, account_number)
++);
++
++-- ── 2. tax_lots ───────────────────────────────────────────────
++-- Per-lot position data from Chase tax lots CSV
++-- One row per acquisition lot (multiple lots per ticker)
++
++CREATE TABLE IF NOT EXISTS tax_lots (
++  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
++  account_id UUID REFERENCES investment_accounts(id) ON DELETE CASCADE,
++  account_name TEXT NOT NULL,
++  account_number TEXT,
++
++  -- Security info
++  ticker TEXT NOT NULL,
++  cusip TEXT,
++  description TEXT,                     -- full security name
++  asset_class TEXT,                     -- "Equity", "Cash & Cash Equivalents", etc.
++  asset_strategy TEXT,                  -- "US Large Cap Equity", "Thematic", etc.
++  security_type TEXT,                   -- "Stock", "ETF", etc.
++
++  -- Position data
++  quantity NUMERIC(16,8) NOT NULL DEFAULT 0,
++  price NUMERIC(14,4),                  -- current price per share
++  value NUMERIC(14,2),                  -- quantity * price
++  cost NUMERIC(14,2),                   -- adjusted cost basis
++  original_cost NUMERIC(14,2),          -- original cost basis
++  unit_cost NUMERIC(14,4),              -- cost per share
++  unrealized_gl NUMERIC(14,2),          -- unrealized gain/loss $
++  unrealized_gl_pct NUMERIC(8,4),       -- unrealized gain/loss %
++
++  -- Tax info
++  acquisition_date DATE,
++  tax_term TEXT,                         -- "Short" or "Long"
++  days_held INTEGER,
++  days_until_long INTEGER,
++
++  -- Income
++  est_annual_income NUMERIC(14,2),
++  accrued_income NUMERIC(14,2),
++
++  -- Metadata
++  pricing_date DATE,
++  as_of_date DATE,                      -- snapshot date
++  currency TEXT DEFAULT 'USD',
++  created_at TIMESTAMPTZ DEFAULT now(),
++  updated_at TIMESTAMPTZ DEFAULT now(),
++
++  -- Dedup: same lot = same user + account + ticker + acquisition date + quantity
++  UNIQUE(user_id, account_name, ticker, acquisition_date, quantity)
++);
++
++-- ── 3. investment_transactions ────────────────────────────────
++-- Trade/dividend/transfer history from Chase transaction CSV
++
++CREATE TABLE IF NOT EXISTS investment_transactions (
++  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
++  account_id UUID REFERENCES investment_accounts(id) ON DELETE CASCADE,
++  account_name TEXT NOT NULL,
++  account_number TEXT,
++
++  -- Transaction info
++  trade_date DATE NOT NULL,
++  post_date DATE,
++  settlement_date DATE,
++  transaction_type TEXT NOT NULL,        -- "Buy", "Sell", "Dividend", "STK SPLT", "BNK", "WDL", "DBS"
++  description TEXT,
++  tran_code TEXT,                        -- raw transaction code
++  tran_code_description TEXT,
++
++  -- Security info
++  ticker TEXT,
++  cusip TEXT,
++  security_type TEXT,
++
++  -- Amounts
++  price NUMERIC(14,4),                   -- price per share
++  quantity NUMERIC(16,8),                -- shares traded
++  amount NUMERIC(14,2),                  -- total $ amount (negative = outflow/buy, positive = inflow/sell)
++  income NUMERIC(14,2),                  -- dividend/interest income
++  gl_short NUMERIC(14,2),               -- realized short-term gain/loss
++  gl_long NUMERIC(14,2),                -- realized long-term gain/loss
++  commissions NUMERIC(14,2) DEFAULT 0,
++  tax_withheld NUMERIC(14,2) DEFAULT 0,
++
++  -- Metadata
++  currency TEXT DEFAULT 'USD',
++  created_at TIMESTAMPTZ DEFAULT now(),
++
++  -- Dedup: same transaction = same user + account + date + ticker + type + amount
++  UNIQUE(user_id, account_name, trade_date, ticker, transaction_type, amount)
++);
++
++-- ── Indexes ───────────────────────────────────────────────────
++
++CREATE INDEX IF NOT EXISTS idx_tax_lots_user ON tax_lots(user_id);
++CREATE INDEX IF NOT EXISTS idx_tax_lots_ticker ON tax_lots(ticker);
++CREATE INDEX IF NOT EXISTS idx_tax_lots_account ON tax_lots(account_name);
++CREATE INDEX IF NOT EXISTS idx_tax_lots_tax_term ON tax_lots(tax_term);
++
++CREATE INDEX IF NOT EXISTS idx_inv_txn_user ON investment_transactions(user_id);
++CREATE INDEX IF NOT EXISTS idx_inv_txn_trade_date ON investment_transactions(trade_date);
++CREATE INDEX IF NOT EXISTS idx_inv_txn_ticker ON investment_transactions(ticker);
++CREATE INDEX IF NOT EXISTS idx_inv_txn_type ON investment_transactions(transaction_type);
++CREATE INDEX IF NOT EXISTS idx_inv_txn_account ON investment_transactions(account_name);
++
++CREATE INDEX IF NOT EXISTS idx_inv_accounts_user ON investment_accounts(user_id);
++
++-- ── RLS ───────────────────────────────────────────────────────
++
++ALTER TABLE investment_accounts ENABLE ROW LEVEL SECURITY;
++ALTER TABLE tax_lots ENABLE ROW LEVEL SECURITY;
++ALTER TABLE investment_transactions ENABLE ROW LEVEL SECURITY;
++
++CREATE POLICY "Users can manage own investment accounts"
++  ON investment_accounts FOR ALL TO authenticated
++  USING (true) WITH CHECK (true);
++
++CREATE POLICY "Users can manage own tax lots"
++  ON tax_lots FOR ALL TO authenticated
++  USING (true) WITH CHECK (true);
++
++CREATE POLICY "Users can manage own investment transactions"
++  ON investment_transactions FOR ALL TO authenticated
++  USING (true) WITH CHECK (true);
+-- 
+2.34.1
+
