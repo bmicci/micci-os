@@ -92,7 +92,7 @@ export default function BudgetActualTab({
             <YAxis type="category" dataKey="category" width={140} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
             <Tooltip
               contentStyle={{ background: 'rgba(20,20,40,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-              formatter={(value: number | undefined) => [fmt(value ?? 0), '']}
+              formatter={(value) => [fmt((value as number) ?? 0), '']}
               labelStyle={{ color: 'var(--text-primary)' }}
             />
             <Legend wrapperStyle={{ color: 'var(--text-secondary)' }} />
