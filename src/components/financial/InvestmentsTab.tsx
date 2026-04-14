@@ -298,7 +298,7 @@ function OverviewView({
                   color: 'var(--text-primary)',
                   fontSize: 12,
                 }}
-                formatter={(val: number | undefined) => fmt(val ?? 0)}
+                formatter={(val: unknown) => fmt(Number(val ?? 0))}
               />
             </PieChart>
           </ResponsiveContainer>
@@ -341,7 +341,7 @@ function OverviewView({
                   color: 'var(--text-primary)',
                   fontSize: 12,
                 }}
-                formatter={(val: number | undefined) => fmt(val ?? 0)}
+                formatter={(val: unknown) => fmt(Number(val ?? 0))}
               />
               <Bar dataKey="value" fill="var(--accent-cyan)" radius={[0, 4, 4, 0]} />
             </BarChart>

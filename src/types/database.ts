@@ -311,7 +311,7 @@ export interface DbPerkCredit {
   card_name: string
   credit_name: string
   amount: number
-  reset_period: 'monthly' | 'quarterly' | 'annual' | 'one_time'
+  reset_period: 'monthly' | 'quarterly' | 'semi-annual' | 'annual' | 'one_time'
   period_start: string
   period_end: string
   used: boolean
