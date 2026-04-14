@@ -319,3 +319,32 @@ export interface DbPerkCredit {
   notes: string | null
   updated_at: string
 }
+
+// ── Investment Portfolio ──────────────────────────────────────────
+
+export interface DbPortfolioPosition {
+  id: string
+  ticker: string
+  name: string
+  shares: number
+  current_price: number
+  current_value: number
+  cost_basis: number
+  unit_cost: number
+  unrealized_gl: number
+  unrealized_gl_pct: number
+  theme: string
+  account: string
+  is_cash: boolean
+  updated_at: string
+}
+
+export interface DbPortfolioTarget {
+  id: string
+  ticker: string
+  name: string
+  target_pct: number
+  theme: string
+  rationale: string | null
+  action: string | null
+}
