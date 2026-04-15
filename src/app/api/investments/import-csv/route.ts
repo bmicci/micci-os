@@ -1,120 +1,140 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 
-// ── Chase CSV format (J.P. Morgan Self-Directed Investing) ────────
-// Chase exports may have leading metadata rows before the header.
-// Typical columns (may vary slightly by account type):
+// ── Chase Tax Lots CSV format (J.P. Morgan Self-Directed Investing) ──
 //
-//   Symbol | Description | Quantity | Price | Price Change % |
-//   Market Value | Day Change | Day Change % | Cost Basis |
-//   Gain/Loss | Gain/Loss % | Ratings | Account
+// Export path: Portfolio → Holdings → Download → Tax Lots
 //
-// Numbers include $, commas, % and parentheses for negatives.
+// File characteristics:
+//   - UTF-8 BOM (﻿)
+//   - One row per tax lot — multiple rows per ticker is normal
+//   - Numbers are plain (no $ signs), commas used as thousands separator
+//   - Cash/money market appears as ticker "QDERQ"
+//   - Key columns (0-indexed): Ticker=8, Quantity=10, Price=13, Cost=23,
+//     Description=7, Asset Strategy=5, Unit Cost=41
+//
+// ── Chase Transaction History CSV ────────────────────────────────────
+//
+// Export path: Portfolio → Activity → Download → Transaction History
+//
+// File characteristics:
+//   - No BOM
+//   - Columns: Trade Date, Post Date, Settlement Date, Account Name,
+//     Account Number, Account Type, Type, Description, Cusip, Ticker,
+//     Security Type, Local Currency, Price USD, Price Local, Quantity,
+//     G/L Short USD, ..., Tran Code, Tran Code Description, ...
+//   - One row per transaction (Buy, Sell, Dividend, STK SPLT, BNK, etc.)
+//
+// This route detects which format was uploaded and handles accordingly.
+// Tax Lots → upsert positions. Transactions → stored as future feature.
 
-interface ParsedRow {
-  ticker:      string
-  name:        string
-  shares:      number
-  price:       number
-  marketValue: number
-  costBasis:   number
-  isCash:      boolean
+interface ParsedPosition {
+  ticker:    string
+  name:      string
+  shares:    number
+  price:     number
+  costBasis: number
+  unitCost:  number
+  isCash:    boolean
+  strategy:  string
 }
 
-/** Strip $, commas, %, spaces; handle (123.45) as negative */
+/** Strip commas, handle negative parens. Numbers in Tax Lots have NO $ signs. */
 function parseNum(raw: string | undefined): number {
   if (!raw) return 0
-  const s = raw.trim().replace(/[$,%\s]/g, '')
-  if (s.startsWith('(') && s.endsWith(')')) return -parseFloat(s.slice(1, -1)) || 0
+  const s = raw.trim().replace(/,/g, '')
+  if (s.startsWith('(') && s.endsWith(')')) return -(parseFloat(s.slice(1, -1)) || 0)
   return parseFloat(s) || 0
 }
 
-/** Find the header row index — Chase files sometimes start with account info */
-function findHeaderRow(lines: string[]): number {
-  for (let i = 0; i < Math.min(lines.length, 20); i++) {
-    const lower = lines[i].toLowerCase()
-    if (lower.includes('symbol') && lower.includes('quantity')) return i
-  }
-  return 0
-}
-
-/** Split a CSV line respecting quoted fields */
-function splitCSVLine(line: string): string[] {
+/** Split a CSV line respecting double-quoted fields */
+function splitLine(line: string): string[] {
   const result: string[] = []
-  let current = ''
-  let inQuotes = false
+  let cur = ''
+  let inQ = false
   for (let i = 0; i < line.length; i++) {
     const ch = line[i]
-    if (ch === '"') {
-      inQuotes = !inQuotes
-    } else if (ch === ',' && !inQuotes) {
-      result.push(current.trim())
-      current = ''
-    } else {
-      current += ch
-    }
+    if (ch === '"') { inQ = !inQ }
+    else if (ch === ',' && !inQ) { result.push(cur.trim()); cur = '' }
+    else cur += ch
   }
-  result.push(current.trim())
+  result.push(cur.trim())
   return result
 }
 
-function parseChaseCSV(text: string): { rows: ParsedRow[]; warnings: string[] } {
-  const lines   = text.split(/\r?\n/).filter(l => l.trim())
-  const headerI = findHeaderRow(lines)
-  const headers = splitCSVLine(lines[headerI]).map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''))
+/** Detect format: 'taxlots' | 'transactions' | 'unknown' */
+function detectFormat(headers: string[]): 'taxlots' | 'transactions' | 'unknown' {
+  const h = headers.map(x => x.toLowerCase().trim())
+  if (h.includes('asset strategy') && h.includes('quantity') && h.includes('cost'))
+    return 'taxlots'
+  if (h.includes('trade date') && h.includes('tran code'))
+    return 'transactions'
+  return 'unknown'
+}
 
-  // Map header names → column indexes
+// ── Tax Lots parser ──────────────────────────────────────────────────
+
+function parseTaxLots(lines: string[]): { positions: ParsedPosition[]; warnings: string[] } {
+  const warnings: string[] = []
+  const headers = splitLine(lines[0])
+  const h = headers.map(x => x.toLowerCase().trim())
+
   const col = (names: string[]): number => {
     for (const n of names) {
-      const idx = headers.findIndex(h => h.includes(n))
+      const idx = h.findIndex(hh => hh === n || hh.includes(n))
       if (idx !== -1) return idx
     }
     return -1
   }
 
-  const iSymbol    = col(['symbol'])
-  const iDesc      = col(['description', 'name'])
-  const iQty       = col(['quantity', 'shares', 'qty'])
-  const iPrice     = col(['price'])
-  const iMktVal    = col(['marketvalue', 'value'])
-  const iCostBasis = col(['costbasis', 'cost'])
+  const iTicker  = col(['ticker'])
+  const iQty     = col(['quantity'])
+  const iPrice   = col(['price'])
+  const iCost    = col(['cost'])                // "Cost" (not "Orig Cost")
+  const iDesc    = col(['description'])
+  const iStrat   = col(['asset strategy'])
+  const iUnitCost= col(['unit cost'])
 
-  if (iSymbol === -1 || iQty === -1) {
-    return { rows: [], warnings: ['Could not find Symbol or Quantity column — check file format'] }
+  if (iTicker === -1 || iQty === -1 || iPrice === -1) {
+    return { positions: [], warnings: ['Tax Lots format: cannot find Ticker/Quantity/Price columns'] }
   }
 
-  const rows: ParsedRow[]   = []
-  const warnings: string[]  = []
+  // Aggregate lots by ticker
+  const map = new Map<string, ParsedPosition>()
 
-  for (let i = headerI + 1; i < lines.length; i++) {
+  for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim()
-    if (!line || line.startsWith('--') || line.startsWith('Total')) continue
+    if (!line) continue
 
-    const cells  = splitCSVLine(line)
-    const ticker = cells[iSymbol]?.trim().toUpperCase()
-    if (!ticker || ticker.length === 0) continue
+    const cells  = splitLine(line)
+    const ticker = cells[iTicker]?.trim()
+    if (!ticker || ticker.toLowerCase() === 'ticker') continue
 
-    // Skip header repetitions and summary rows
-    if (ticker === 'SYMBOL' || ticker === 'TOTAL' || ticker === 'ACCOUNT') continue
+    const qty      = parseNum(cells[iQty])
+    const price    = parseNum(cells[iPrice])
+    const cost     = iCost     !== -1 ? parseNum(cells[iCost])     : qty * price
+    const unitCost = iUnitCost !== -1 ? parseNum(cells[iUnitCost]) : (qty > 0 ? cost / qty : 0)
+    const desc     = iDesc     !== -1 ? (cells[iDesc]?.trim() || ticker) : ticker
+    const strategy = iStrat    !== -1 ? (cells[iStrat]?.trim() || '') : ''
+    const isCash   = ['QDERQ', 'SPAXX', 'VMFXX', 'FZFXX', 'SWVXX'].includes(ticker)
 
-    const shares     = parseNum(cells[iQty])
-    const price      = iPrice     !== -1 ? parseNum(cells[iPrice])     : 0
-    const marketValue= iMktVal    !== -1 ? parseNum(cells[iMktVal])    : shares * price
-    const costBasis  = iCostBasis !== -1 ? parseNum(cells[iCostBasis]) : 0
-    const name       = iDesc      !== -1 ? (cells[iDesc]?.trim() || ticker) : ticker
-
-    // Cash-like tickers
-    const isCash = ['CASH', 'SPAXX', 'VMFXX', 'FZFXX', 'SWVXX', 'JPST'].includes(ticker)
-
-    rows.push({ ticker, name, shares, price, marketValue, costBasis, isCash })
+    if (map.has(ticker)) {
+      const ex = map.get(ticker)!
+      ex.shares   += qty
+      ex.price     = price     // same for all lots; last one wins
+      ex.costBasis+= cost
+      ex.unitCost  = ex.shares > 0 ? ex.costBasis / ex.shares : unitCost
+    } else {
+      map.set(ticker, { ticker, name: desc, shares: qty, price, costBasis: cost, unitCost, isCash, strategy })
+    }
   }
 
-  if (rows.length === 0) {
-    warnings.push('No position rows found after header — verify the CSV came from Chase Investments')
-  }
+  if (map.size === 0) warnings.push('No position rows found — verify this is a Tax Lots export')
 
-  return { rows, warnings }
+  return { positions: Array.from(map.values()), warnings }
 }
+
+// ── Route handler ────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
   const supabase = createServiceClient()
@@ -122,48 +142,92 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
   }
 
+  // Parse uploaded file
   let text: string
   try {
     const formData = await request.formData()
     const file = formData.get('file')
     if (!file || typeof file === 'string') {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
     text = await (file as File).text()
   } catch {
-    return NextResponse.json({ error: 'Failed to read uploaded file' }, { status: 400 })
+    return NextResponse.json({ error: 'Failed to read file' }, { status: 400 })
   }
 
-  const { rows, warnings } = parseChaseCSV(text)
-
-  if (rows.length === 0) {
-    return NextResponse.json({ error: 'No parseable rows found', warnings }, { status: 422 })
+  // Strip BOM and split lines
+  const clean = text.replace(/^\uFEFF/, '')
+  const lines = clean.split(/\r?\n/).filter(l => l.trim())
+  if (lines.length < 2) {
+    return NextResponse.json({ error: 'File appears empty' }, { status: 422 })
   }
 
-  // Fetch existing positions to preserve theme/account fields
+  const headers = splitLine(lines[0])
+  const format  = detectFormat(headers)
+
+  if (format === 'transactions') {
+    return NextResponse.json({
+      message: 'Transaction History detected — position import uses the Tax Lots export instead. Go to Holdings → Download → Tax Lots.',
+      format: 'transactions',
+      rowCount: lines.length - 1,
+    })
+  }
+
+  if (format === 'unknown') {
+    return NextResponse.json(
+      { error: 'Unrecognised CSV format. Expected Chase Tax Lots export (Holdings → Download → Tax Lots).', headers: headers.slice(0, 10) },
+      { status: 422 },
+    )
+  }
+
+  // ── Tax Lots: parse + upsert ───────────────────────────────────────
+
+  const { positions, warnings } = parseTaxLots(lines)
+  if (positions.length === 0) {
+    return NextResponse.json({ error: 'No positions parsed', warnings }, { status: 422 })
+  }
+
+  // Fetch existing positions to preserve theme + account
   const { data: existing } = await supabase
     .from('portfolio_positions')
     .select('ticker, theme, account')
 
   const existingMap: Record<string, { theme: string; account: string }> = {}
-  for (const e of existing ?? []) {
-    existingMap[e.ticker] = { theme: e.theme, account: e.account }
+  for (const e of (existing ?? [])) {
+    existingMap[e.ticker] = { theme: e.theme as string, account: e.account as string }
   }
 
-  const upsertRows = rows.map(r => ({
-    ticker:        r.ticker,
-    name:          r.name,
-    shares:        r.shares,
-    current_price: r.price,
-    cost_basis:    r.costBasis,
-    unit_cost:     r.shares > 0 ? r.costBasis / r.shares : 0,
-    theme:         existingMap[r.ticker]?.theme  ?? 'Uncategorized',
-    account:       existingMap[r.ticker]?.account ?? 'IRA-3509',
-    is_cash:       r.isCash,
-    updated_at:    new Date().toISOString(),
-  }))
+  // Strategy → theme fallback mapping
+  const STRATEGY_THEME: Record<string, string> = {
+    'US Large Cap Equity':          'Broad Market',
+    'US Small Cap Equity':          'Industrials',
+    'Global Equity':                'Robotics',
+    'Real Estate & Infrastructure': 'Industrials',
+    'Other Alternative Assets':     'Gold',
+    'Cash & Short Term':            'Liquidity',
+  }
 
-  // Upsert by ticker (match on ticker column)
+  const upsertRows = positions.map(p => {
+    const existing_ = existingMap[p.ticker]
+    // Remap QDERQ (Chase sweep) → CASH display
+    const displayTicker = p.ticker === 'QDERQ' ? 'CASH' : p.ticker
+    const theme = existing_?.theme
+      ?? (p.isCash ? 'Liquidity' : STRATEGY_THEME[p.strategy] ?? 'Uncategorized')
+
+    return {
+      ticker:        displayTicker,
+      name:          p.name,
+      shares:        p.shares,
+      current_price: p.price,
+      cost_basis:    p.costBasis,
+      unit_cost:     p.shares > 0 ? p.costBasis / p.shares : 0,
+      theme,
+      account:       existing_?.account ?? 'IRA-3509',
+      is_cash:       p.isCash,
+      updated_at:    new Date().toISOString(),
+    }
+  })
+
   const { error: upsertErr } = await supabase
     .from('portfolio_positions')
     .upsert(upsertRows, { onConflict: 'ticker' })
@@ -173,9 +237,10 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({
-    imported: rows.length,
+    imported:  positions.length,
+    format:    'taxlots',
+    tickers:   positions.map(p => p.ticker === 'QDERQ' ? 'CASH(QDERQ)' : p.ticker),
     warnings,
-    tickers: rows.map(r => r.ticker),
     timestamp: new Date().toISOString(),
   })
 }
