@@ -8,6 +8,7 @@ const SIMULATOR_NAV = [
   { href: '/finance/cashflow',     label: 'Cash Flow',   icon: '📊' },
   { href: '/finance/scenarios',    label: 'Scenarios',   icon: '⚖️' },
   { href: '/finance/investments',  label: 'Investments', icon: '📈' },
+  { href: '/finance/tax',          label: 'Tax Center',  icon: '🧾' },
 ]
 
 export const metadata = { title: 'Financial Simulator — Micci OS' }
