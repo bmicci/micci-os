@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
-// yahoo-finance2 v3: default export is a constructor
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const YahooFinance = require('yahoo-finance2').default as new (opts?: Record<string, unknown>) => {
+
+export const dynamic = 'force-dynamic'
+
+// Type for the yahoo-finance2 v3 instance (loaded dynamically at runtime)
+type YFInstance = {
   quote(
     ticker: string,
     queryOptions?: Record<string, unknown>,
     moduleOptions?: Record<string, unknown>,
   ): Promise<{ regularMarketPrice?: number; ask?: number; bid?: number }>
 }
-
-export const dynamic = 'force-dynamic'
 
 interface RefreshResult {
   ticker:   string
@@ -40,7 +40,10 @@ export async function POST() {
     )
   }
 
-  // 2. Instantiate yahoo-finance2 v3 client
+  // 2. Instantiate yahoo-finance2 v3 at runtime (dynamic import avoids
+  //    Vercel build-time static analysis failure on the CJS module)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const YahooFinance = require('yahoo-finance2').default as new (opts?: Record<string, unknown>) => YFInstance
   const yf = new YahooFinance({ suppressNotices: ['yahooSurvey'] })
 
   // 3. Fetch quotes concurrently
