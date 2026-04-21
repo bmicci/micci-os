@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/investments/refresh-prices",
-      "schedule": "*/30 13-21 * * 1-5"
+      "schedule": "0 21 * * 1-5"
     }
   ]
 }
