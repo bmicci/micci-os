@@ -96,7 +96,32 @@ export default function TabContainer({ data }: { data: FinancialData }) {
           />
         )}
         {activeTab === 'investments' && (
-          <InvestmentsTab investments={data.investments} />
+          <div className="space-y-4">
+            {/* Banner linking to the live portfolio dashboard */}
+            <a
+              href="/finance/investments"
+              className="flex items-center justify-between p-4 rounded-2xl transition-all hover:opacity-90"
+              style={{
+                background: 'linear-gradient(135deg, rgba(0,212,255,0.15), rgba(30,144,255,0.1))',
+                border: '1px solid rgba(0,212,255,0.35)',
+                textDecoration: 'none',
+              }}
+            >
+              <div>
+                <p className="text-sm font-bold" style={{ color: '#00D4FF' }}>
+                  📈 Live Investment Portfolio Dashboard
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  Real-time prices · allocation vs target · Chase CSV import · Supabase-backed
+                </p>
+              </div>
+              <span className="text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0 ml-4"
+                style={{ background: 'rgba(0,212,255,0.2)', color: '#00D4FF', border: '1px solid rgba(0,212,255,0.4)' }}>
+                Open Full Portfolio →
+              </span>
+            </a>
+            <InvestmentsTab investments={data.investments} />
+          </div>
         )}
         {activeTab === 'heloc' && (
           <HELOCPlanTab

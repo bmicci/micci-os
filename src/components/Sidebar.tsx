@@ -16,10 +16,12 @@ const NAV_ITEMS = [
 ];
 
 const SIMULATOR_ITEMS = [
-  { href: "/finance/paycheck", label: "Paycheck", icon: "💵" },
-  { href: "/finance/heloc", label: "HELOC", icon: "🏦" },
-  { href: "/finance/cashflow", label: "Cash Flow", icon: "📊" },
-  { href: "/finance/scenarios", label: "Scenarios", icon: "⚖️" },
+  { href: "/finance/paycheck",     label: "Paycheck",    icon: "💵" },
+  { href: "/finance/heloc",        label: "HELOC",       icon: "🏦" },
+  { href: "/finance/cashflow",     label: "Cash Flow",   icon: "📊" },
+  { href: "/finance/scenarios",    label: "Scenarios",   icon: "⚖️" },
+  { href: "/finance/investments",  label: "Investments", icon: "📈" },
+  { href: "/finance/tax",          label: "Tax Center",  icon: "🧾" },
 ];
 
 export default function Sidebar() {
