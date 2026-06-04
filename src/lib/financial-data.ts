@@ -11,7 +11,7 @@ export interface DebtAccount {
   rate: number
   min: number | null
   decision: 'roll' | 'keep' | 'promo'
-  category: 'Personal Loan' | 'Credit Card' | 'Mortgage'
+  category: 'Personal Loan' | 'Credit Card' | 'Mortgage' | 'HELOC'
 }
 
 export interface FinancialModule {
@@ -269,23 +269,23 @@ export interface FinancialData {
 
 // ── Data ───────────────────────────────────────────
 
-// Updated with real balances from CSV export (March 8, 2026)
+// Updated June 4, 2026 — post-HELOC consolidation
 export const DEBTS: DebtAccount[] = [
-  { name: 'SoFi Personal Loan', balance: 56075.21, rate: 12.41, min: 1464.07, decision: 'roll', category: 'Personal Loan' },
-  { name: 'LightStream Loan', balance: 44018.42, rate: 5.87, min: 577.47, decision: 'keep', category: 'Personal Loan' },
-  { name: 'Chase Freedom Unlimited (7117)', balance: 22306, rate: 0, min: 225, decision: 'promo', category: 'Credit Card' },
-  { name: 'Chase Freedom (4628)', balance: 13269, rate: 0, min: 132, decision: 'promo', category: 'Credit Card' },
-  { name: 'Citi Diamond Preferred (4205)', balance: 12366, rate: 0, min: 124, decision: 'promo', category: 'Credit Card' },
-  { name: 'Wells Fargo Loan (via Dad)', balance: 21420, rate: 12.49, min: 1100, decision: 'roll', category: 'Personal Loan' },
-  { name: 'Virginia FCU Loan (via Dad)', balance: 18600, rate: 9.25, min: 350, decision: 'roll', category: 'Personal Loan' },
-  { name: 'AmEx Platinum (3002)', balance: 6452.55, rate: 21.49, min: 501.09, decision: 'roll', category: 'Credit Card' },
-  { name: 'AmEx Gold (4000)', balance: 6262.62, rate: 27.49, min: 182.18, decision: 'roll', category: 'Credit Card' },
-  { name: 'AmEx Personal Loan (1001)', balance: 3535.56, rate: 7.33, min: 407.01, decision: 'keep', category: 'Personal Loan' },
-  { name: 'Citi Best Buy (4802)', balance: 2375.24, rate: 0, min: 50, decision: 'promo', category: 'Credit Card' },
-  { name: 'Nordstrom (Synchrony)', balance: 653.43, rate: 29.4, min: 40, decision: 'roll', category: 'Credit Card' },
-  { name: 'Chase Prime Visa (9313)', balance: 688.66, rate: 0, min: 95.77, decision: 'promo', category: 'Credit Card' },
-  { name: 'PayPal Credit', balance: 124.35, rate: 0, min: 30, decision: 'promo', category: 'Credit Card' },
-  { name: 'BofA Mortgage (1624)', balance: 498903.37, rate: 3.375, min: 2486.79, decision: 'keep', category: 'Mortgage' },
+  // ── Mortgage ──────────────────────────────────────────────────────────────
+  { name: 'BofA Mortgage (1624)',           balance: 495643.35, rate: 3.375, min: 2486.79, decision: 'keep',  category: 'Mortgage' },
+  // ── HELOC (consolidated Mar 19) ───────────────────────────────────────────
+  { name: 'Texas CU HELOC',                 balance: 143057.22, rate: 6.85,  min: 816.00,  decision: 'keep',  category: 'HELOC' },
+  // ── 0% Promo Cards (pay from HELOC as buckets expire) ─────────────────────
+  { name: 'Chase Freedom Unlimited (7117)', balance: 21863.00,  rate: 0,     min: 0,       decision: 'promo', category: 'Credit Card' },
+  { name: 'Chase Freedom (4628)',           balance: 12876.00,  rate: 0,     min: 0,       decision: 'promo', category: 'Credit Card' },
+  { name: 'Citi Diamond Preferred (4205)',  balance: 11999.00,  rate: 0,     min: 124,     decision: 'promo', category: 'Credit Card' },
+  { name: 'Citi Best Buy (4802)',           balance: 1880.40,   rate: 0,     min: 0,       decision: 'promo', category: 'Credit Card' },
+  { name: 'Chase Prime Visa (9313)',        balance: 1398.00,   rate: 0,     min: 0,       decision: 'promo', category: 'Credit Card' },
+  // ── High-Rate Revolving (roll to HELOC ASAP) ──────────────────────────────
+  { name: 'AmEx Gold Card (5007)',          balance: 4519.00,   rate: 27.49, min: 115,     decision: 'roll',  category: 'Credit Card' },
+  { name: 'AmEx Platinum Card (3002)',      balance: 4514.00,   rate: 27.49, min: 115,     decision: 'roll',  category: 'Credit Card' },
+  // ── Family Loan (TBD balance) ─────────────────────────────────────────────
+  { name: 'Virginia FCU Loan (via Dad)',    balance: 18600.00,  rate: 9.25,  min: 350,     decision: 'roll',  category: 'Personal Loan' },
 ]
 
 export const MODULES: FinancialModule[] = [
@@ -369,8 +369,8 @@ export const MODULES: FinancialModule[] = [
     ],
   },
   {
-    id: 4, name: 'Debt Inventory & HELOC', status: 'urgent', pct: 70,
-    desc: '⚡ HELOC MUST CLOSE BY MARCH 19. Rolling ~$109K of high-rate debt to Loan Depot $190K HELOC at 8.88%. Saves ~$400–600/mo in interest. Do NOT resign before HELOC closes.',
+    id: 4, name: 'Debt Inventory & HELOC', status: 'progress', pct: 85,
+    desc: '✅ HELOC closed March 19 — Texas CU $190K @ 6.85%. Rolled $134K of high-rate debt. Current balance: $143,057. Remaining: pay off promo cards as buckets expire (Jul–Dec 2026). AmEx Gold + Platinum ($9,033 @ 27.49%) still need to roll.',
     docsHave: [
       'All credit card statements Feb 2026',
       'SoFi loan details (balance $56,075.21, rate 12.41%)',
@@ -417,8 +417,8 @@ export const MODULES: FinancialModule[] = [
     ],
   },
   {
-    id: 6, name: 'Property Tax Protest (DCAD)', status: 'pending', pct: 0,
-    desc: 'Protest Dallas County Appraisal District $850K valuation on 2214 N Carroll Ave. Filing deadline: May 15, 2026. Target: reduce to $790K = ~$1,700/yr savings.',
+    id: 6, name: 'Property Tax Protest (DCAD)', status: 'progress', pct: 60,
+    desc: '✅ Protest filed before May 15, 2026 deadline. Awaiting DCAD hearing or informal settlement offer. Target: reduce from $850K to $790K = ~$1,700/yr savings. Follow up at ifile.dallascad.org.',
     docsHave: [],
     docsMissing: [
       'Current DCAD notice of appraised value (2026)',
@@ -501,42 +501,52 @@ export const MODULES: FinancialModule[] = [
   },
 ]
 
+// Updated June 4, 2026
 export const DEADLINES: Deadline[] = [
-  { date: 'Mar 2, 2026', event: 'Citizens Pay — FINAL payment', amount: 769.78, risk: '✅ Done' },
-  { date: 'Mar 15, 2026', event: 'March 15 Paycheck', amount: 4652, risk: '➕ Income' },
-  { date: 'Mar 19, 2026', event: '⚠️ Last day at JPMC / HELOC must close', amount: null, risk: '🚨 Critical' },
-  { date: 'Mar 31, 2026', event: 'Partial paycheck (Mar 16–19) + healthcare ends', amount: 1598, risk: '➕ + ⚠️' },
-  { date: 'Apr 19, 2026', event: 'Life insurance convert/port DEADLINE', amount: null, risk: '🚨 Hard deadline' },
-  { date: 'May 30, 2026', event: 'COBRA election window closes', amount: null, risk: '⚠️ Deadline' },
-  { date: 'Jun 27, 2026', event: 'Best Buy Promo 1 expires — $1,312 at risk', amount: 1312, risk: '⚠️ $339 def. int.' },
-  { date: 'Jul 9, 2026', event: 'Chase Freedom Unlim BT1 expires — $8,500', amount: 8500, risk: '⚠️ Largest promo' },
-  { date: 'Aug 12, 2026', event: 'Chase Freedom BT1 expires — $7,500', amount: 7500, risk: '⚠️ Pay from HELOC' },
-  { date: 'Jun 18, 2027', event: 'Citi Diamond BT promo expires', amount: 12366, risk: '✅ Low urgency' },
+  { date: 'Mar 19, 2026', event: '✅ JPMC exit + HELOC closed',                    amount: null,     risk: '✅ Done' },
+  { date: 'Jun 27, 2026', event: '🔥 Best Buy Promo 1 — $962 deferred int $494',  amount: 962.44,   risk: '🔥 Pay NOW' },
+  { date: 'Jul 9, 2026',  event: '🔴 Chase Freedom Unlim BT1 expires — $8,454',   amount: 8453.66,  risk: '🔴 35 days' },
+  { date: 'Aug 12, 2026', event: '🟠 Chase Freedom BT1 expires — $7,384',          amount: 7384.33,  risk: '🟠 Pay from HELOC' },
+  { date: 'Sep 9, 2026',  event: 'Chase Freedom Unlim BT2 expires — $2,600',       amount: 2600,     risk: '🟡 Pay from HELOC' },
+  { date: 'Sep 12, 2026', event: 'Chase Freedom BT2 expires — $2,600',             amount: 2600,     risk: '🟡 Pay from HELOC' },
+  { date: 'Oct 9, 2026',  event: 'Chase Freedom Unlim BT3 expires — $7,000',       amount: 7000,     risk: '🟡 Pay from HELOC' },
+  { date: 'Dec 9, 2026',  event: 'Chase Freedom Unlim BT4 expires — $4,000',       amount: 4000,     risk: '🟢 Pay from HELOC' },
+  { date: 'Dec 12, 2026', event: 'Chase Freedom BT3 expires — $3,000',             amount: 3000,     risk: '🟢 Pay from HELOC' },
+  { date: 'Dec 27, 2026', event: 'Best Buy Promo 2 — $918 deferred int $312',      amount: 917.96,   risk: '🟡 Pay from HELOC' },
+  { date: 'Dec 31, 2026', event: 'Roth conversion deadline — low income year',     amount: null,     risk: '🟡 Coordinate with CPA' },
+  { date: 'Jun 18, 2027', event: 'Citi Diamond BT expires — $11,999',              amount: 11999,    risk: '✅ Low urgency' },
 ]
 
+// Updated June 4, 2026
 export const ACTION_ITEMS: ActionItem[] = [
-  { priority: 'red', title: 'HELOC closing — confirm Texas Credit Union timeline', detail: 'Must close before March 19. VVOE required. Do NOT resign before closing.' },
-  { priority: 'red', title: 'Sign Release Agreement — do NOT rush', detail: '45-day window from notice. Get employment attorney first.' },
-  { priority: 'amber', title: 'Life insurance — convert/port by April 19', detail: '31-day hard deadline from exit date. Call HR immediately after March 19.' },
-  { priority: 'amber', title: 'COBRA — elect within 60 days of March 31', detail: 'Healthcare ends March 31. Compare COBRA vs marketplace before electing.' },
-  { priority: 'amber', title: 'Confirm personal days payout with HR', detail: '24 hrs personal days — Texas has no law requiring payout. Confirm JPMC policy.' },
-  { priority: 'blue', title: 'Chase Freedom cards — verify all balances are 0% promo', detail: 'Statement balances ($22,531 + $13,269) need promo confirmation. Pull statements.' },
-  { priority: 'blue', title: 'Minimize AmEx Gold new charges until HELOC closes', detail: 'Revolving cleared by March payment. New charges accrue at 27.49% until HELOC rolls.' },
+  { priority: 'red',   title: 'Pay Citi Best Buy $962 from HELOC — Jun 27 deadline', detail: 'Deferred interest $494 charged retroactively if missed. Draw from HELOC this week.' },
+  { priority: 'red',   title: 'Pay Chase Freedom Unlim BT1 $8,454 — Jul 9 deadline', detail: '35 days away. Draw from HELOC. HELOC available: ~$47K.' },
+  { priority: 'red',   title: 'Roll AmEx Gold ($4,519) + Platinum ($4,514) to HELOC', detail: 'Both accruing at 27.49% vs HELOC 6.85% — costing ~$170/mo in unnecessary interest.' },
+  { priority: 'amber', title: 'Pay Chase Freedom (4628) BT1 $7,384 — Aug 12 deadline', detail: '69 days away. Plan HELOC draw in July after Jul 9 payment clears.' },
+  { priority: 'amber', title: 'Follow up on DCAD property tax protest', detail: 'Filed before May 15 deadline. Check ifile.dallascad.org for hearing date or informal offer.' },
+  { priority: 'amber', title: 'Confirm Virginia FCU/Dad current balance', detail: 'Last known: $18,600 — get current payoff amount before rolling to HELOC.' },
+  { priority: 'blue',  title: 'Roth conversion decision — Dec 31, 2026 deadline', detail: '2026 is a low-income year (unemployment only). Convert up to the top of 22% bracket. Coordinate with CPA.' },
+  { priority: 'blue',  title: 'File 2025 taxes — resolve IRS balance first', detail: 'Do not file until IRS balance strategy is determined. Extension filed if needed.' },
 ]
 
+// Updated June 4, 2026 — balances from live statements
 export const PROMOS: PromoDeadline[] = [
-  { name: 'Citizens Pay 6607', balance: 0, expires: '2026-03-02', risk: 0, acct: 'Citizens Pay', note: '✅ Final payment made Mar 2. Account closing.' },
-  { name: 'Citi Best Buy — Promo 1', balance: 1312.44, expires: '2026-06-27', risk: 338.99, acct: 'Citi Best Buy 4802', note: 'Pay from HELOC or cash before Jun 27' },
-  { name: 'Chase Freedom Unlim — BT1', balance: 8500, expires: '2026-07-09', risk: null, acct: 'Chase Freedom Unlim (7117)', note: '⚠️ Largest single promo — plan HELOC draw now' },
-  { name: 'PayPal Credit promo', balance: 124.35, expires: '2026-08-04', risk: null, acct: 'PayPal', note: 'Small — pay from cash. Deferred int applies retroactively.' },
-  { name: 'Chase Freedom — BT1', balance: 7500, expires: '2026-08-12', risk: null, acct: 'Chase Freedom (9313)', note: 'Pay from HELOC before Aug 12' },
-  { name: 'Chase Freedom Unlim — BT2', balance: 2600, expires: '2026-09-09', risk: null, acct: 'Chase Freedom Unlim (7117)', note: 'Pay from HELOC' },
-  { name: 'Chase Freedom — BT2', balance: 2600, expires: '2026-09-12', risk: null, acct: 'Chase Freedom (9313)', note: 'Pay from HELOC' },
-  { name: 'Chase Freedom Unlim — BT3', balance: 7000, expires: '2026-10-09', risk: null, acct: 'Chase Freedom Unlim (7117)', note: 'Pay from HELOC' },
-  { name: 'Chase Freedom Unlim — BT4', balance: 1032.25, expires: '2026-12-09', risk: null, acct: 'Chase Freedom Unlim (7117)', note: 'Pay from HELOC' },
-  { name: 'Chase Freedom — BT3', balance: 1064.51, expires: '2026-12-12', risk: null, acct: 'Chase Freedom (9313)', note: 'Pay from HELOC' },
-  { name: 'Citi Best Buy — Promo 2', balance: 917.96, expires: '2026-12-27', risk: 196.33, acct: 'Citi Best Buy 4802', note: 'Pay $918 from HELOC or cash before Dec 27' },
-  { name: 'Citi Diamond Preferred BT', balance: 12366, expires: '2027-06-18', risk: null, acct: 'Citi Diamond', note: '✅ Confirmed — lowest urgency. Pay from HELOC by Jun 2027.' },
+  // 🔥 URGENT — deferred interest, pay THIS WEEK
+  { name: 'Citi Best Buy — Promo 1 (deferred)', balance: 962.44,   expires: '2026-06-27', risk: 493.78, acct: 'Citi Best Buy 4802',        note: '🔥 DEFERRED INT — miss Jun 27 = $494 charged retroactively. Pay from HELOC now.' },
+  // 🔴 CRITICAL — standard 0% BT
+  { name: 'Chase Freedom Unlim — BT1',          balance: 8453.66,  expires: '2026-07-09', risk: null,   acct: 'Chase Freedom Unlim (7117)', note: 'Pay from HELOC before Jul 9 — 35 days' },
+  // 🟠 URGENT
+  { name: 'Chase Freedom — BT1',                balance: 7384.33,  expires: '2026-08-12', risk: null,   acct: 'Chase Freedom (4628)',        note: 'Pay from HELOC before Aug 12' },
+  // 🟡 MODERATE
+  { name: 'Chase Freedom Unlim — BT2',          balance: 2600.00,  expires: '2026-09-09', risk: null,   acct: 'Chase Freedom Unlim (7117)', note: 'Pay from HELOC' },
+  { name: 'Chase Freedom — BT2',                balance: 2600.00,  expires: '2026-09-12', risk: null,   acct: 'Chase Freedom (4628)',        note: 'Pay from HELOC' },
+  { name: 'Chase Freedom Unlim — BT3',          balance: 7000.00,  expires: '2026-10-09', risk: null,   acct: 'Chase Freedom Unlim (7117)', note: 'Pay from HELOC' },
+  // 🟢 YEAR-END
+  { name: 'Chase Freedom Unlim — BT4',          balance: 4000.00,  expires: '2026-12-09', risk: null,   acct: 'Chase Freedom Unlim (7117)', note: 'Pay from HELOC' },
+  { name: 'Chase Freedom — BT3',                balance: 3000.00,  expires: '2026-12-12', risk: null,   acct: 'Chase Freedom (4628)',        note: 'Pay from HELOC' },
+  { name: 'Citi Best Buy — Promo 2 (deferred)', balance: 917.96,   expires: '2026-12-27', risk: 311.74, acct: 'Citi Best Buy 4802',        note: 'Deferred int $312 at risk — pay from HELOC before Dec 27' },
+  // ✅ LOW URGENCY
+  { name: 'Citi Diamond Preferred BT',          balance: 11999.00, expires: '2027-06-18', risk: null,   acct: 'Citi Diamond (4205)',         note: '✅ Confirmed — lowest urgency. Pay from HELOC by Jun 2027.' },
 ]
 
 export const BILLS: Bill[] = [
@@ -668,16 +678,17 @@ export const TAX_SNAPSHOT: TaxSnapshot = {
   ],
 }
 
+// Updated June 4, 2026 — post-JPMC, unemployment only
 export const INCOME_BRIDGE: IncomeBridge = {
-  liquidCash: 8000,
-  marchPaychecks: 6250,
-  severanceEstimate: 25000,
-  familyBridge: 2000,
-  consultingMonthlyNet: 2500,
-  targetSalary: 240000,
-  targetTotalComp: 312000,
-  monthlyOutflow: 7234,
-  newJobMonthlyNet: 13670,
+  liquidCash:           27993.85,  // Checking + Savings
+  marchPaychecks:       0,         // Received — no longer pending
+  severanceEstimate:    0,         // Resolved
+  familyBridge:         0,
+  consultingMonthlyNet: 2176,      // Unemployment: $1,088 bi-weekly = ~$2,176/mo
+  targetSalary:         240000,
+  targetTotalComp:      312000,
+  monthlyOutflow:       7320,      // Mortgage $2,487 + HELOC int $816 + property tax $1,216 + insurance/utils $800 + living $2,000
+  newJobMonthlyNet:     13670,
 }
 
 export const SPENDING_SUMMARY: SpendingSummary = {
@@ -697,6 +708,7 @@ export const SUBSCRIPTION_SUMMARY: SubscriptionSummary = {
   keepCount: 3,
 }
 
+// Updated June 4, 2026 — protest filed, awaiting result
 export const PROPERTY_TAX: PropertyTaxConfig = {
   address: '2214 N Carroll Ave, Dallas TX 75204',
   assessedValue: 850000,
@@ -708,12 +720,13 @@ export const PROPERTY_TAX: PropertyTaxConfig = {
   taxesPaid: true,
 }
 
+// Updated June 4, 2026
 export const ASSETS: Assets = {
-  home: 850000,
-  retirement: 180000,
-  brokerage: 25000,
-  cash: 8000,
-  vehicles: 35000,
+  home:       850000,
+  retirement: 207675.85,  // Chase Self-Directed 3509: $178,209 + JPMC 2-01: $29,467
+  brokerage:  25000,      // TBD — not updated
+  cash:       27993.85,   // Checking $7,865.81 + Savings $20,128.04
+  vehicles:   35000,      // TBD — not updated
 }
 
 export const TOP_ACTIONS: TopAction[] = [
@@ -729,9 +742,11 @@ export function calcWealth(pv: number, pmt: number, r: number, n: number): numbe
 }
 
 // ── HELOC Constants ──────────────────────────────────
-// Easy to update when terms change
-export const HELOC_LIMIT = 190_000
-export const HELOC_RATE = 6.85
+// Updated June 4, 2026 — HELOC closed March 19, 2026
+export const HELOC_LIMIT   = 190_000
+export const HELOC_RATE    = 6.85
+export const HELOC_DRAWN   = 143_057.22   // actual drawn balance as of Jun 4
+export const HELOC_AVAILABLE = HELOC_LIMIT - HELOC_DRAWN  // $46,942.78 remaining
 
 // ── HELOC Computation Engine ─────────────────────────
 // Derives everything from the live debts array — single source of truth
@@ -755,10 +770,10 @@ export interface WaterfallItem {
   color: string
 }
 
-/** Derive HELOCAccount entries from the debts array — no separate hardcoded list needed */
+/** Derive HELOCAccount entries from the debts array — excludes mortgage and HELOC itself */
 export function deriveHelocAccounts(debts: DebtAccount[]): HELOCAccount[] {
   return debts
-    .filter(d => d.category !== 'Mortgage')
+    .filter(d => d.category !== 'Mortgage' && d.category !== 'HELOC')
     .map(d => ({
       name: d.name,
       balance: d.balance,
@@ -774,26 +789,28 @@ export function deriveHelocAccounts(debts: DebtAccount[]): HELOCAccount[] {
     })
 }
 
-/** Compute all HELOC KPIs from the debts array */
+/** Compute all HELOC KPIs — uses actual drawn balance post-consolidation */
 export function computeHelocKPIs(debts: DebtAccount[]): HelocKPIs {
-  const nonMortgage = debts.filter(d => d.category !== 'Mortgage')
+  const nonMortgage = debts.filter(d => d.category !== 'Mortgage' && d.category !== 'HELOC')
 
-  const rollAccounts = nonMortgage.filter(d => d.decision === 'roll')
+  const rollAccounts  = nonMortgage.filter(d => d.decision === 'roll')
   const promoAccounts = nonMortgage.filter(d => d.decision === 'promo')
 
-  const immediateRoll = rollAccounts.reduce((s, d) => s + d.balance, 0)
-  const promoTotal = promoAccounts.reduce((s, d) => s + d.balance, 0)
+  // Post-consolidation: "immediateRoll" = remaining high-rate debt not yet in HELOC
+  const immediateRoll  = rollAccounts.reduce((s, d) => s + d.balance, 0)
+  const promoTotal     = promoAccounts.reduce((s, d) => s + d.balance, 0)
 
-  const helocAfterRoll = HELOC_LIMIT - immediateRoll
-  const monthlyHelocInterest = immediateRoll * (HELOC_RATE / 100) / 12
-  const currentPaymentsOnRolled = rollAccounts.reduce((s, d) => s + (d.min ?? d.balance * (d.rate / 100) / 12), 0)
-  const monthlyRelief = currentPaymentsOnRolled - monthlyHelocInterest
-  const annualGain = monthlyRelief * 12
-  const finalBuffer = HELOC_LIMIT - immediateRoll - promoTotal
+  // Use actual drawn balance for interest calculation
+  const monthlyHelocInterest       = HELOC_DRAWN * (HELOC_RATE / 100) / 12
+  const currentPaymentsOnRolled    = rollAccounts.reduce((s, d) => s + (d.min ?? d.balance * (d.rate / 100) / 12), 0)
+  const monthlyRelief              = currentPaymentsOnRolled - (immediateRoll * (HELOC_RATE / 100) / 12)
+  const annualGain                 = monthlyRelief * 12
+  const helocAfterRoll             = HELOC_LIMIT - HELOC_DRAWN - immediateRoll
+  const finalBuffer                = HELOC_AVAILABLE - immediateRoll - promoTotal
 
   return {
-    limit: HELOC_LIMIT,
-    rate: HELOC_RATE,
+    limit:                    HELOC_LIMIT,
+    rate:                     HELOC_RATE,
     immediateRoll,
     helocAfterRoll,
     monthlyHelocInterest,
