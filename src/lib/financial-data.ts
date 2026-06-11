@@ -284,8 +284,8 @@ export const DEBTS: DebtAccount[] = [
   // ── High-Rate Revolving (roll to HELOC ASAP) ──────────────────────────────
   { name: 'AmEx Gold Card (5007)',          balance: 4519.00,   rate: 27.49, min: 115,     decision: 'roll',  category: 'Credit Card' },
   { name: 'AmEx Platinum Card (3002)',      balance: 4514.00,   rate: 27.49, min: 115,     decision: 'roll',  category: 'Credit Card' },
-  // ── Family Loan (TBD balance) ─────────────────────────────────────────────
-  { name: 'Virginia FCU Loan (via Dad)',    balance: 18600.00,  rate: 9.25,  min: 350,     decision: 'roll',  category: 'Personal Loan' },
+  // ── Family Loan ───────────────────────────────────────────────────────────
+  { name: 'Virginia FCU Loan (via Dad)',    balance: 18500.00,  rate: 8.5,   min: 350,     decision: 'roll',  category: 'Personal Loan' },
 ]
 
 export const MODULES: FinancialModule[] = [
@@ -524,7 +524,7 @@ export const ACTION_ITEMS: ActionItem[] = [
   { priority: 'red',   title: 'Roll AmEx Gold ($4,519) + Platinum ($4,514) to HELOC', detail: 'Both accruing at 27.49% vs HELOC 6.85% — costing ~$170/mo in unnecessary interest.' },
   { priority: 'amber', title: 'Pay Chase Freedom (4628) BT1 $7,384 — Aug 12 deadline', detail: '69 days away. Plan HELOC draw in July after Jul 9 payment clears.' },
   { priority: 'amber', title: 'Follow up on DCAD property tax protest', detail: 'Filed before May 15 deadline. Check ifile.dallascad.org for hearing date or informal offer.' },
-  { priority: 'amber', title: 'Confirm Virginia FCU/Dad current balance', detail: 'Last known: $18,600 — get current payoff amount before rolling to HELOC.' },
+  { priority: 'amber', title: 'Roll Virginia FCU/Dad ($18,500 @ 8.5%) to HELOC', detail: '$18,500 @ 8.5% vs HELOC 6.85% — savings ~$26/mo. Confirm payoff process with Dad before drawing from HELOC.' },
   { priority: 'blue',  title: 'Roth conversion decision — Dec 31, 2026 deadline', detail: '2026 is a low-income year (unemployment only). Convert up to the top of 22% bracket. Coordinate with CPA.' },
   { priority: 'blue',  title: 'File 2025 taxes — resolve IRS balance first', detail: 'Do not file until IRS balance strategy is determined. Extension filed if needed.' },
 ]
@@ -628,7 +628,7 @@ export const ESSENTIAL_BILLS: EssentialBill[] = [
 export const HELOC_ACCOUNTS: HELOCAccount[] = [
   { name: 'SoFi Personal Loan', balance: 56075.21, rate: 12.41, moNow: 579.88, decision: 'roll' },
   { name: 'Wells Fargo/Dad', balance: 21420, rate: 12.49, moNow: 222.95, decision: 'roll' },
-  { name: 'Virginia FCU/Dad', balance: 18600, rate: 9.25, moNow: 143.38, decision: 'roll' },
+  { name: 'Virginia FCU/Dad', balance: 18500, rate: 8.5, moNow: 131.04, decision: 'roll' },
   { name: 'AmEx Platinum (3002)', balance: 6452.55, rate: 21.49, moNow: 115.58, decision: 'roll' },
   { name: 'AmEx Gold (4000)', balance: 6262.62, rate: 27.49, moNow: 143.47, decision: 'roll' },
   { name: 'Nordstrom', balance: 653.43, rate: 29.4, moNow: 16.01, decision: 'roll' },
