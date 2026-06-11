@@ -370,29 +370,29 @@ export const MODULES: FinancialModule[] = [
   },
   {
     id: 4, name: 'Debt Inventory & HELOC', status: 'progress', pct: 85,
-    desc: '✅ HELOC closed March 19 — Texas CU $190K @ 6.85%. Rolled $134K of high-rate debt. Current balance: $143,057. Remaining: pay off promo cards as buckets expire (Jul–Dec 2026). AmEx Gold + Platinum ($9,033 @ 27.49%) still need to roll.',
+    desc: '✅ HELOC closed March 19 — Texas CU $190K @ 6.85%. Drew $143,057 to consolidate SoFi, LightStream, AmEx loans, WF/Dad, and others. Now managing 10 promo buckets expiring Jul–Dec 2026. AmEx Gold + Platinum ($9,033 @ 27.49%) + Virginia FCU ($18,500 @ 8.5%) still need to roll.',
     docsHave: [
-      'All credit card statements Feb 2026',
-      'SoFi loan details (balance $56,075.21, rate 12.41%)',
-      'LightStream amortization schedule ($44,018.42, 5.87%)',
-      'HELOC offer — Loan Depot $190K at 8.88% variable',
-      'Full debt inventory — 15 accounts, $209K non-mortgage',
+      '✅ HELOC closed — Texas CU $190K @ 6.85% variable',
+      '✅ Full debt inventory — 10 active accounts, $220K non-mortgage',
+      '✅ All 10 promo buckets documented with exact balances + expiry dates',
+      '✅ Virginia FCU confirmed: $18,500 @ 8.5%',
+      '✅ HELOC drawn balance confirmed: $143,057.22',
+      'AmEx Gold $4,519 + Platinum $4,514 @ 27.49% — flagged to roll',
     ],
     docsMissing: [
-      'HELOC closing disclosure (final docs from Loan Depot)',
-      'Virginia FCU payoff statement (balance $18,600)',
-      'Wells Fargo/Dad payoff statement (balance $21,420)',
-      'Chase Freedom promo confirmation letters — verify 0% BT terms',
+      'Texas CU HELOC closing disclosure / final statement (request from lender)',
+      'Virginia FCU payoff process (coordinate with Dad — how to initiate payoff)',
+      'Chase Freedom promo confirmation letters — file for records',
     ],
     actions: [
-      '🚨 URGENT: Confirm HELOC closing date with Loan Depot — must be BEFORE Mar 19',
-      '🚨 Do NOT resign before HELOC closes — employment verification required',
-      'Get Virginia FCU + Wells Fargo exact payoff balances for closing docs',
-      'Confirm Chase Freedom Unlimited ($22,531) and Freedom ($13,269) are fully at 0%',
-      'Minimize new charges on AmEx Gold until after HELOC closes (27.49% accruing)',
-      'After HELOC closes: set up interest-only autopay (8.88% on drawn amount)',
-      'After HELOC closes: pay off SoFi, AmEx Plat, AmEx Gold, Nordstrom, WF/Dad, VFCU from HELOC draw',
-      'Remaining HELOC availability: $123,333 — hold for 0% promo payoffs (Jul–Dec 2026)',
+      '🔥 Pay Citi Best Buy $962 from HELOC — Jun 27 deadline ($494 deferred interest at risk)',
+      '🔴 Pay Chase Freedom Unlim BT1 $8,454 from HELOC — Jul 9 deadline (35 days)',
+      '🔴 Roll AmEx Gold ($4,519) + Platinum ($4,514) to HELOC — paying $170/mo unnecessarily at 27.49%',
+      '🟠 Pay Chase Freedom BT1 $7,384 — Aug 12 deadline (draw from HELOC in July)',
+      '🟡 Coordinate Virginia FCU $18,500 payoff with Dad — draw from HELOC when ready',
+      '✅ All major high-rate debt rolled — SoFi, LightStream, AmEx loans, WF/Dad all gone',
+      'Continue paying promo minimums — track all 10 buckets via Promo Deadlines tab',
+      'Available HELOC buffer: ~$47K after current draws',
     ],
   },
   {
@@ -582,15 +582,16 @@ export const SPENDING_CATEGORIES: SpendingCategory[] = [
   { cat: 'Entertainment', annual: 131, monthly: 11, survival: 50, pct: 0.2, color: '#6366f1' },
 ]
 
+// Updated June 2026 — post-HELOC consolidation actuals
 export const BURN_RATE: BurnRateItem[] = [
-  { label: 'BofA Mortgage (fixed)', current: 2486.79, survival: 2486.79, note: '3.375% — do not touch' },
-  { label: 'HELOC Interest (6.85%)', current: 0, survival: 631.51, note: 'Interest-only on ~$110.6K draw' },
-  { label: 'LightStream Auto', current: 577.47, survival: 577.47, note: '5.87% — keep' },
-  { label: 'AmEx Personal Loan', current: 407.01, survival: 407.01, note: '7.33% — KEEP (close to HELOC rate)' },
-  { label: 'Property Tax (escrowed)', current: 1216.25, survival: 1216.25, note: '$14,595/yr actual' },
-  { label: 'Other fixed + promos', current: 756.31, survival: 756.31, note: 'Apple, Chase, Citi, PayPal, NFM' },
-  { label: 'Rolled debt (SoFi/WF/VFCU/AmEx)', current: 4077.34, survival: 0, note: '✅ Eliminated by HELOC' },
-  { label: 'CC variable spend', current: 5756.00, survival: 2197.00, note: 'Cuts: dining/shop/fitness/travel' },
+  { label: 'BofA Mortgage (fixed)',         current: 2486.79, survival: 2486.79, note: '3.375% fixed — untouchable' },
+  { label: 'Texas CU HELOC (6.85%)',        current: 816.49,  survival: 816.49,  note: 'Interest-only on $143,057 drawn · $190K limit' },
+  { label: 'Property Tax (escrowed)',        current: 1216.25, survival: 1216.25, note: '$14,595/yr ÷ 12 — DCAD protest filed' },
+  { label: 'Virginia FCU Loan',             current: 350.00,  survival: 350.00,  note: '8.5% @ $18,500 — roll to HELOC soon' },
+  { label: 'AmEx Gold + Platinum (revolve)', current: 230.00, survival: 0,       note: '27.49% — $4,519 + $4,514 · roll ASAP saves ~$170/mo' },
+  { label: 'Promo card minimums',           current: 248.00,  survival: 248.00,  note: 'Citi Diamond $124 + Chase/Best Buy promo mins' },
+  { label: 'Insurance + utilities',         current: 800.00,  survival: 800.00,  note: 'GEICO, homeowners, TXU, Atmos, Dallas Water' },
+  { label: 'CC variable spend',             current: 2000.00, survival: 2000.00, note: 'Food, gas, personal — survival floor' },
 ]
 
 export const CANCEL_SUBS: Subscription[] = [
