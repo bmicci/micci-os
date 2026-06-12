@@ -132,7 +132,7 @@ export default function CashFlowProjectionChart({ projections }: Props) {
           <Line
             type="monotone"
             dataKey="cumulativeSavings"
-            name="Cumulative Savings"
+            name="Cumulative Net Cash"
             stroke="#8b5cf6"
             strokeWidth={2}
             strokeDasharray="6 3"

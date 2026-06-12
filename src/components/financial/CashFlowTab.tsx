@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import type { Bill, PromoDeadline, DebtAccount, HelocKPIs } from '@/lib/financial-data'
-import { fmt, HELOC_RATE } from '@/lib/financial-data'
+import { fmt, HELOC_RATE, HELOC_DRAWN } from '@/lib/financial-data'
 import {
   calculateMonthlyFlow,
   project12Months,
@@ -34,18 +34,26 @@ interface CashFlowTabProps {
   promos: PromoDeadline[]
   debts: DebtAccount[]
   helocKPIs: HelocKPIs
-  incomeBridge: { targetSalary: number; newJobMonthlyNet: number; monthlyOutflow: number }
+  incomeBridge: {
+    targetSalary: number
+    newJobMonthlyNet: number
+    monthlyOutflow: number
+    liquidCash: number
+    consultingMonthlyNet: number
+  }
 }
 
 export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBridge }: CashFlowTabProps) {
   // ── Derive inputs from live data ──
   const cashFlowData = useMemo(() => {
-    // Income: semi-monthly gross → net per period (24 periods)
-    const grossAnnual = incomeBridge.targetSalary > 0 ? incomeBridge.targetSalary : 153400
+    // Current income: unemployment while between jobs; falls back to
+    // new-job net once consultingMonthlyNet is zeroed out.
+    const onBridge = incomeBridge.consultingMonthlyNet > 0
+    const currentMonthlyNet = onBridge
+      ? incomeBridge.consultingMonthlyNet
+      : incomeBridge.newJobMonthlyNet
     const payFrequency = 24 // semi-monthly
-    const netPayPerPeriod = incomeBridge.newJobMonthlyNet > 0
-      ? Math.round(incomeBridge.newJobMonthlyNet * 12 / payFrequency)
-      : Math.round(grossAnnual * 0.73 / payFrequency) // ~73% take-home estimate
+    const netPayPerPeriod = Math.round(currentMonthlyNet * 12 / payFrequency)
 
     // HELOC monthly interest from live KPIs
     const helocMonthlyInterest = helocKPIs.monthlyHelocInterest
@@ -55,9 +63,10 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBri
       .filter(d => d.decision === 'promo')
       .reduce((sum, d) => sum + (d.min ?? 0), 0)
 
-    // Deferred payments: keep-decision debts (non-mortgage)
+    // Keep + roll minimums (non-mortgage, non-HELOC): all still being paid
+    // monthly until each roll-target is actually absorbed into the HELOC
     const deferredPayments = debts
-      .filter(d => d.decision === 'keep' && d.category !== 'Mortgage')
+      .filter(d => (d.decision === 'keep' || d.decision === 'roll') && d.category !== 'Mortgage' && d.category !== 'HELOC')
       .reduce((sum, d) => sum + (d.min ?? 0), 0)
 
     const inputs: CashFlowInputs = {
@@ -84,17 +93,21 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBri
 
     const projections = project12Months({
       baseCashFlow: inputs,
-      ssCapPeriod: 18, // SS wage base typically caps around period 18 at this income
+      ssCapPeriod: onBridge ? null : 18, // no SS cap-out on unemployment income
       payFrequency,
-      grossPayPerPeriod: Math.round(grossAnnual / payFrequency),
-      ssPerPeriodSavings: 42, // ~$42/period SS savings after cap
+      grossPayPerPeriod: netPayPerPeriod,
+      ssPerPeriodSavings: onBridge ? 0 : 42,
       scheduledEvents,
     })
 
-    return { monthlyFlow, projections, inputs, grossAnnual }
+    return { monthlyFlow, projections, inputs, onBridge, currentMonthlyNet }
   }, [debts, promos, helocKPIs, incomeBridge])
 
-  const { monthlyFlow, projections, grossAnnual } = cashFlowData
+  const { monthlyFlow, projections, onBridge } = cashFlowData
+
+  // ── Cash runway: months of liquid cash left at current burn ──
+  const monthlyBurn = -monthlyFlow.freeCash
+  const runwayMonths = monthlyBurn > 0 ? incomeBridge.liquidCash / monthlyBurn : null
 
   // ── Upcoming bills (next 30 days) ──
   const upcomingBills = useMemo(() => {
@@ -119,13 +132,13 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBri
         <KPICard
           label="Monthly Income"
           value={fmtRound(monthlyFlow.totalIncome)}
-          note={`Semi-monthly · ${fmtK(grossAnnual)}/yr`}
+          note={onBridge ? `Unemployment · next job ~${fmtK(incomeBridge.newJobMonthlyNet)}/mo net` : 'New job net'}
           accent="green"
         />
         <KPICard
           label="Debt Obligations"
           value={fmtRound(monthlyFlow.totalObligations)}
-          note={`HELOC + promos + keeps`}
+          note={`HELOC int + card mins + loans`}
           accent="red"
         />
         <KPICard
@@ -136,21 +149,30 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBri
         <KPICard
           label="Free Cash Flow"
           value={fmtRound(monthlyFlow.freeCash)}
-          note="Available after all obligations"
+          note={monthlyFlow.freeCash > 0 ? 'Available after all obligations' : 'Burning cash until next job'}
           accent={monthlyFlow.freeCash > 0 ? 'green' : 'red'}
         />
         <KPICard
           label="HELOC Interest"
           value={fmtRound(helocKPIs.monthlyHelocInterest)}
-          note={`${HELOC_RATE}% on ${fmtK(helocKPIs.immediateRoll)}`}
+          note={`${HELOC_RATE}% on ${fmtK(HELOC_DRAWN)} drawn`}
           accent="amber"
         />
-        <KPICard
-          label="12-Mo Projected Savings"
-          value={fmtRound(projections[projections.length - 1]?.cumulativeSavings ?? 0)}
-          note="Cumulative free cash"
-          accent="cyan"
-        />
+        {runwayMonths !== null ? (
+          <KPICard
+            label="Cash Runway"
+            value={`${runwayMonths.toFixed(1)} mo`}
+            note={`${fmtK(incomeBridge.liquidCash)} liquid ÷ ${fmtK(monthlyBurn)}/mo burn`}
+            accent={runwayMonths < 4 ? 'red' : 'amber'}
+          />
+        ) : (
+          <KPICard
+            label="12-Mo Projected Savings"
+            value={fmtRound(projections[projections.length - 1]?.cumulativeSavings ?? 0)}
+            note="Cumulative free cash"
+            accent="cyan"
+          />
+        )}
       </div>
 
       {/* ── 12-Month Projection Chart + Allocations ── */}
@@ -161,7 +183,7 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBri
             12-Month Cash Flow Forecast
           </h3>
           <p className="text-[11px] mb-4" style={{ color: 'var(--text-muted)' }}>
-            Income vs. obligations with cumulative savings trend
+            Income vs. obligations with cumulative net cash trend
           </p>
           <CashFlowProjectionChart projections={projections} />
         </div>
@@ -169,51 +191,76 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBri
         {/* Free Cash Allocation — 1/3 width */}
         <div className="glass-card p-5">
           <h3 className="text-[13px] font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-            Free Cash Allocation
+            {monthlyFlow.freeCash > 0 ? 'Free Cash Allocation' : 'Monthly Shortfall'}
           </h3>
           <p className="text-[11px] mb-4" style={{ color: 'var(--text-muted)' }}>
-            {fmtRound(monthlyFlow.freeCash)}/mo distributed
+            {monthlyFlow.freeCash > 0
+              ? `${fmtRound(monthlyFlow.freeCash)}/mo distributed`
+              : `Covered from liquid reserves (${fmtK(incomeBridge.liquidCash)})`}
           </p>
 
-          {/* Allocation bar */}
-          <div className="flex rounded-lg overflow-hidden h-3 mb-4" style={{ background: 'rgba(255,255,255,0.06)' }}>
-            {monthlyFlow.allocations.map((a, i) => (
-              <div
-                key={a.label}
-                className="h-full transition-all"
-                style={{
-                  width: `${a.percent}%`,
-                  background: allocationColors[i % allocationColors.length],
-                  opacity: 0.8,
-                }}
-              />
-            ))}
-          </div>
-
-          {/* Allocation breakdown */}
-          <div className="space-y-3">
-            {monthlyFlow.allocations.map((a, i) => (
-              <div key={a.label} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+          {monthlyFlow.freeCash > 0 ? (
+            <>
+              {/* Allocation bar */}
+              <div className="flex rounded-lg overflow-hidden h-3 mb-4" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                {monthlyFlow.allocations.map((a, i) => (
                   <div
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ background: allocationColors[i % allocationColors.length] }}
+                    key={a.label}
+                    className="h-full transition-all"
+                    style={{
+                      width: `${a.percent}%`,
+                      background: allocationColors[i % allocationColors.length],
+                      opacity: 0.8,
+                    }}
                   />
-                  <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
-                    {a.label}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[12px] font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
-                    {fmtRound(a.amount)}
-                  </span>
-                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                    {a.percent}%
-                  </span>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
+
+              {/* Allocation breakdown */}
+              <div className="space-y-3">
+                {monthlyFlow.allocations.map((a, i) => (
+                  <div key={a.label} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ background: allocationColors[i % allocationColors.length] }}
+                      />
+                      <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+                        {a.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        {fmtRound(a.amount)}
+                      </span>
+                      <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                        {a.percent}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div
+              className="p-3 rounded-lg space-y-2"
+              style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}
+            >
+              <div className="flex justify-between text-[12px]">
+                <span style={{ color: 'var(--text-secondary)' }}>Monthly burn</span>
+                <span className="font-mono font-semibold" style={{ color: '#ef4444' }}>{fmtRound(monthlyBurn)}</span>
+              </div>
+              {runwayMonths !== null && (
+                <div className="flex justify-between text-[12px]">
+                  <span style={{ color: 'var(--text-secondary)' }}>Runway at this burn</span>
+                  <span className="font-mono font-semibold" style={{ color: '#f59e0b' }}>{runwayMonths.toFixed(1)} months</span>
+                </div>
+              )}
+              <p className="text-[11px] pt-1" style={{ color: 'var(--text-muted)' }}>
+                Allocations resume once income exceeds obligations (new job).
+              </p>
+            </div>
+          )}
 
           {/* Monthly breakdown summary */}
           <div

@@ -168,7 +168,8 @@ export function project12Months(inputs: {
     const income = baseFlow.totalIncome + incomeAdjust
     const obligations = baseFlow.totalObligations + obligationAdjust
     const freeCash = income - obligations - baseFlow.totalLivingExpenses
-    cumulativeSavings += Math.max(0, freeCash)
+    // Negative months accumulate too — clamping to 0 hid cash burn entirely
+    cumulativeSavings += freeCash
 
     projections.push({
       month: monthLabel,
