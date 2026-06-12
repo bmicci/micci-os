@@ -128,6 +128,8 @@ export default function TabContainer({ data }: { data: FinancialData }) {
             helocAccounts={data.helocAccounts}
             helocKPIs={data.helocKPIs}
             waterfallData={data.waterfallData}
+            promos={data.promos}
+            debts={data.debts}
           />
         )}
         {activeTab === 'budget' && (
