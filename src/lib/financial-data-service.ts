@@ -69,19 +69,21 @@ function mapAccountType(dbType: string): DebtAccount['category'] {
     credit_card: 'Credit Card',
     loan: 'Personal Loan',
     mortgage: 'Mortgage',
-    heloc: 'Personal Loan',
+    heloc: 'HELOC',
     line_of_credit: 'Personal Loan',
     other: 'Personal Loan',
   }
   return map[dbType] ?? 'Personal Loan'
 }
 
+// Keyword order matters: promo notes often say "pay from HELOC", so keep/promo
+// checks must win before the bare 'roll' check.
 function mapDecision(notes: string | null, rate: number): DebtAccount['decision'] {
   if (notes) {
     const lower = notes.toLowerCase()
-    if (lower.includes('roll') || lower.includes('heloc')) return 'roll'
     if (lower.includes('keep') || lower.includes('do not roll')) return 'keep'
-    if (lower.includes('promo') || lower.includes('0%') || lower.includes('hold') || lower.includes('pay by')) return 'promo'
+    if (lower.includes('promo') || lower.includes('0%') || lower.includes('hold') || lower.includes('pay by') || lower.includes('pay from heloc')) return 'promo'
+    if (lower.includes('roll')) return 'roll'
   }
   if (rate === 0) return 'promo'
   if (rate > HELOC_RATE) return 'roll'

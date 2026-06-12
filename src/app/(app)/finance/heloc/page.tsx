@@ -124,10 +124,9 @@ async function fetchDebtAccounts(): Promise<HELOCDebtAccount[] | null> {
 
     return data.map((row, i) => {
       const balance = Number(row.balance ?? 0)
-      // Bug 1 fix: Supabase stores rates as decimals (0.0685 = 6.85%).
-      // Multiply by 100 so the UI displays the correct percentage.
-      const rateDecimal = Number(row.interest_rate ?? 0)
-      const ratePercent = rateDecimal * 100
+      // Rates are stored as percent values (6.85 = 6.85%) — same convention
+      // as financial-data-service.ts. Do not multiply.
+      const ratePercent = Number(row.interest_rate ?? 0)
 
       // Bug 2 fix: parse promoExpiry / deferredExpiry from the notes field.
       const { promoExpiry, deferredExpiry } = parseDeadlineFromNotes(
@@ -144,7 +143,7 @@ async function fetchDebtAccounts(): Promise<HELOCDebtAccount[] | null> {
         currentBalance: balance,
         interestRate: ratePercent,
         monthlyPayment: Number(row.minimum_payment ?? 0),
-        status: inferStatus(row.name, rateDecimal, balance, row.account_type, row.notes),
+        status: inferStatus(row.name, ratePercent, balance, row.account_type, row.notes),
         rollDate: null,
         promoExpiry,
         deferredExpiry,
