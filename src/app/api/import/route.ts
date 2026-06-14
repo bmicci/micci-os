@@ -30,7 +30,7 @@ const BUDGET_PATTERNS: Record<string, string[]> = {
 
 // ── Bank-specific transaction CSV formats ─────────────────────────────────
 
-type BankFormat = 'chase' | 'amex' | 'bofa' | 'generic'
+type BankFormat = 'chase' | 'chase_checking' | 'amex' | 'bofa' | 'generic'
 
 interface BankFormatConfig {
   dateCol: string[]
@@ -48,6 +48,13 @@ const BANK_FORMATS: Record<BankFormat, BankFormatConfig> = {
     amountCol: ['amount'],
     categoryCol: ['category'],
     signLogic: 'chase', // negative = charge, positive = payment/refund
+  },
+  chase_checking: {
+    dateCol: ['posting date', 'date'],
+    descCol: ['description'],
+    amountCol: ['amount'],
+    categoryCol: ['type'], // ACH_DEBIT, DEPOSIT, etc.
+    signLogic: 'bofa', // negative = outflow (bills/payments), positive = inflow (deposits)
   },
   amex: {
     dateCol: ['date'],
@@ -134,7 +141,11 @@ function scoreHeaders(headers: string[], patterns: Record<string, string[]>): nu
 
 function detectBankFormat(headers: string[]): BankFormat | null {
   const hLower = headers.map(h => h.toLowerCase().trim())
-  // Chase: "Transaction Date", "Post Date", "Description", "Category", "Type", "Amount"
+  // Chase checking: "Details","Posting Date","Description","Amount","Type","Balance"
+  // Distinguished from Chase credit cards by the running "Balance" column.
+  if (hLower.some(h => h === 'posting date') && hLower.some(h => h === 'balance') && hLower.some(h => h === 'amount'))
+    return 'chase_checking'
+  // Chase credit card: "Transaction Date", "Post Date", "Description", "Category", "Type", "Amount"
   if (hLower.some(h => h === 'transaction date') && hLower.some(h => h === 'type') && hLower.some(h => h === 'amount'))
     return 'chase'
   // AmEx: "Date", "Description", "Amount" (sometimes "Card Member", "Account #")
@@ -436,12 +447,13 @@ function parseTransactionRows(
 
     rows.push({
       transaction_date: dateStr,
+      date: dateStr, // legacy NOT NULL column — mirror transaction_date
       merchant: description,
       amount: Math.abs(amount),
       category: category || autoCategory(description),
       account_name: accountName,
-      is_credit: isPayment,
-      original_description: description,
+      is_income: isPayment, // payment/credit/refund — not a charge
+      raw_description: description,
     })
   }
 
@@ -786,26 +798,23 @@ async function handleCommit(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Also snapshot the import as a balance event if accountName provided
-    if (accountName) {
-      const totalSpend = rows
-        .filter(r => !r.is_credit)
-        .reduce((s, r) => s + (Number(r.amount) || 0), 0)
-      const totalCredits = rows
-        .filter(r => r.is_credit)
-        .reduce((s, r) => s + (Number(r.amount) || 0), 0)
+    // Summary totals returned to the client (charges vs credits/income)
+    const totalSpend = rows
+      .filter(r => !r.is_income)
+      .reduce((s, r) => s + (Number(r.amount) || 0), 0)
+    const totalCredits = rows
+      .filter(r => r.is_income)
+      .reduce((s, r) => s + (Number(r.amount) || 0), 0)
 
-      await service.from('balance_snapshots').insert({
-        user_id: user.id,
-        account_name: accountName,
-        snapshot_date: new Date().toISOString().split('T')[0],
-        total_charges: totalSpend,
-        total_credits: totalCredits,
-        transaction_count: rows.length,
-      }).select()
-    }
-
-    return NextResponse.json({ imported, errors, dataType, mode: 'dedup', skipped: rows.length - imported - errors })
+    return NextResponse.json({
+      imported,
+      errors,
+      dataType,
+      mode: 'dedup',
+      skipped: rows.length - imported - errors,
+      totalSpend: Math.round(totalSpend * 100) / 100,
+      totalCredits: Math.round(totalCredits * 100) / 100,
+    })
   }
 
   // Investment tax lots: upsert with account auto-creation
