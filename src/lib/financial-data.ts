@@ -526,7 +526,6 @@ export const ACTION_ITEMS: ActionItem[] = [
   { priority: 'amber', title: 'Pay Chase Freedom (4628) BT1 $7,384 — Aug 12 deadline', detail: '69 days away. Plan HELOC draw in July after Jul 9 payment clears.' },
   { priority: 'amber', title: 'Follow up on DCAD property tax protest', detail: 'Filed before May 15 deadline. Check ifile.dallascad.org for hearing date or informal offer.' },
   { priority: 'red',   title: 'Confirm unemployment benefit end date with TWC', detail: 'TX is typically 26 weeks — likely exhausts ~late Sep 2026. Burn jumps from ~$5.1K to ~$7.3K/mo after.' },
-  { priority: 'amber', title: 'Confirm brokerage account balance + liquidity', detail: 'Currently a $25K placeholder. If real and liquid, runway extends from ~5 to ~10 months.' },
   { priority: 'blue',  title: 'Roth conversion decision — Dec 31, 2026 deadline', detail: '2026 is a low-income year (unemployment only). Convert up to the top of 22% bracket. Coordinate with CPA.' },
   { priority: 'blue',  title: 'File 2025 taxes — resolve IRS balance first', detail: 'Do not file until IRS balance strategy is determined. Extension filed if needed.' },
 ]
@@ -728,7 +727,7 @@ export const PROPERTY_TAX: PropertyTaxConfig = {
 export const ASSETS: Assets = {
   home:       850000,
   retirement: 207675.85,  // Chase Self-Directed 3509: $178,209 + JPMC 2-01: $29,467
-  brokerage:  25000,      // TBD — not updated
+  brokerage:  0,          // Confirmed Jun 2026 — no brokerage account exists
   cash:       27993.85,   // Checking $7,865.81 + Savings $20,128.04
   vehicles:   35000,      // TBD — not updated
 }
