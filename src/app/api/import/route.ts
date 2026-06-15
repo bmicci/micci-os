@@ -53,7 +53,7 @@ const BANK_FORMATS: Record<BankFormat, BankFormatConfig> = {
     dateCol: ['posting date', 'date'],
     descCol: ['description'],
     amountCol: ['amount'],
-    categoryCol: ['type'], // ACH_DEBIT, DEPOSIT, etc.
+    categoryCol: [], // ignore Chase "Type" (ACH_DEBIT/DEPOSIT) — use autoCategory on description
     signLogic: 'bofa', // negative = outflow (bills/payments), positive = inflow (deposits)
   },
   amex: {
@@ -82,6 +82,23 @@ const BANK_FORMATS: Record<BankFormat, BankFormatConfig> = {
 // ── Auto-categorization rules ─────────────────────────────────────────────
 
 const CATEGORY_RULES: [RegExp, string][] = [
+  // ════════════════════════════════════════════════════════════════════════
+  // Checking-account ACH patterns — MUST precede merchant/spend rules.
+  // First match wins. These keep the burn-rate calc honest:
+  //   · 'Card Payment' & 'Transfer' = EXCLUDED from spend (avoid double-count)
+  //   · 'Debt Service', 'Taxes' = REAL costs, included
+  //   · 'Income' = real inflows (payroll / unemployment / HSA)
+  // ════════════════════════════════════════════════════════════════════════
+  // Income — payroll, unemployment, HSA reimbursements (check before payment rules)
+  [/jpmorgan\s*chase.*payroll|twc-benefits|ui\s*benefit|inspira|payroll\s*dd/i, 'Income'],
+  // Credit-card / BNPL payments OUT of checking — settle card charges, EXCLUDE from spend
+  [/chase\s*credit\s*crd\s*autopay|payment\s*to\s*chase\s*card|jpmorgan\s*chase\s*b\s*payments|applecard\s*gsbank|apple\s*card.*payment|bk\s*of\s*amer\s*mc|bank\s*of\s*america\s*payment|amex\s*epayment|american\s*express\s*ach\s*pmt|amex.*ach\s*pmt|citi\s*autopay|citibank.*payment|best\s*buy.*(auto\s*pymt|payment|pmt)|nordstrom.*(pymt|payment)|home\s*depot.*(online\s*pmt|pymt)|nefurnmart|nfmcardpmt|discover.*e-?pay|synchrony.*(pay|pmt)|affirm.*(pay|pmt)|paypal.*(credit|repaymen|inst\s*xfer)|credit\s*card\s*payment/i, 'Card Payment'],
+  // Debt service — HELOC, auto/personal loans, installment lines (REAL cost, keep)
+  [/credit\s*union\s*of\s+billpay|cutx\s+billpay|virginia\s*cu.*loan|va\s*fcu\s*loan|lightstream|sofi\s*bank|sofi.*pymt|citizens\s*pay\s*line|lawrence.*line\s*of\s*cr/i, 'Debt Service'],
+  // Taxes — IRS, county property tax, withholding
+  [/irs\s*usataxpymt|usataxpymt|federal\s*interest\s*withheld|dallas\s*c(ty|ounty).*tax|tax\s*pmt/i, 'Taxes'],
+  // Internal / peer transfers, balance-transfer funding, investing sweeps — EXCLUDE
+  [/apple\s*cash\s*bank\s*xfer|chase\s*credit\s*crd\s*baltran|zelle\s*payment\s*(to|from)|virginia\s*fcu\s*xternal|external\s*transfer|acctverify|wire\s*transfer|wealthfront|venmo/i, 'Transfer'],
   // Food & Dining
   [/uber\s*eats|doordash|grubhub|postmates|caviar/i, 'Food & Dining'],
   [/starbucks|coffee|dunkin|peet/i, 'Food & Dining'],
