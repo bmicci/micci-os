@@ -272,6 +272,7 @@ function mapAssets(val: Record<string, unknown>): Assets {
     retirement: Number(val.retirement ?? 0),
     brokerage: Number(val.brokerage ?? 0),
     cash: Number(val.cash ?? 0),
+    savings: Number(val.savings ?? 0),
     vehicles: Number(val.vehicles ?? 0),
   }
 }

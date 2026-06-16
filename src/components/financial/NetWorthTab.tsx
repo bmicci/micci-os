@@ -208,13 +208,14 @@ export default function NetWorthTab({ debts, helocKPIs, assets }: NetWorthTabPro
               { name: 'Home (2214 N Carroll)', value: assets.home, color: '#00d4ff' },
               { name: '401(k) / Retirement', value: assets.retirement, color: '#8b5cf6' },
               { name: 'Brokerage Account', value: assets.brokerage, color: '#14b8a6' },
-              { name: 'Cash / Checking', value: assets.cash, color: '#3b82f6' },
+              { name: 'Checking (Chase)', value: assets.cash, color: '#3b82f6' },
+              { name: 'Savings (Wealthfront HYSA)', value: assets.savings, color: '#10b981' },
               { name: 'Vehicles', value: assets.vehicles, color: '#06b6d4' },
-            ].map((asset, i) => (
+            ].filter(a => a.value > 0).map((asset, i, arr) => (
               <div
                 key={i}
                 className="flex items-center justify-between py-2.5 transition-colors hover:bg-white/[0.02]"
-                style={{ borderBottom: i < 4 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}
+                style={{ borderBottom: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -475,10 +476,10 @@ export default function NetWorthTab({ debts, helocKPIs, assets }: NetWorthTabPro
               Liquid Assets
             </div>
             <div className="text-[16px] font-bold font-mono mt-1" style={{ color: '#22c55e' }}>
-              {fmtK(assets.cash + assets.brokerage)}
+              {fmtK(assets.cash + assets.savings + assets.brokerage)}
             </div>
             <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              Cash + brokerage
+              Checking + savings
             </div>
           </div>
         </div>

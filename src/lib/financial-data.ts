@@ -169,7 +169,8 @@ export interface Assets {
   home: number
   retirement: number
   brokerage: number
-  cash: number
+  cash: number        // checking (operating)
+  savings: number     // Wealthfront Cash Account (HYSA reserve — drawn down for burn)
   vehicles: number
 }
 
@@ -683,7 +684,7 @@ export const TAX_SNAPSHOT: TaxSnapshot = {
 
 // Updated June 4, 2026 — post-JPMC, unemployment only
 export const INCOME_BRIDGE: IncomeBridge = {
-  liquidCash:           27993.85,  // Checking + Savings
+  liquidCash:           22806.80,  // Checking $2,678.76 + Wealthfront savings $20,128.04 (as of Jun 15)
   marchPaychecks:       0,         // Received — no longer pending
   severanceEstimate:    0,         // Resolved
   familyBridge:         0,
@@ -728,7 +729,8 @@ export const ASSETS: Assets = {
   home:       850000,
   retirement: 207675.85,  // Chase Self-Directed 3509: $178,209 + JPMC 2-01: $29,467
   brokerage:  0,          // Confirmed Jun 2026 — no brokerage account exists
-  cash:       27993.85,   // Checking $7,865.81 + Savings $20,128.04
+  cash:       2678.76,    // Chase checking (operating) — as of Jun 15, 2026
+  savings:    20128.04,   // Wealthfront Cash Account (HYSA) — reserve, no withdrawals yet
   vehicles:   35000,      // TBD — not updated
 }
 
