@@ -56,9 +56,10 @@ const ACCOUNT_PRESETS = [
   'AmEx Platinum',
   'Chase Freedom Unlimited',
   'Chase Freedom',
+  'Chase Prime',
   'Chase Checking',
-  'BofA Mortgage',
   'Citi Diamond',
+  'Citi Best Buy',
 ]
 
 // ── Preview table columns per data type ───────────────────────────────────
