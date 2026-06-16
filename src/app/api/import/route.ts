@@ -91,8 +91,9 @@ const CATEGORY_RULES: [RegExp, string][] = [
   // ════════════════════════════════════════════════════════════════════════
   // Income — payroll, unemployment, HSA reimbursements (check before payment rules)
   [/jpmorgan\s*chase.*payroll|twc-benefits|ui\s*benefit|inspira|payroll\s*dd/i, 'Income'],
-  // Credit-card / BNPL payments OUT of checking — settle card charges, EXCLUDE from spend
-  [/chase\s*credit\s*crd\s*autopay|payment\s*to\s*chase\s*card|jpmorgan\s*chase\s*b\s*payments|applecard\s*gsbank|apple\s*card.*payment|bk\s*of\s*amer\s*mc|bank\s*of\s*america\s*payment|amex\s*epayment|american\s*express\s*ach\s*pmt|amex.*ach\s*pmt|citi\s*autopay|citibank.*payment|best\s*buy.*(auto\s*pymt|payment|pmt)|nordstrom.*(pymt|payment)|home\s*depot.*(online\s*pmt|pymt)|nefurnmart|nfmcardpmt|discover.*e-?pay|synchrony.*(pay|pmt)|affirm.*(pay|pmt)|paypal.*(credit|repaymen|inst\s*xfer)|credit\s*card\s*payment/i, 'Card Payment'],
+  // Credit-card / BNPL payments — settle card charges, EXCLUDE from spend.
+  // Covers both the checking-side ACH debit AND the card-side "payment received" line.
+  [/mobile\s*payment\s*-?\s*thank|online\s*payment\s*-?\s*thank|electronic\s*payment\s*received|payment\s*received\s*-?\s*thank|payment\s*-\s*thank\s*you|chase\s*credit\s*crd\s*autopay|payment\s*to\s*chase\s*card|jpmorgan\s*chase\s*b\s*payments|applecard\s*gsbank|apple\s*card.*payment|bk\s*of\s*amer\s*mc|bank\s*of\s*america\s*payment|amex\s*epayment|american\s*express\s*ach\s*pmt|amex.*ach\s*pmt|citi\s*autopay|citibank.*payment|best\s*buy.*(auto\s*pymt|payment|pmt)|nordstrom.*(pymt|payment)|home\s*depot.*(online\s*pmt|pymt)|nefurnmart|nfmcardpmt|discover.*e-?pay|synchrony.*(pay|pmt)|affirm.*(pay|pmt)|paypal.*(credit|repaymen|inst\s*xfer)|credit\s*card\s*payment/i, 'Card Payment'],
   // Debt service — HELOC, auto/personal loans, installment lines (REAL cost, keep)
   [/credit\s*union\s*of\s+billpay|cutx\s+billpay|virginia\s*cu.*loan|va\s*fcu\s*loan|lightstream|sofi\s*bank|sofi.*pymt|citizens\s*pay\s*line|lawrence.*line\s*of\s*cr/i, 'Debt Service'],
   // Taxes — IRS, county property tax, withholding
@@ -458,18 +459,25 @@ function parseTransactionRows(
         amount = rawAmount < 0 ? -rawAmount : rawAmount
     }
 
-    // Skip payments/credits for now (they show as negative after normalization)
-    const isPayment = amount < 0
-    const category = catCol ? String(raw[catCol] ?? '').trim() : autoCategory(description)
+    // Signed convention: + = spend (charge/bill), − = money in (payment/credit/refund/deposit).
+    // Keep the sign so statement credits & refunds NET against spend instead of being dropped.
+    const isIncome = amount < 0
+
+    // Structural categories (payments/transfers/income/debt/taxes) must override any
+    // bank-supplied category so the burn calc can exclude/treat them correctly.
+    const STRUCTURAL = new Set(['Card Payment', 'Transfer', 'Income', 'Debt Service', 'Taxes'])
+    const autoCat = autoCategory(description)
+    const bankCat = catCol ? String(raw[catCol] ?? '').trim() : ''
+    const category = STRUCTURAL.has(autoCat) ? autoCat : (bankCat || autoCat)
 
     rows.push({
       transaction_date: dateStr,
       date: dateStr, // legacy NOT NULL column — mirror transaction_date
       merchant: description,
-      amount: Math.abs(amount),
-      category: category || autoCategory(description),
+      amount, // signed
+      category,
       account_name: accountName,
-      is_income: isPayment, // payment/credit/refund — not a charge
+      is_income: isIncome, // money in — not spend
       raw_description: description,
     })
   }
@@ -646,6 +654,48 @@ function parseInvestmentTransactionRows(
   return { rows, accountName, accountNumber }
 }
 
+// ── Sheet → rows with header-row detection ─────────────────────────────────
+// Bank/card exports (esp. AmEx XLSX) prepend preamble rows — account name,
+// number, date range — above the real "Date / Description / Amount" header.
+// Blindly using row 0 as the header breaks parsing, so locate the header row.
+
+const HEADER_TOKENS = [
+  'date', 'amount', 'description', 'payee', 'merchant', 'name', 'balance',
+  'ticker', 'category', 'debit', 'credit', 'posting',
+]
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractSheet(XLSX: any, sheet: any): { headers: string[]; rows: Record<string, unknown>[] } {
+  const aoa: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' })
+  if (aoa.length === 0) return { headers: [], rows: [] }
+
+  // Pick the header row: within the first 25 rows, the one with the most
+  // non-empty cells that also contains a recognizable header token.
+  let headerIdx = 0
+  let bestScore = -1
+  for (let i = 0; i < Math.min(aoa.length, 25); i++) {
+    const cells = (aoa[i] || []).map(c => String(c ?? '').toLowerCase().trim())
+    const nonEmpty = cells.filter(c => c !== '').length
+    const hasToken = cells.some(c => HEADER_TOKENS.some(t => c === t || c.includes(t)))
+    if (hasToken && nonEmpty > bestScore) { bestScore = nonEmpty; headerIdx = i }
+  }
+
+  const headerRow = (aoa[headerIdx] || []).map(c => String(c ?? '').trim())
+  const rows: Record<string, unknown>[] = []
+  for (let i = headerIdx + 1; i < aoa.length; i++) {
+    const obj: Record<string, unknown> = {}
+    let any = false
+    headerRow.forEach((h, j) => {
+      if (!h) return
+      const v = (aoa[i] as unknown[])?.[j] ?? ''
+      obj[h] = v
+      if (String(v).trim() !== '') any = true
+    })
+    if (any) rows.push(obj)
+  }
+  return { headers: headerRow.filter(Boolean), rows }
+}
+
 // ── Parse handler ──────────────────────────────────────────────────────────
 
 async function handleParse(request: NextRequest): Promise<NextResponse> {
@@ -668,17 +718,12 @@ async function handleParse(request: NextRequest): Promise<NextResponse> {
   const sheetName = workbook.SheetNames[0]
   const sheet = workbook.Sheets[sheetName]
 
-  // Convert to JSON with header row
-  const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-    raw: false, // All values as strings for consistent parsing
-    defval: '',
-  })
+  // Convert to JSON, detecting the real header row (skips export preamble)
+  const { headers, rows: rawRows } = extractSheet(XLSX, sheet)
 
   if (rawRows.length === 0) {
     return NextResponse.json({ error: 'Spreadsheet appears to be empty' }, { status: 400 })
   }
-
-  const headers = Object.keys(rawRows[0])
   const detectedType: DataType =
     dataTypeHint === 'auto'
       ? detectDataType(headers)
@@ -815,13 +860,18 @@ async function handleCommit(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Summary totals returned to the client (charges vs credits/income)
-    const totalSpend = rows
-      .filter(r => !r.is_income)
-      .reduce((s, r) => s + (Number(r.amount) || 0), 0)
-    const totalCredits = rows
-      .filter(r => r.is_income)
-      .reduce((s, r) => s + (Number(r.amount) || 0), 0)
+    // Summary totals returned to the client. Amounts are signed (+ spend, − money in).
+    // Exclude structural non-spend categories so the figure is real net spend.
+    const EXCLUDED = new Set(['Card Payment', 'Transfer'])
+    let netSpend = 0
+    let income = 0
+    for (const r of rows) {
+      const cat = String(r.category ?? '')
+      const amt = Number(r.amount) || 0
+      if (EXCLUDED.has(cat)) continue
+      if (cat === 'Income') income += -amt // income stored negative
+      else netSpend += amt // charges (+) net of credits/refunds (−)
+    }
 
     return NextResponse.json({
       imported,
@@ -829,8 +879,8 @@ async function handleCommit(request: NextRequest): Promise<NextResponse> {
       dataType,
       mode: 'dedup',
       skipped: rows.length - imported - errors,
-      totalSpend: Math.round(totalSpend * 100) / 100,
-      totalCredits: Math.round(totalCredits * 100) / 100,
+      netSpend: Math.round(netSpend * 100) / 100,
+      income: Math.round(income * 100) / 100,
     })
   }
 
