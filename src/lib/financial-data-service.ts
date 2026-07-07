@@ -551,6 +551,12 @@ export async function getFinancialData(): Promise<FinancialData> {
       : incomeBridge.newJobMonthlyNet
     const burnAnalysis = computeBurn(txns, steadyIncome, 90)
 
+    // Real spend supersedes the manual monthlyOutflow estimate everywhere
+    // downstream (Overview cash buffer, runway boxes, etc.)
+    const incomeBridgeFinal: IncomeBridge = burnAnalysis.hasData
+      ? { ...incomeBridge, monthlyOutflow: burnAnalysis.monthlySpend }
+      : incomeBridge
+
     // ── Deadlines (already in Supabase — fetched via API route) ──
     // The DeadlineTimeline component fetches via /api/finance/deadlines
     // We pass the hardcoded fallback here for getAllData() compat
@@ -582,7 +588,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       wealthScenarios,
       actionItems,
       topActions,
-      incomeBridge,
+      incomeBridge: incomeBridgeFinal,
       spendingSummary,
       subscriptionSummary,
       propertyTax,
