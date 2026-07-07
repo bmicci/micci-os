@@ -4,6 +4,7 @@
 // zero changes needed in any component or chart file.
 
 import { createServiceClient } from './supabase/service'
+import { liveSpendCategories, type TxnRow } from './finance/txnAggregate'
 import type {
   DbDebtAccount,
   DbFinancialModule,
@@ -386,6 +387,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       invAccountsRes,
       taxLotsRes,
       invTxnsRes,
+      txnsRes,
     ] = await Promise.all([
       supabase
         .from('debt_accounts')
@@ -404,6 +406,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       supabase.from('investment_accounts').select('*').order('total_value', { ascending: false }),
       supabase.from('tax_lots').select('*').order('value', { ascending: false }),
       supabase.from('investment_transactions').select('*').order('trade_date', { ascending: false }),
+      supabase.from('transactions').select('transaction_date, amount, category'),
     ])
 
     const fallback = getAllData()
@@ -438,10 +441,17 @@ export async function getFinancialData(): Promise<FinancialData> {
         : fallback.essentialBills
 
     // ── Spending categories ──────────────────────────────────────
+    // Prefer LIVE data computed from imported transactions (trailing 12 months).
+    // Fall back to the budget_categories table, then hardcoded defaults.
+    const txns = (txnsRes.data ?? []) as TxnRow[]
+    const since12mo = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10)
+    const liveCats = txns.length > 0 ? liveSpendCategories(txns, since12mo) : []
     const spendingCategories: SpendingCategory[] =
-      budgetRes.data && budgetRes.data.length > 0
-        ? (budgetRes.data as DbBudgetCategory[]).map(mapBudgetCategory)
-        : SPENDING_CATEGORIES
+      liveCats.length > 0
+        ? liveCats
+        : budgetRes.data && budgetRes.data.length > 0
+          ? (budgetRes.data as DbBudgetCategory[]).map(mapBudgetCategory)
+          : SPENDING_CATEGORIES
 
     // ── Bills ────────────────────────────────────────────────────
     const bills: Bill[] =

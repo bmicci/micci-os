@@ -1,63 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { monthlyTrend, type TxnRow } from '@/lib/finance/txnAggregate'
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient()
+  // Auth gate uses the user session; data reads use the service client so the
+  // dashboard works regardless of which of the owner's accounts is signed in
+  // (matches financial-data-service). Single-user personal app.
+  const authClient = await createClient()
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await authClient.auth.getUser()
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const supabase = (await createServiceClient()) ?? authClient
+
   const { searchParams } = new URL(request.url)
   const view = searchParams.get('view') // 'monthly_spend' | 'balance_history' | 'recent'
 
   if (view === 'monthly_spend') {
-    // Aggregate transactions by month + category for the spend trend chart
+    // Aggregate transactions by month + category for the spend trend chart.
+    // Signed amounts + category exclusion handled by the shared aggregator.
     const { data, error } = await supabase
       .from('transactions')
-      .select('transaction_date, amount, category, is_credit')
-      .eq('is_credit', false)
+      .select('transaction_date, amount, category')
       .order('transaction_date', { ascending: true })
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Group by YYYY-MM + category
-    const monthMap = new Map<string, Map<string, number>>()
-    const allCategories = new Set<string>()
-
-    for (const row of data ?? []) {
-      const month = String(row.transaction_date).slice(0, 7) // YYYY-MM
-      const cat = row.category || 'Other'
-      allCategories.add(cat)
-
-      if (!monthMap.has(month)) monthMap.set(month, new Map())
-      const catMap = monthMap.get(month)!
-      catMap.set(cat, (catMap.get(cat) || 0) + Number(row.amount))
-    }
-
-    // Convert to array sorted by month
-    const months = Array.from(monthMap.keys()).sort()
-    const result = months.map(month => {
-      const catMap = monthMap.get(month)!
-      const entry: Record<string, unknown> = { month }
-      let total = 0
-      for (const [cat, amt] of catMap) {
-        entry[cat] = Math.round(amt * 100) / 100
-        total += amt
-      }
-      entry.total = Math.round(total * 100) / 100
-      return entry
-    })
-
-    return NextResponse.json({
-      months: result,
-      categories: Array.from(allCategories).sort(),
-    })
+    const { months, categories } = monthlyTrend((data ?? []) as TxnRow[])
+    return NextResponse.json({ months, categories })
   }
 
   if (view === 'balance_history') {
