@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import type { Bill, PromoDeadline, DebtAccount, HelocKPIs } from '@/lib/financial-data'
+import type { Bill, PromoDeadline, DebtAccount, HelocKPIs, BurnAnalysis } from '@/lib/financial-data'
 import { fmt, HELOC_RATE, HELOC_DRAWN } from '@/lib/financial-data'
 import {
   calculateMonthlyFlow,
@@ -34,6 +34,7 @@ interface CashFlowTabProps {
   promos: PromoDeadline[]
   debts: DebtAccount[]
   helocKPIs: HelocKPIs
+  burnAnalysis: BurnAnalysis
   incomeBridge: {
     targetSalary: number
     newJobMonthlyNet: number
@@ -43,7 +44,8 @@ interface CashFlowTabProps {
   }
 }
 
-export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBridge }: CashFlowTabProps) {
+export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnalysis, incomeBridge }: CashFlowTabProps) {
+  const real = burnAnalysis.hasData
   // ── Derive inputs from live data ──
   const cashFlowData = useMemo(() => {
     // Current income: unemployment while between jobs; falls back to
@@ -81,6 +83,20 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBri
 
     const monthlyFlow = calculateMonthlyFlow(inputs)
 
+    // When we have real transaction data, drive the projection off actual
+    // recent spend (all-in) instead of the synthetic obligations + estimates.
+    const projInputs: CashFlowInputs = real
+      ? {
+          netPayPerPeriod,
+          payFrequency,
+          helocMonthlyInterest: 0,
+          promoMinimums: 0,
+          deferredPayments: 0,
+          expenses: [{ id: 'all', category: 'All spend', label: 'Real recent spend', amount: burnAnalysis.monthlySpend, isCustom: false }],
+          allocations: DEFAULT_ALLOCATIONS,
+        }
+      : inputs
+
     // Build scheduled events from promo deadlines
     const scheduledEvents = promos
       .filter(p => p.balance > 0)
@@ -92,7 +108,7 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBri
       .filter(e => e.monthOffset < 12)
 
     const projections = project12Months({
-      baseCashFlow: inputs,
+      baseCashFlow: projInputs,
       ssCapPeriod: onBridge ? null : 18, // no SS cap-out on unemployment income
       payFrequency,
       grossPayPerPeriod: netPayPerPeriod,
@@ -101,13 +117,16 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBri
     })
 
     return { monthlyFlow, projections, inputs, onBridge, currentMonthlyNet }
-  }, [debts, promos, helocKPIs, incomeBridge])
+  }, [debts, promos, helocKPIs, incomeBridge, real, burnAnalysis])
 
   const { monthlyFlow, projections, onBridge } = cashFlowData
 
-  // ── Cash runway: months of liquid cash left at current burn ──
-  const monthlyBurn = -monthlyFlow.freeCash
+  // ── Headline burn: prefer REAL transaction-derived numbers ──
+  const income = real ? burnAnalysis.monthlyIncome : monthlyFlow.totalIncome
+  const spend = real ? burnAnalysis.monthlySpend : monthlyFlow.totalObligations + monthlyFlow.totalLivingExpenses
+  const monthlyBurn = real ? burnAnalysis.monthlyNetBurn : -monthlyFlow.freeCash
   const runwayMonths = monthlyBurn > 0 ? incomeBridge.liquidCash / monthlyBurn : null
+  const topCategory = burnAnalysis.byCategory[0]
 
   // ── Upcoming bills (next 30 days) ──
   const upcomingBills = useMemo(() => {
@@ -131,48 +150,49 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBri
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         <KPICard
           label="Monthly Income"
-          value={fmtRound(monthlyFlow.totalIncome)}
+          value={fmtRound(income)}
           note={onBridge ? `Unemployment · next job ~${fmtK(incomeBridge.newJobMonthlyNet)}/mo net` : 'New job net'}
           accent="green"
         />
         <KPICard
-          label="Debt Obligations"
-          value={fmtRound(monthlyFlow.totalObligations)}
-          note={`HELOC int + card mins + loans`}
+          label="Monthly Spend"
+          value={fmtRound(spend)}
+          note={real ? 'Real, all-in · last 90d actual' : 'Obligations + living (est.)'}
           accent="red"
         />
         <KPICard
-          label="Living Expenses"
-          value={fmtRound(monthlyFlow.totalLivingExpenses)}
-          note={`${DEFAULT_EXPENSES.length} categories`}
+          label="Net Monthly Burn"
+          value={fmtRound(monthlyBurn)}
+          note={monthlyBurn > 0 ? 'Cash drawn down each month' : 'Cash-flow positive'}
+          accent={monthlyBurn > 0 ? 'red' : 'green'}
         />
-        <KPICard
-          label="Free Cash Flow"
-          value={fmtRound(monthlyFlow.freeCash)}
-          note={monthlyFlow.freeCash > 0 ? 'Available after all obligations' : 'Burning cash until next job'}
-          accent={monthlyFlow.freeCash > 0 ? 'green' : 'red'}
-        />
+        {runwayMonths !== null ? (
+          <KPICard
+            label="Cash Runway"
+            value={`${runwayMonths.toFixed(1)} mo`}
+            note={`${fmtK(incomeBridge.liquidCash)} liquid ÷ ${fmtK(monthlyBurn)}/mo`}
+            accent={runwayMonths < 4 ? 'red' : 'amber'}
+          />
+        ) : (
+          <KPICard
+            label="Cash Runway"
+            value="∞"
+            note="Income covers spend"
+            accent="green"
+          />
+        )}
         <KPICard
           label="HELOC Interest"
           value={fmtRound(helocKPIs.monthlyHelocInterest)}
           note={`${HELOC_RATE}% on ${fmtK(HELOC_DRAWN)} drawn`}
           accent="amber"
         />
-        {runwayMonths !== null ? (
-          <KPICard
-            label="Cash Runway"
-            value={`${runwayMonths.toFixed(1)} mo`}
-            note={`${fmtK(incomeBridge.liquidCash)} liquid ÷ ${fmtK(monthlyBurn)}/mo burn`}
-            accent={runwayMonths < 4 ? 'red' : 'amber'}
-          />
-        ) : (
-          <KPICard
-            label="12-Mo Projected Savings"
-            value={fmtRound(projections[projections.length - 1]?.cumulativeSavings ?? 0)}
-            note="Cumulative free cash"
-            accent="cyan"
-          />
-        )}
+        <KPICard
+          label="Top Spend Category"
+          value={topCategory ? fmtRound(topCategory.monthly) : '—'}
+          note={topCategory ? `${topCategory.cat} · per month` : 'No data'}
+          accent="cyan"
+        />
       </div>
 
       {/* ── 12-Month Projection Chart + Allocations ── */}
@@ -443,26 +463,33 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBri
         </div>
       </div>
 
-      {/* ── Monthly Expense Breakdown ── */}
+      {/* ── Monthly Spend Breakdown (real, from transactions) ── */}
       <div className="glass-card p-5">
-        <h3 className="text-[13px] font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
-          Monthly Expense Breakdown
-        </h3>
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>
+            Where the Money Goes {real ? '' : '(estimated)'}
+          </h3>
+          {real && (
+            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              Avg / mo · {burnAnalysis.windowStart} → {burnAnalysis.windowEnd}
+            </span>
+          )}
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {DEFAULT_EXPENSES.map(exp => (
+          {(real ? burnAnalysis.byCategory : DEFAULT_EXPENSES.map(e => ({ cat: e.category, monthly: e.amount, color: '#64748b' }))).map((c, i) => (
             <div
-              key={exp.id}
+              key={i}
               className="p-3 rounded-lg"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
             >
-              <div className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
-                {exp.category}
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.color }} />
+                <div className="text-[11px] font-medium truncate" style={{ color: 'var(--text-muted)' }}>
+                  {c.cat}
+                </div>
               </div>
               <div className="text-[16px] font-bold font-mono mt-1" style={{ color: 'var(--text-primary)' }}>
-                {fmtRound(exp.amount)}
-              </div>
-              <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                {exp.label}
+                {fmtRound(c.monthly)}
               </div>
             </div>
           ))}
@@ -472,10 +499,10 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, incomeBri
           style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.1)' }}
         >
           <span className="text-[12px] font-semibold" style={{ color: 'var(--accent-cyan)' }}>
-            Total Monthly Living Expenses
+            Total Monthly Spend {real ? '(all-in)' : '(living est.)'}
           </span>
           <span className="text-[14px] font-bold font-mono" style={{ color: 'var(--accent-cyan)' }}>
-            {fmtRound(monthlyFlow.totalLivingExpenses)}
+            {fmtRound(real ? spend : monthlyFlow.totalLivingExpenses)}
           </span>
         </div>
       </div>

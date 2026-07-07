@@ -92,6 +92,7 @@ export default function TabContainer({ data }: { data: FinancialData }) {
             promos={data.promos}
             debts={data.debts}
             helocKPIs={data.helocKPIs}
+            burnAnalysis={data.burnAnalysis}
             incomeBridge={data.incomeBridge}
           />
         )}

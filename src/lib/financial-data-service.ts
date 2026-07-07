@@ -4,7 +4,7 @@
 // zero changes needed in any component or chart file.
 
 import { createServiceClient } from './supabase/service'
-import { liveSpendCategories, type TxnRow } from './finance/txnAggregate'
+import { liveSpendCategories, computeBurn, type TxnRow } from './finance/txnAggregate'
 import type {
   DbDebtAccount,
   DbFinancialModule,
@@ -543,6 +543,14 @@ export async function getFinancialData(): Promise<FinancialData> {
     const helocKPIs = computeHelocKPIs(debts)
     const waterfallData = computeWaterfall(helocKPIs)
 
+    // ── Real burn rate from transactions (recent 90d spend vs steady income) ──
+    // Income = current recurring (unemployment), NOT tx-derived — tx income
+    // includes one-time severance that would understate the true burn.
+    const steadyIncome = incomeBridge.consultingMonthlyNet > 0
+      ? incomeBridge.consultingMonthlyNet
+      : incomeBridge.newJobMonthlyNet
+    const burnAnalysis = computeBurn(txns, steadyIncome, 90)
+
     // ── Deadlines (already in Supabase — fetched via API route) ──
     // The DeadlineTimeline component fetches via /api/finance/deadlines
     // We pass the hardcoded fallback here for getAllData() compat
@@ -584,6 +592,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       helocKPIs,
       waterfallData,
       investments,
+      burnAnalysis,
     }
   } catch (err) {
     console.error('[financial-data-service] Unexpected error, falling back:', err)

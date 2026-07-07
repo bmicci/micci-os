@@ -134,6 +134,58 @@ export function monthlyTrend(rows: TxnRow[]): {
   return { months, categories: [...cats].sort() }
 }
 
+export interface BurnCategory { cat: string; monthly: number; color: string }
+
+export interface BurnAnalysis {
+  hasData: boolean
+  windowStart: string
+  windowEnd: string
+  windowDays: number
+  monthlySpend: number     // real, from transactions over the recent window
+  monthlyIncome: number    // steady-state recurring income (passed in, NOT tx-derived)
+  monthlyNetBurn: number   // monthlySpend − monthlyIncome (positive = burning cash)
+  byCategory: BurnCategory[]
+}
+
+export const EMPTY_BURN: BurnAnalysis = {
+  hasData: false, windowStart: '', windowEnd: '', windowDays: 0,
+  monthlySpend: 0, monthlyIncome: 0, monthlyNetBurn: 0, byCategory: [],
+}
+
+/**
+ * Real recent burn rate from transactions.
+ *
+ * Spend is the actual trailing-window spend. Income is the caller-supplied
+ * STEADY-STATE recurring figure (e.g. current unemployment) — deliberately
+ * NOT derived from transactions, because tx income includes one-time events
+ * (severance, final pay) that don't recur and would understate the true burn.
+ */
+export function computeBurn(rows: TxnRow[], steadyMonthlyIncome: number, windowDays = 90): BurnAnalysis {
+  if (rows.length === 0) return { ...EMPTY_BURN, monthlyIncome: steadyMonthlyIncome }
+  const maxD = rows.reduce((m, r) => {
+    const d = String(r.transaction_date).slice(0, 10)
+    return d > m ? d : m
+  }, '0000-00-00')
+  if (maxD === '0000-00-00') return { ...EMPTY_BURN, monthlyIncome: steadyMonthlyIncome }
+
+  const start = new Date(new Date(maxD + 'T00:00:00Z').getTime() - windowDays * 86400000)
+    .toISOString().slice(0, 10)
+  const byCat = spendByCategory(rows, start, maxD)
+  const monthlyFactor = (365 / 12) / windowDays
+  const monthlySpend = Math.round(byCat.reduce((s, c) => s + c.net, 0) * monthlyFactor)
+
+  return {
+    hasData: true,
+    windowStart: start,
+    windowEnd: maxD,
+    windowDays,
+    monthlySpend,
+    monthlyIncome: Math.round(steadyMonthlyIncome),
+    monthlyNetBurn: Math.round(monthlySpend - steadyMonthlyIncome),
+    byCategory: byCat.map(c => ({ cat: c.cat, monthly: Math.round(c.net * monthlyFactor), color: categoryColor(c.cat) })),
+  }
+}
+
 export interface LiveSpendCategory {
   cat: string
   annual: number

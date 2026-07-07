@@ -242,6 +242,10 @@ export const EMPTY_INVESTMENT_DATA: InvestmentData = {
   transactions: [],
 }
 
+export type { BurnAnalysis } from './finance/txnAggregate'
+import type { BurnAnalysis } from './finance/txnAggregate'
+import { EMPTY_BURN } from './finance/txnAggregate'
+
 export interface FinancialData {
   debts: DebtAccount[]
   modules: FinancialModule[]
@@ -266,6 +270,7 @@ export interface FinancialData {
   propertyTax: PropertyTaxConfig
   assets: Assets
   investments: InvestmentData
+  burnAnalysis: BurnAnalysis
 }
 
 // ── Data ───────────────────────────────────────────
@@ -894,5 +899,6 @@ export function getAllData(): FinancialData {
     propertyTax: PROPERTY_TAX,
     assets: ASSETS,
     investments: EMPTY_INVESTMENT_DATA,
+    burnAnalysis: { ...EMPTY_BURN, monthlyIncome: INCOME_BRIDGE.consultingMonthlyNet },
   }
 }
