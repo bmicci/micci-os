@@ -156,12 +156,11 @@ function simulateHelocFirst(
 /**
  * Generate 36-month projection for HELOC-first strategy
  */
-function generatePayoffTimeline(debts: DebtAccount[]): Array<{ month: number; balance: number }> {
+function generatePayoffTimeline(debts: DebtAccount[], extraMonthly: number): Array<{ month: number; balance: number }> {
   const nonMortgage = debts.filter(d => d.category !== 'Mortgage')
   const currentTotal = nonMortgage.reduce((s, d) => s + d.balance, 0)
 
-  // Very simplified: assume $3,000/month extra payment
-  const monthlyPayment = 3000
+  const monthlyPayment = extraMonthly
   const totalMin = nonMortgage.reduce((s, d) => s + (d.min ?? d.balance * (d.rate / 100) / 12), 0)
 
   const timeline: Array<{ month: number; balance: number }> = []
@@ -225,6 +224,7 @@ export interface DebtPayoffTabProps {
 export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTabProps) {
   const [sortKey, setSortKey] = useState<SortKey>('balance')
   const [sortDir, setSortDir] = useState<1 | -1>(-1)
+  const [extraMonthly, setExtraMonthly] = useState(2000)
 
   const totals = useMemo(() => getDebtTotals(debts), [debts])
   const nonMortgage = useMemo(() => debts.filter(d => d.category !== 'Mortgage'), [debts])
@@ -241,18 +241,18 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
     return nonPromo.reduce((s, d) => s + d.balance * d.rate, 0) / totalBalance
   }, [nonMortgage])
 
-  // Strategy comparisons
+  // Strategy comparisons — driven by the interactive extra-payment slider
   const strategies = useMemo(() => ({
-    avalanche: simulatePayoff(debts, 3000, 'avalanche'),
-    snowball: simulatePayoff(debts, 3000, 'snowball'),
-    helocFirst: simulateHelocFirst(debts, 3000),
-  }), [debts])
+    avalanche: simulatePayoff(debts, extraMonthly, 'avalanche'),
+    snowball: simulatePayoff(debts, extraMonthly, 'snowball'),
+    helocFirst: simulateHelocFirst(debts, extraMonthly),
+  }), [debts, extraMonthly])
 
   // Estimated payoff date (HELOC-first)
   const estimatedPayoffMonths = useMemo(() => strategies.helocFirst.months, [strategies])
 
   // Timeline data
-  const timelineData = useMemo(() => generatePayoffTimeline(debts), [debts])
+  const timelineData = useMemo(() => generatePayoffTimeline(debts, extraMonthly), [debts, extraMonthly])
 
   // Sorted table
   const sorted = useMemo(() => {
@@ -321,6 +321,41 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
           note="After initial roll"
           accent="cyan"
         />
+      </div>
+
+      {/* Extra-payment slider + reality note */}
+      <div className="glass-card p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+          <div>
+            <h3 className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>
+              Payoff Simulator — extra payment / month
+            </h3>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              How fast the debt clears if you throw extra at it each month
+            </p>
+          </div>
+          <div className="text-[24px] font-extrabold font-mono" style={{ color: 'var(--accent-cyan)' }}>
+            {fmt(extraMonthly)}<span className="text-[12px] font-normal" style={{ color: 'var(--text-muted)' }}>/mo</span>
+          </div>
+        </div>
+        <input
+          type="range" min={0} max={6000} step={250}
+          value={extraMonthly}
+          onChange={e => setExtraMonthly(Number(e.target.value))}
+          className="w-full"
+          style={{ accentColor: 'var(--accent-cyan)' }}
+        />
+        <div className="flex justify-between text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+          <span>$0</span><span>$3K</span><span>$6K</span>
+        </div>
+        <div
+          className="mt-3 p-3 rounded-lg text-[11px]"
+          style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}
+        >
+          ⚠️ Reality check: you&apos;re currently cash-flow negative (unemployed), so real extra payment is
+          <strong> $0/mo</strong> until re-employed. These scenarios model paydown once income resumes —
+          slide to your expected post-job surplus.
+        </div>
       </div>
 
       {/* Strategy Comparison Cards */}
@@ -401,7 +436,7 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
       {/* Debt Paydown Timeline Chart */}
       <div className="glass-card p-5">
         <h3 className="text-[13px] font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
-          36-Month Debt Paydown (HELOC-First Strategy)
+          36-Month Debt Paydown (HELOC-First · {fmt(extraMonthly)}/mo extra)
         </h3>
         <div style={{ width: '100%', height: 280 }}>
           <ResponsiveContainer>
