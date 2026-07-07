@@ -280,12 +280,12 @@ export const DEBTS: DebtAccount[] = [
   // ── Mortgage ──────────────────────────────────────────────────────────────
   { name: 'BofA Mortgage (1624)',           balance: 495643.35, rate: 3.375, min: 2486.79, decision: 'keep',  category: 'Mortgage' },
   // ── HELOC (consolidated Mar 19) ───────────────────────────────────────────
-  { name: 'Texas CU HELOC',                 balance: 143057.22, rate: 6.85,  min: 816.00,  decision: 'keep',  category: 'HELOC' },
+  { name: 'Texas CU HELOC',                 balance: 152473.32, rate: 6.85,  min: 870.37,  decision: 'keep',  category: 'HELOC' },
   // ── 0% Promo Cards (pay from HELOC as buckets expire) ─────────────────────
-  { name: 'Chase Freedom Unlimited (7117)', balance: 21863.00,  rate: 0,     min: 0,       decision: 'promo', category: 'Credit Card' },
+  { name: 'Chase Freedom Unlimited (7117)', balance: 13409.34,  rate: 0,     min: 0,       decision: 'promo', category: 'Credit Card' },
   { name: 'Chase Freedom (4628)',           balance: 12876.00,  rate: 0,     min: 0,       decision: 'promo', category: 'Credit Card' },
   { name: 'Citi Diamond Preferred (4205)',  balance: 11999.00,  rate: 0,     min: 124,     decision: 'promo', category: 'Credit Card' },
-  { name: 'Citi Best Buy (4802)',           balance: 1880.40,   rate: 0,     min: 0,       decision: 'promo', category: 'Credit Card' },
+  { name: 'Citi Best Buy (4802)',           balance: 917.96,    rate: 0,     min: 50,      decision: 'promo', category: 'Credit Card' },
   { name: 'Chase Prime Visa (9313)',        balance: 1398.00,   rate: 0,     min: 0,       decision: 'promo', category: 'Credit Card' },
   // ── High-Rate Revolving (roll to HELOC ASAP) ──────────────────────────────
   { name: 'AmEx Gold Card (5007)',          balance: 4519.00,   rate: 27.49, min: 115,     decision: 'roll',  category: 'Credit Card' },
@@ -507,8 +507,8 @@ export const MODULES: FinancialModule[] = [
 // Updated June 4, 2026
 export const DEADLINES: Deadline[] = [
   { date: 'Mar 19, 2026', event: '✅ JPMC exit + HELOC closed',                    amount: null,     risk: '✅ Done' },
-  { date: 'Jun 27, 2026', event: '🔥 Best Buy Promo 1 — $962 deferred int $494',  amount: 962.44,   risk: '🔥 Pay NOW' },
-  { date: 'Jul 9, 2026',  event: '🔴 Chase Freedom Unlim BT1 expires — $8,454',   amount: 8453.66,  risk: '🔴 Pay from HELOC' },
+  { date: 'Jun 27, 2026', event: '✅ Best Buy Promo 1 paid from HELOC — $962',     amount: 962.44,   risk: '✅ Paid' },
+  { date: 'Jul 9, 2026',  event: '✅ Chase Freedom Unlim BT1 paid from HELOC',     amount: 8453.66,  risk: '✅ Paid' },
   { date: 'Jul 22, 2026', event: 'Chase Prime promo expires — $1,398',             amount: 1398,     risk: '🟠 Pay from HELOC' },
   { date: 'Aug 12, 2026', event: '🟠 Chase Freedom BT1 expires — $7,384',          amount: 7384.33,  risk: '🟠 Pay from HELOC' },
   { date: 'Sep 9, 2026',  event: 'Chase Freedom Unlim BT2 expires — $2,600',       amount: 2600,     risk: '🟡 Pay from HELOC' },
@@ -523,10 +523,9 @@ export const DEADLINES: Deadline[] = [
 
 // Updated June 4, 2026
 export const ACTION_ITEMS: ActionItem[] = [
-  { priority: 'red',   title: 'Pay Citi Best Buy $962 from HELOC — Jun 27 deadline', detail: 'Deferred interest $494 charged retroactively if missed. Draw from HELOC this week.' },
-  { priority: 'red',   title: 'Pay Chase Freedom Unlim BT1 $8,454 — Jul 9 deadline', detail: '35 days away. Draw from HELOC. HELOC available: ~$47K.' },
+  { priority: 'red',   title: 'Pay Chase Prime promo $1,398 — Jul 22 deadline', detail: 'Next promo expiry. Draw from HELOC per plan.' },
   { priority: 'red',   title: 'Roll AmEx Gold ($4,519) + Platinum ($4,514) to HELOC', detail: 'Both accruing at 27.49% vs HELOC 6.85% — costing ~$170/mo in unnecessary interest.' },
-  { priority: 'amber', title: 'Pay Chase Freedom (4628) BT1 $7,384 — Aug 12 deadline', detail: '69 days away. Plan HELOC draw in July after Jul 9 payment clears.' },
+  { priority: 'amber', title: 'Pay Chase Freedom (4628) BT1 $7,384 — Aug 12 deadline', detail: 'Draw from HELOC per drawdown schedule.' },
   { priority: 'amber', title: 'Follow up on DCAD property tax protest', detail: 'Filed before May 15 deadline. Check ifile.dallascad.org for hearing date or informal offer.' },
   { priority: 'red',   title: 'Confirm unemployment benefit end date with TWC', detail: 'TX is typically 26 weeks — likely exhausts ~late Sep 2026. Burn jumps from ~$5.1K to ~$7.3K/mo after.' },
   { priority: 'blue',  title: 'Roth conversion decision — Dec 31, 2026 deadline', detail: '2026 is a low-income year (unemployment only). Convert up to the top of 22% bracket. Coordinate with CPA.' },
@@ -535,10 +534,7 @@ export const ACTION_ITEMS: ActionItem[] = [
 
 // Updated June 4, 2026 — balances from live statements
 export const PROMOS: PromoDeadline[] = [
-  // 🔥 URGENT — deferred interest, pay THIS WEEK
-  { name: 'Citi Best Buy — Promo 1 (deferred)', balance: 962.44,   expires: '2026-06-27', risk: 493.78, acct: 'Citi Best Buy 4802',        note: '🔥 DEFERRED INT — miss Jun 27 = $494 charged retroactively. Pay from HELOC now.' },
-  // 🔴 CRITICAL — standard 0% BT
-  { name: 'Chase Freedom Unlim — BT1',          balance: 8453.66,  expires: '2026-07-09', risk: null,   acct: 'Chase Freedom Unlim (7117)', note: 'Pay from HELOC before Jul 9 — 35 days' },
+  // ✅ Jun 27 Best Buy #1 ($962.44) and Jul 9 CFU BT1 ($8,453.66) PAID from HELOC
   // 🟠 URGENT
   { name: 'Chase Freedom — BT1',                balance: 7384.33,  expires: '2026-08-12', risk: null,   acct: 'Chase Freedom (4628)',        note: 'Pay from HELOC before Aug 12' },
   { name: 'Chase Prime Visa — promo',           balance: 1398.00,  expires: '2026-07-22', risk: null,   acct: 'Chase Prime Visa (9313)',    note: 'Pay from HELOC before Jul 22' },
@@ -752,8 +748,8 @@ export function calcWealth(pv: number, pmt: number, r: number, n: number): numbe
 // Updated June 4, 2026 — HELOC closed March 19, 2026
 export const HELOC_LIMIT   = 190_000
 export const HELOC_RATE    = 6.85
-export const HELOC_DRAWN   = 143_057.22   // actual drawn balance as of Jun 4
-export const HELOC_AVAILABLE = HELOC_LIMIT - HELOC_DRAWN  // $46,942.78 remaining
+export const HELOC_DRAWN   = 152_473.32   // Jul 2026: +$9,416 (Best Buy #1 + CFU BT1 payoffs)
+export const HELOC_AVAILABLE = HELOC_LIMIT - HELOC_DRAWN  // $37,526.68 remaining
 
 // ── HELOC Computation Engine ─────────────────────────
 // Derives everything from the live debts array — single source of truth
