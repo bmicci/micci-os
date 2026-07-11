@@ -1,14 +1,15 @@
 import SimulatorProvider from '@/components/financial/SimulatorProvider'
 import FinancialHydrator from '@/components/financial/FinancialHydrator'
 import Link from 'next/link'
+import { Banknote, Landmark, Waves, Scale, TrendingUp, Receipt } from 'lucide-react'
 
 const SIMULATOR_NAV = [
-  { href: '/finance/paycheck',     label: 'Paycheck',    icon: '💵' },
-  { href: '/finance/heloc',        label: 'HELOC',       icon: '🏦' },
-  { href: '/finance/cashflow',     label: 'Cash Flow',   icon: '📊' },
-  { href: '/finance/scenarios',    label: 'Scenarios',   icon: '⚖️' },
-  { href: '/finance/investments',  label: 'Investments', icon: '📈' },
-  { href: '/finance/tax',          label: 'Tax Center',  icon: '🧾' },
+  { href: '/finance/paycheck',     label: 'Paycheck',    icon: Banknote },
+  { href: '/finance/heloc',        label: 'HELOC',       icon: Landmark },
+  { href: '/finance/cashflow',     label: 'Cash Flow',   icon: Waves },
+  { href: '/finance/scenarios',    label: 'Scenarios',   icon: Scale },
+  { href: '/finance/investments',  label: 'Investments', icon: TrendingUp },
+  { href: '/finance/tax',          label: 'Tax Center',  icon: Receipt },
 ]
 
 export const metadata = { title: 'Financial Simulator — Micci OS' }
@@ -42,7 +43,7 @@ export default function FinanceSimulatorLayout({ children }: { children: React.R
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg whitespace-nowrap transition-all font-medium"
               style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}
             >
-              <span>{item.icon}</span>
+              <item.icon size={13} strokeWidth={1.9} />
               {item.label}
             </Link>
           ))}

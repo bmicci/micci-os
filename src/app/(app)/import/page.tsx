@@ -1,3 +1,4 @@
+import { Upload } from 'lucide-react'
 import ImportCenter from '@/components/import/ImportCenter'
 
 export const metadata = {
@@ -13,7 +14,7 @@ export default function ImportPage() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-3 mb-1">
-          <span style={{ fontSize: 28 }}>📥</span>
+          <Upload size={24} strokeWidth={2} className="text-[var(--accent-cyan)]" />
           <h1
             className="gradient-text"
             style={{

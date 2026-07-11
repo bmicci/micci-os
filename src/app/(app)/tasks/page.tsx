@@ -12,7 +12,7 @@ export default function TasksPage() {
           borderBottom: '1px solid rgba(0,212,255,0.1)',
         }}
       >
-        <h1 className="text-lg font-bold gradient-text">✅ Task Command Center</h1>
+        <h1 className="text-lg font-bold gradient-text">Task Command Center</h1>
         <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
           Month-agnostic task manager · Categories · Deadline countdowns · Drag to reschedule
         </p>

@@ -40,7 +40,7 @@ export default async function HealthPage() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-6 md:px-10 pt-8 pb-4 shrink-0">
-        <h1 className="text-3xl font-bold gradient-text mb-1">🏋️ Health & Wellness</h1>
+        <h1 className="text-3xl font-bold gradient-text mb-1">Health & Wellness</h1>
         <p className="text-[var(--text-secondary)] text-sm">
           Protocols · Lab Results · Fitness · Skincare
         </p>

@@ -245,12 +245,11 @@ function AddLabForm({ onAdded }: { onAdded: (m: LabMarker) => void }) {
       </div>
       <div className="flex gap-3">
         <button type="submit" disabled={saving}
-          className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
-          style={{ background: 'linear-gradient(135deg, #00d4ff, #1e90ff)', color: '#000' }}>
+          className="btn btn-primary">
           {saving ? 'Saving…' : 'Save Result'}
         </button>
         <button type="button" onClick={() => setOpen(false)}
-          className="px-4 py-2 rounded-xl text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
+          className="btn btn-ghost">
           Cancel
         </button>
       </div>

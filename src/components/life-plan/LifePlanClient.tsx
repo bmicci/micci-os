@@ -200,7 +200,7 @@ export default function LifePlanClient({ initialSections, initialGoals }: Props)
         {/* Top nav + filters */}
         <div className="flex items-center gap-2 flex-wrap mb-5">
           <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: 'var(--card-border)', background: 'var(--card-bg)' }}>
-            {([['foundation', '🧭 Foundation'], ['goals', '🎯 Goals'], ['timeline', '📅 Timeline'], ['vision', '🌟 Vision Board'], ['backlog', '📋 Backlog']] as [View, string][]).map(([v, label]) => (
+            {([['foundation', 'Foundation'], ['goals', 'Goals'], ['timeline', 'Timeline'], ['vision', 'Vision Board'], ['backlog', 'Backlog']] as [View, string][]).map(([v, label]) => (
               <button key={v} onClick={() => setActiveView(v)}
                 className="px-4 py-2 text-sm font-medium transition-all"
                 style={{ background: activeView === v ? 'var(--accent-cyan)' : 'transparent', color: activeView === v ? '#000' : 'var(--text-secondary)' }}>
@@ -259,7 +259,7 @@ export default function LifePlanClient({ initialSections, initialGoals }: Props)
           <div>
             {/* Sub-tabs */}
             <div className="flex gap-1 mb-6 p-1 rounded-xl w-fit" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              {([['overview', '📋 Overview'], ['board', '🖼️ Vision Board'], ['house', '🏡 House Board']] as const).map(([tab, label]) => (
+              {([['overview', 'Overview'], ['board', 'Vision Board'], ['house', 'House Board']] as const).map(([tab, label]) => (
                 <button key={tab} onClick={() => setVisionSubTab(tab)}
                   className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
                   style={{

@@ -140,12 +140,11 @@ function AddStepForm({ timeOfDay, onAdded }: { timeOfDay: 'am' | 'pm'; onAdded: 
       </div>
       <div className="flex gap-3">
         <button type="submit" disabled={saving}
-          className="px-4 py-2 rounded-xl text-sm font-semibold"
-          style={{ background: 'linear-gradient(135deg, #00d4ff, #1e90ff)', color: '#000' }}>
+          className="btn btn-primary">
           {saving ? 'Saving…' : 'Add Step'}
         </button>
         <button type="button" onClick={() => setOpen(false)}
-          className="px-4 py-2 rounded-xl text-sm text-[var(--text-muted)]">Cancel</button>
+          className="btn btn-ghost">Cancel</button>
       </div>
     </form>
   )

@@ -1,5 +1,7 @@
 'use client'
 
+import { FlaskConical, Microscope, Dumbbell, Sparkles } from 'lucide-react'
+
 import { useState, useRef, useEffect } from 'react'
 import type { HealthData } from './types'
 import ProtocolsTab from './ProtocolsTab'
@@ -8,10 +10,10 @@ import FitnessTab from './FitnessTab'
 import SkincareTab from './SkincareTab'
 
 const TABS = [
-  { id: 'protocols', label: 'Protocols',  icon: '⚗️' },
-  { id: 'labs',      label: 'Lab Results', icon: '🔬' },
-  { id: 'fitness',   label: 'Fitness',     icon: '💪' },
-  { id: 'skincare',  label: 'Skincare',    icon: '✨' },
+  { id: 'protocols', label: 'Protocols',  icon: FlaskConical },
+  { id: 'labs',      label: 'Lab Results', icon: Microscope },
+  { id: 'fitness',   label: 'Fitness',     icon: Dumbbell },
+  { id: 'skincare',  label: 'Skincare',    icon: Sparkles },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
@@ -55,7 +57,7 @@ export default function HealthTabContainer({ data }: { data: HealthData }) {
                 background: activeTab === tab.id ? 'rgba(0,212,255,0.04)' : 'transparent',
               }}
             >
-              <span className="mr-1.5">{tab.icon}</span>
+              <tab.icon size={13} strokeWidth={2} className="inline mr-1.5 -mt-0.5" />
               {tab.label}
             </button>
           ))}

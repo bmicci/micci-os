@@ -134,7 +134,7 @@ export default async function GoalsPage() {
           className="text-3xl font-bold gradient-text mb-1"
           style={{ fontFamily: 'var(--font-geist-sans)' }}
         >
-          🎯 Goals + Vision
+          Goals + Vision
         </h1>
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
           Foundation · Life goals by timeframe · Vision board

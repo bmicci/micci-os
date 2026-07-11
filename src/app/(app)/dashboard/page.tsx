@@ -147,9 +147,7 @@ export default async function DashboardPage() {
           </div>
           <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Net burn / mo</div>
         </div>
-        <Link href="/job-search"
-          className="ml-auto text-[12px] font-bold px-4 py-2 rounded-lg"
-          style={{ background: 'linear-gradient(135deg, #00d4ff, #1e90ff)', color: '#041018' }}>
+        <Link href="/job-search" className="btn btn-primary ml-auto">
           Job pipeline →
         </Link>
       </div>

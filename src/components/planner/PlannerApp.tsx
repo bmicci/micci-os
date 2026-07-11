@@ -292,7 +292,7 @@ export default function PlannerApp({ initialCompletions, initialCustomBlocks }: 
         {/* Title row */}
         <div className="flex items-start justify-between mb-2">
           <div>
-            <h1 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">📅 Battle Plan</h1>
+            <h1 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">Battle Plan</h1>
             <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
               Feb 27 – Mar 31 · March 19 JPMC Deadline
             </p>
