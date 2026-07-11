@@ -4,7 +4,7 @@
 // zero changes needed in any component or chart file.
 
 import { createServiceClient } from './supabase/service'
-import { liveSpendCategories, computeBurn, fetchAllTxns, type TxnRow } from './finance/txnAggregate'
+import { liveSpendCategories, computeBurn, fetchAllTxns, monthlyFlows, type TxnRow } from './finance/txnAggregate'
 import type {
   DbDebtAccount,
   DbFinancialModule,
@@ -410,7 +410,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       supabase.from('tax_lots').select('*').order('value', { ascending: false }),
       supabase.from('investment_transactions').select('*').order('trade_date', { ascending: false }),
       fetchAllTxns(supabase),
-      supabase.from('portfolio_positions').select('current_value, cost_basis, updated_at'),
+      supabase.from('portfolio_positions').select('ticker, current_value, cost_basis, updated_at'),
       supabase.from('action_items').select('*').order('due_date', { ascending: true, nullsFirst: false }),
     ])
 
@@ -576,8 +576,19 @@ export async function getFinancialData(): Promise<FinancialData> {
           glPct: portfolioCost > 0 ? Math.round(((portfolioSum - portfolioCost) / portfolioCost) * 1000) / 10 : 0,
           updatedAt: portfolioUpdated,
           employerSupplement,
+          positions: (() => {
+            const sorted = [...posRows]
+              .map(r => ({ label: String(r.ticker ?? '?'), value: Number(r.current_value ?? 0) }))
+              .filter(pos => pos.value > 0)
+              .sort((a, b) => b.value - a.value)
+            const top = sorted.slice(0, 6)
+            const rest = sorted.slice(6).reduce((s2, pos) => s2 + pos.value, 0)
+            return rest > 0 ? [...top, { label: 'Other', value: Math.round(rest) }] : top
+          })(),
         }
       : null
+
+    const flows = monthlyFlows(txns, 6)
 
     // ── Investment data ───────────────────────────────────────────
     const investments: InvestmentData =
@@ -655,6 +666,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       investments,
       burnAnalysis,
       portfolio,
+      monthlyFlows: flows,
     }
   } catch (err) {
     console.error('[financial-data-service] Unexpected error, falling back:', err)

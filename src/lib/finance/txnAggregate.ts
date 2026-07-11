@@ -212,6 +212,33 @@ export function computeBurn(rows: TxnRow[], steadyMonthlyIncome: number, windowD
   }
 }
 
+export interface MonthlyFlow {
+  month: string // 'YYYY-MM'
+  income: number
+  spend: number
+}
+
+/** Income vs spend per month for the trailing N months (for the in/out chart). */
+export function monthlyFlows(rows: TxnRow[], monthsBack = 6): MonthlyFlow[] {
+  const map = new Map<string, { income: number; spend: number }>()
+  for (const r of rows) {
+    const cat = r.category || 'Other'
+    const month = String(r.transaction_date).slice(0, 7)
+    const e = map.get(month) ?? { income: 0, spend: 0 }
+    if (cat === 'Income') e.income += -num(r.amount) // income stored negative
+    else if (!NON_SPEND_CATEGORIES.has(cat)) e.spend += num(r.amount)
+    map.set(month, e)
+  }
+  return [...map.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-monthsBack)
+    .map(([month, v]) => ({
+      month,
+      income: Math.round(v.income),
+      spend: Math.round(Math.max(v.spend, 0)),
+    }))
+}
+
 export interface LiveSpendCategory {
   cat: string
   annual: number

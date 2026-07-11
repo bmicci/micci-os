@@ -52,6 +52,13 @@ export interface PortfolioSnapshot {
   glPct: number
   updatedAt: string | null
   employerSupplement: number
+  positions: { label: string; value: number }[] // top holdings for the allocation donut
+}
+
+export interface MonthlyFlowPoint {
+  month: string
+  income: number
+  spend: number
 }
 
 export interface PromoDeadline {
@@ -287,6 +294,7 @@ export interface FinancialData {
   investments: InvestmentData
   burnAnalysis: BurnAnalysis
   portfolio: PortfolioSnapshot | null
+  monthlyFlows: MonthlyFlowPoint[]
 }
 
 // ── Data ───────────────────────────────────────────
@@ -910,5 +918,6 @@ export function getAllData(): FinancialData {
     investments: EMPTY_INVESTMENT_DATA,
     burnAnalysis: { ...EMPTY_BURN, monthlyIncome: INCOME_BRIDGE.consultingMonthlyNet },
     portfolio: null,
+    monthlyFlows: [],
   }
 }

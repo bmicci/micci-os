@@ -1,14 +1,18 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell, Legend,
+} from 'recharts'
 import type { FinancialData, ActionItem } from '@/lib/financial-data'
 import { getDebtTotals, fmtK, HELOC_LIMIT } from '@/lib/financial-data'
 
 // ═══════════════════════════════════════════════════════════════════════════
-// CFO Overview — the rolled-up "how am I doing, what do I do next" view.
-//   Row 1: clickable KPIs (each jumps to its detail tab)
-//   Row 2: Action Center (trackable — check off when done) + Cash snapshot
-//   Row 3: Spending snapshot (recent 90d) + Investments snapshot (live)
+// CFO Overview v2
+//   Row 1: balanced KPIs (net worth · portfolio · cash · burn · debt · heloc)
+//   Row 2: Money In vs Out chart (6mo)   |  compact Action Center
+//   Row 3: Where the money goes          |  Portfolio allocation donut
 // ═══════════════════════════════════════════════════════════════════════════
 
 function fmtRound(n: number): string {
@@ -21,24 +25,17 @@ const dotColor: Record<string, string> = {
   blue: 'var(--accent-cyan)',
 }
 
+const DONUT_COLORS = ['#00d4ff', '#8b5cf6', '#22c55e', '#f59e0b', '#3b82f6', '#ec4899', '#64748b']
+
 function daysUntil(dateStr: string): number {
   const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr + 'T00:00:00' : dateStr)
   return Math.ceil((d.getTime() - Date.now()) / 86400000)
 }
 
-function dueChip(dueDate: string | null | undefined) {
-  if (!dueDate) return null
-  const days = daysUntil(dueDate)
-  const color = days < 0 ? '#ef4444' : days <= 14 ? '#ef4444' : days <= 45 ? '#f59e0b' : 'var(--text-muted)'
-  const label = days < 0 ? `${-days}d overdue` : days === 0 ? 'today' : days < 90
-    ? `${days}d`
-    : new Date(dueDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-  return (
-    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
-      style={{ background: `${days <= 14 ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.06)'}`, color }}>
-      {label}
-    </span>
-  )
+function fmtMonth(m: string): string {
+  const [y, mo] = m.split('-')
+  const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${names[parseInt(mo) - 1]} ${y.slice(2)}`
 }
 
 // ── Clickable KPI ───────────────────────────────────────────────────────────
@@ -73,16 +70,16 @@ function KpiCard({ label, value, note, accent, onClick }: {
   )
 }
 
-// ── Action Center ───────────────────────────────────────────────────────────
+// ── Compact Action Center (rail) ────────────────────────────────────────────
 function ActionCenter({ items: initialItems }: { items: ActionItem[] }) {
   const [items, setItems] = useState(initialItems)
+  const [showAll, setShowAll] = useState(false)
   const [showDone, setShowDone] = useState(false)
-  const trackable = items.some(i => i.id)
+  const VISIBLE = 5
 
   const active = items
     .filter(i => (i.status ?? 'active') === 'active')
     .sort((a, b) => {
-      // Dated items first by date, then priority
       if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate)
       if (a.dueDate) return -1
       if (b.dueDate) return 1
@@ -92,10 +89,10 @@ function ActionCenter({ items: initialItems }: { items: ActionItem[] }) {
   const done = items
     .filter(i => i.status === 'done')
     .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''))
+  const visible = showAll ? active : active.slice(0, VISIBLE)
 
   async function setStatus(item: ActionItem, status: 'active' | 'done') {
     if (!item.id) return
-    // Optimistic update
     setItems(prev => prev.map(i => i.id === item.id
       ? { ...i, status, completedAt: status === 'done' ? new Date().toISOString() : null }
       : i))
@@ -107,91 +104,81 @@ function ActionCenter({ items: initialItems }: { items: ActionItem[] }) {
       })
       if (!res.ok) throw new Error('save failed')
     } catch {
-      // Roll back on failure
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: item.status } : i))
     }
   }
 
   return (
-    <div className="glass-card p-5">
-      <div className="flex justify-between items-center mb-3">
+    <div className="glass-card p-4">
+      <div className="flex justify-between items-center mb-2">
         <h3 className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>
-          🎯 Action Center
+          🎯 Actions
         </h3>
-        <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-          {active.length} open{trackable ? ' · check off when complete' : ''}
-        </span>
+        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{active.length} open</span>
       </div>
 
       <ul className="space-y-0">
-        {active.map((item) => (
-          <li key={item.id ?? item.title}
-            className="flex items-start gap-3 py-2.5"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            {item.id ? (
-              <input
-                type="checkbox"
-                checked={false}
-                onChange={() => setStatus(item, 'done')}
-                className="mt-1 shrink-0 w-3.5 h-3.5 cursor-pointer accent-[#22c55e]"
-                title="Mark complete"
-              />
-            ) : (
-              <span className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: dotColor[item.priority] }} />
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
+        {visible.map(item => {
+          const days = item.dueDate ? daysUntil(item.dueDate) : null
+          const chipColor = days !== null && days <= 14 ? '#ef4444' : days !== null && days <= 45 ? '#f59e0b' : 'var(--text-muted)'
+          return (
+            <li key={item.id ?? item.title}
+              className="flex items-center gap-2 py-1.5"
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              {item.id ? (
+                <input type="checkbox" checked={false} onChange={() => setStatus(item, 'done')}
+                  className="shrink-0 w-3 h-3 cursor-pointer accent-[#22c55e]" title="Mark complete" />
+              ) : (
                 <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dotColor[item.priority] }} />
-                <span className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  {item.title}
+              )}
+              <span className="flex-1 min-w-0 text-[11.5px] truncate" title={`${item.title} — ${item.detail}`}
+                style={{ color: 'var(--text-primary)' }}>
+                {item.title}
+              </span>
+              {item.amount ? (
+                <span className="text-[10px] font-mono shrink-0" style={{ color: 'var(--text-muted)' }}>
+                  {fmtK(item.amount)}
                 </span>
-                {item.amount ? (
-                  <span className="text-[11px] font-mono" style={{ color: 'var(--text-secondary)' }}>
-                    {fmtRound(item.amount)}
-                  </span>
-                ) : null}
-                {dueChip(item.dueDate)}
-              </div>
-              <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                {item.detail}
-              </div>
-            </div>
-          </li>
-        ))}
-        {active.length === 0 && (
-          <li className="py-6 text-center text-[12px]" style={{ color: 'var(--text-muted)' }}>
-            All clear — nothing needs your attention. 🎉
-          </li>
-        )}
+              ) : null}
+              {days !== null && (
+                <span className="text-[9px] font-bold shrink-0 px-1 py-0.5 rounded" style={{ color: chipColor, background: 'rgba(255,255,255,0.05)' }}>
+                  {days < 0 ? `${-days}d late` : days === 0 ? 'today' : `${days}d`}
+                </span>
+              )}
+            </li>
+          )
+        })}
       </ul>
 
-      {done.length > 0 && (
-        <div className="mt-3">
-          <button onClick={() => setShowDone(s => !s)}
-            className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>
-            {showDone ? '▾' : '▸'} {done.length} completed
+      <div className="flex justify-between items-center mt-2">
+        {active.length > VISIBLE ? (
+          <button onClick={() => setShowAll(s => !s)} className="text-[10px] font-semibold" style={{ color: 'var(--accent-cyan)' }}>
+            {showAll ? 'Show less' : `+${active.length - VISIBLE} more`}
           </button>
-          {showDone && (
-            <ul className="mt-2 space-y-1.5">
-              {done.map(item => (
-                <li key={item.id ?? item.title} className="flex items-center gap-2 text-[12px]">
-                  <span style={{ color: '#22c55e' }}>✓</span>
-                  <span className="line-through" style={{ color: 'var(--text-muted)' }}>{item.title}</span>
-                  {item.amount ? (
-                    <span className="font-mono text-[11px]" style={{ color: 'var(--text-muted)' }}>{fmtRound(item.amount)}</span>
-                  ) : null}
-                  {item.id && (
-                    <button onClick={() => setStatus(item, 'active')}
-                      className="text-[10px] ml-auto px-1.5 py-0.5 rounded"
-                      style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}>
-                      undo
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        ) : <span />}
+        {done.length > 0 && (
+          <button onClick={() => setShowDone(s => !s)} className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            {showDone ? '▾' : '▸'} {done.length} done
+          </button>
+        )}
+      </div>
+
+      {showDone && (
+        <ul className="mt-1.5 space-y-1">
+          {done.map(item => (
+            <li key={item.id ?? item.title} className="flex items-center gap-1.5 text-[10.5px]">
+              <span style={{ color: '#22c55e' }}>✓</span>
+              <span className="line-through truncate" style={{ color: 'var(--text-muted)' }}>{item.title}</span>
+              {item.id && (
+                <button onClick={() => setStatus(item, 'active')}
+                  className="text-[9px] ml-auto px-1 rounded shrink-0"
+                  style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}>
+                  undo
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )
@@ -202,7 +189,7 @@ export default function OverviewTab({ data, onNavigate }: {
   data: FinancialData
   onNavigate?: (tab: string) => void
 }) {
-  const { debts, actionItems, assets, burnAnalysis, incomeBridge, portfolio } = data
+  const { debts, actionItems, assets, burnAnalysis, incomeBridge, portfolio, monthlyFlows } = data
   const totals = getDebtTotals(debts)
   const go = (tab: string) => onNavigate?.(tab)
 
@@ -214,135 +201,146 @@ export default function OverviewTab({ data, onNavigate }: {
     const burn = burnAnalysis.hasData ? burnAnalysis.monthlyNetBurn : incomeBridge.monthlyOutflow - incomeBridge.consultingMonthlyNet
     const runwayMonths = burn > 0 ? liquid / burn : Infinity
     const helocBal = debts.find(d => d.category === 'HELOC')?.balance ?? 0
-    const helocHeadroom = HELOC_LIMIT - helocBal
-    return { netWorth, liquid, burn, runwayMonths, helocHeadroom }
+    return { netWorth, liquid, burn, runwayMonths, helocHeadroom: HELOC_LIMIT - helocBal }
   }, [debts, assets, burnAnalysis, incomeBridge])
 
-  const topCats = burnAnalysis.hasData ? burnAnalysis.byCategory.slice(0, 6) : []
+  const flowData = monthlyFlows.map(f => ({ ...f, label: fmtMonth(f.month) }))
+  const topCats = burnAnalysis.hasData ? burnAnalysis.byCategory.slice(0, 8) : []
   const maxCat = topCats[0]?.monthly ?? 1
+  const portfolioTotal = portfolio ? portfolio.value + portfolio.employerSupplement : assets.retirement
 
   return (
-    <div className="space-y-5">
-      {/* ── Row 1: KPIs (clickable) ── */}
+    <div className="space-y-4">
+      {/* ── Row 1: KPIs ── */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         <KpiCard label="Net Worth" value={fmtK(derived.netWorth)}
-          note="Assets − debts · click for breakdown" accent="cyan" onClick={() => go('networth')} />
-        <KpiCard label="Cash Runway"
-          value={derived.runwayMonths === Infinity ? '∞' : `${derived.runwayMonths.toFixed(1)} mo`}
-          note={`${fmtK(derived.liquid)} liquid ÷ ${fmtK(Math.max(derived.burn, 0))}/mo burn`}
-          accent={derived.runwayMonths < 4 ? 'red' : 'amber'} onClick={() => go('cashflow')} />
-        <KpiCard label="Monthly Burn" value={fmtRound(Math.max(derived.burn, 0))}
-          note={burnAnalysis.hasData ? 'Real · last 90d of transactions' : 'Estimated'}
-          accent="red" onClick={() => go('cashflow')} />
+          note="Assets − debts" accent="cyan" onClick={() => go('networth')} />
+        <KpiCard label="Portfolio" value={fmtK(portfolioTotal)}
+          note={portfolio ? `Live · ${portfolio.gl >= 0 ? '+' : ''}${portfolio.glPct}% unrealized` : 'Import positions'}
+          accent="green" onClick={() => go('investments')} />
         <KpiCard label="Liquid Cash" value={fmtRound(derived.liquid)}
-          note={`Checking ${fmtK(assets.cash)} + savings ${fmtK(assets.savings)}`}
-          accent="amber" onClick={() => go('networth')} />
+          note={`≈ ${derived.runwayMonths === Infinity ? '∞' : derived.runwayMonths.toFixed(1)} months of runway`}
+          accent="amber" onClick={() => go('cashflow')} />
+        <KpiCard label="Net Burn / Mo" value={fmtRound(Math.max(derived.burn, 0))}
+          note={burnAnalysis.hasData ? 'Real · last 90 days' : 'Estimated'}
+          accent="red" onClick={() => go('cashflow')} />
         <KpiCard label="Debt (excl. mortgage)" value={fmtK(totals.total)}
-          note="Incl. HELOC drawn · click for payoff plan" accent="red" onClick={() => go('debtpayoff')} />
+          note="Incl. HELOC drawn" accent="red" onClick={() => go('debtpayoff')} />
         <KpiCard label="HELOC Headroom" value={fmtRound(derived.helocHeadroom)}
-          note="Left on the line · drawdown plan" accent="green" onClick={() => go('heloc')} />
+          note="Left on the line" accent="green" onClick={() => go('heloc')} />
       </div>
 
-      {/* ── Row 2: Action Center + Cash snapshot ── */}
+      {/* ── Row 2: Money In vs Out + Actions rail ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ alignItems: 'start' }}>
-        <div className="lg:col-span-2">
-          <ActionCenter items={actionItems} />
+        <div className="lg:col-span-2 glass-card p-5">
+          <div className="flex justify-between items-center mb-1">
+            <h3 className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>
+              💸 Money In vs Out — last 6 months
+            </h3>
+            <button onClick={() => go('cashflow')} className="text-[10px] font-semibold" style={{ color: 'var(--accent-cyan)' }}>
+              Cash Flow →
+            </button>
+          </div>
+          <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
+            Real income vs real spend from imported transactions
+          </p>
+          <ResponsiveContainer width="100%" height={230}>
+            <BarChart data={flowData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: 'rgba(240,246,255,0.45)', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: 'rgba(240,246,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false}
+                tickFormatter={(v: number) => fmtK(v)} width={52} />
+              <Tooltip
+                contentStyle={{ background: '#0a0e27', border: '1px solid rgba(0,212,255,0.25)', borderRadius: 8, fontSize: 12 }}
+                formatter={(v, name) => [fmtRound(Number(v)), name === 'income' ? 'Income' : 'Spend']}
+              />
+              <Bar dataKey="income" name="income" fill="#22c55e" fillOpacity={0.85} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="spend" name="spend" fill="#ef4444" fillOpacity={0.7} radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
-        <div className="space-y-4">
-          {/* Cash flow snapshot */}
-          <div className="glass-card p-5 cursor-pointer transition-all hover:scale-[1.01]" onClick={() => go('cashflow')}>
-            <h3 className="text-[13px] font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
-              💧 Cash Flow — this month
-            </h3>
-            <div className="space-y-2 text-[12px]">
-              <div className="flex justify-between">
-                <span style={{ color: 'var(--text-muted)' }}>Income</span>
-                <span className="font-mono font-semibold" style={{ color: '#22c55e' }}>
-                  +{fmtRound(burnAnalysis.hasData ? burnAnalysis.monthlyIncome : incomeBridge.consultingMonthlyNet)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span style={{ color: 'var(--text-muted)' }}>Spend (real, 90d avg)</span>
-                <span className="font-mono font-semibold" style={{ color: '#ef4444' }}>
-                  −{fmtRound(burnAnalysis.hasData ? burnAnalysis.monthlySpend : incomeBridge.monthlyOutflow)}
-                </span>
-              </div>
-              <div className="flex justify-between pt-2 text-[13px] font-bold"
-                style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                <span style={{ color: 'var(--accent-cyan)' }}>Net burn</span>
-                <span className="font-mono" style={{ color: '#ef4444' }}>
-                  −{fmtRound(Math.max(derived.burn, 0))}
-                </span>
-              </div>
-              <div className="text-[11px] pt-1" style={{ color: 'var(--text-muted)' }}>
-                Covered from savings · {derived.runwayMonths === Infinity ? '∞' : derived.runwayMonths.toFixed(1)} months of runway
-              </div>
-            </div>
-          </div>
-
-          {/* Investments snapshot */}
-          <div className="glass-card p-5 cursor-pointer transition-all hover:scale-[1.01]" onClick={() => go('investments')}>
-            <h3 className="text-[13px] font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
-              📈 Portfolio — live
-            </h3>
-            {portfolio ? (
-              <>
-                <div className="text-[22px] font-extrabold" style={{ color: 'var(--text-primary)' }}>
-                  {fmtRound(portfolio.value + portfolio.employerSupplement)}
-                </div>
-                <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                  IRA {fmtK(portfolio.value)} at market + employer plan {fmtK(portfolio.employerSupplement)}
-                </div>
-                <div className="flex justify-between mt-3 text-[12px]">
-                  <span style={{ color: 'var(--text-muted)' }}>Unrealized G/L</span>
-                  <span className="font-mono font-semibold" style={{ color: portfolio.gl >= 0 ? '#22c55e' : '#ef4444' }}>
-                    {portfolio.gl >= 0 ? '+' : ''}{fmtRound(portfolio.gl)} ({portfolio.glPct}%)
-                  </span>
-                </div>
-                {portfolio.updatedAt && (
-                  <div className="text-[10px] mt-2" style={{ color: 'var(--text-muted)' }}>
-                    Prices as of {new Date(portfolio.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                No live positions — import portfolio CSVs at /finance/investments
-              </div>
-            )}
-          </div>
-        </div>
+        <ActionCenter items={actionItems} />
       </div>
 
-      {/* ── Row 3: Spending snapshot ── */}
-      {topCats.length > 0 && (
-        <div className="glass-card p-5 cursor-pointer transition-all hover:scale-[1.005]" onClick={() => go('budget')}>
+      {/* ── Row 3: Where the money goes + Portfolio allocation ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ alignItems: 'start' }}>
+        <div className="lg:col-span-2 glass-card p-5 cursor-pointer transition-all hover:scale-[1.005]" onClick={() => go('budget')}>
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>
               🧾 Where the money goes — last 90 days
             </h3>
-            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-              per month · click for full breakdown
-            </span>
+            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>per month · click for detail</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
             {topCats.map(c => (
               <div key={c.cat} className="flex items-center gap-3">
-                <div className="w-[140px] text-[12px] truncate shrink-0" style={{ color: 'var(--text-secondary)' }}>
+                <div className="w-[130px] text-[11.5px] truncate shrink-0" style={{ color: 'var(--text-secondary)' }}>
                   {c.cat}
                 </div>
                 <div className="flex-1 h-3 rounded overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
                   <div className="h-full rounded" style={{ width: `${(c.monthly / maxCat) * 100}%`, background: c.color, minWidth: 3 }} />
                 </div>
-                <div className="w-[64px] text-right text-[12px] font-mono font-semibold shrink-0" style={{ color: 'var(--text-primary)' }}>
+                <div className="w-[58px] text-right text-[11.5px] font-mono font-semibold shrink-0" style={{ color: 'var(--text-primary)' }}>
                   {fmtRound(c.monthly)}
                 </div>
               </div>
             ))}
+            {topCats.length === 0 && (
+              <div className="text-[12px] py-4" style={{ color: 'var(--text-muted)' }}>
+                No recent transactions — import CSVs to see live spend.
+              </div>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Portfolio allocation */}
+        <div className="glass-card p-4 cursor-pointer transition-all hover:scale-[1.01]" onClick={() => go('investments')}>
+          <div className="flex justify-between items-baseline">
+            <h3 className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>📈 Portfolio</h3>
+            {portfolio?.updatedAt && (
+              <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                prices {new Date(portfolio.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+            )}
+          </div>
+          {portfolio ? (
+            <>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-[20px] font-extrabold" style={{ color: 'var(--text-primary)' }}>
+                  {fmtRound(portfolioTotal)}
+                </span>
+                <span className="text-[11px] font-mono font-semibold" style={{ color: portfolio.gl >= 0 ? '#22c55e' : '#ef4444' }}>
+                  {portfolio.gl >= 0 ? '+' : ''}{fmtK(portfolio.gl)} ({portfolio.glPct}%)
+                </span>
+              </div>
+              <ResponsiveContainer width="100%" height={170}>
+                <PieChart>
+                  <Pie data={portfolio.positions} dataKey="value" nameKey="label"
+                    cx="50%" cy="50%" innerRadius={42} outerRadius={62} paddingAngle={2}>
+                    {portfolio.positions.map((_, i) => (
+                      <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ background: '#0a0e27', border: '1px solid rgba(0,212,255,0.25)', borderRadius: 8, fontSize: 11 }}
+                    formatter={(v) => fmtRound(Number(v))}
+                  />
+                  <Legend iconType="circle" iconSize={7}
+                    wrapperStyle={{ fontSize: 10, color: 'var(--text-muted)' }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="text-[10px] text-center" style={{ color: 'var(--text-muted)' }}>
+                IRA at market · employer plan {fmtK(portfolio.employerSupplement)} added
+              </div>
+            </>
+          ) : (
+            <div className="text-[12px] py-6" style={{ color: 'var(--text-muted)' }}>
+              No live positions — import portfolio CSVs at /finance/investments
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
