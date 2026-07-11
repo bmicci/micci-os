@@ -36,6 +36,7 @@ import {
   type SubscriptionSummary,
   type PropertyTaxConfig,
   type Assets,
+  type PortfolioSnapshot,
   type InvestmentData,
   type InvestmentAccount,
   type TaxLot,
@@ -389,6 +390,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       invTxnsRes,
       txnsRes,
       portfolioRes,
+      actionRowsRes,
     ] = await Promise.all([
       supabase
         .from('debt_accounts')
@@ -408,7 +410,8 @@ export async function getFinancialData(): Promise<FinancialData> {
       supabase.from('tax_lots').select('*').order('value', { ascending: false }),
       supabase.from('investment_transactions').select('*').order('trade_date', { ascending: false }),
       fetchAllTxns(supabase),
-      supabase.from('portfolio_positions').select('current_value'),
+      supabase.from('portfolio_positions').select('current_value, cost_basis, updated_at'),
+      supabase.from('action_items').select('*').order('due_date', { ascending: true, nullsFirst: false }),
     ])
 
     const fallback = getAllData()
@@ -488,9 +491,26 @@ export async function getFinancialData(): Promise<FinancialData> {
     // ── Financial settings (JSONB) ───────────────────────────────
     const settings = settingsRes.data as DbFinancialSetting[] | null
 
-    const actionItemsRaw = getSetting(settings, 'action_items')
-    const actionItems: ActionItem[] =
-      Array.isArray(actionItemsRaw) ? actionItemsRaw as ActionItem[] : ACTION_ITEMS
+    // Action items: prefer the trackable action_items table; fall back to the
+    // legacy settings JSONB, then hardcoded defaults.
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const actionRows = (actionRowsRes.data ?? []) as any[]
+    const actionItems: ActionItem[] = actionRows.length > 0
+      ? actionRows.map(r => ({
+          id: r.id,
+          title: r.title,
+          detail: r.detail ?? '',
+          priority: (r.priority ?? 'amber') as ActionItem['priority'],
+          dueDate: r.due_date ?? null,
+          amount: r.amount != null ? Number(r.amount) : null,
+          status: (r.status ?? 'active') as ActionItem['status'],
+          completedAt: r.completed_at ?? null,
+        }))
+      : (() => {
+          const raw = getSetting(settings, 'action_items')
+          return Array.isArray(raw) ? (raw as ActionItem[]) : ACTION_ITEMS
+        })()
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     const topActionsRaw = getSetting(settings, 'top_actions')
     const topActions: TopAction[] =
@@ -530,15 +550,34 @@ export async function getFinancialData(): Promise<FinancialData> {
     // (IRA, price-refreshed) + manual employer-plan supplement (until that
     // account's positions are imported). Falls back to the stored figure
     // only when the tracker has no positions.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const portfolioSum = ((portfolioRes.data ?? []) as any[])
-      .reduce((s, r) => s + Number(r.current_value ?? 0), 0)
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const posRows = (portfolioRes.data ?? []) as any[]
+    const portfolioSum = posRows.reduce((s, r) => s + Number(r.current_value ?? 0), 0)
+    const portfolioCost = posRows.reduce((s, r) => s + Number(r.cost_basis ?? 0), 0)
+    const portfolioUpdated = posRows.reduce<string | null>(
+      (m, r) => (r.updated_at && (!m || r.updated_at > m) ? r.updated_at : m), null)
+    /* eslint-enable @typescript-eslint/no-explicit-any */
     const employerSupplement = Number(
       (assetsRaw as Record<string, unknown> | null)?.retirement_employer ?? 0,
     )
-    const assets: Assets = portfolioSum > 0
-      ? { ...assetsBase, retirement: Math.round(portfolioSum + employerSupplement) }
-      : assetsBase
+    // Home: prefer owner-set market value over DCAD assessed for net worth
+    const homeMarket = Number((assetsRaw as Record<string, unknown> | null)?.home_market ?? 0)
+    const assets: Assets = {
+      ...assetsBase,
+      ...(portfolioSum > 0 ? { retirement: Math.round(portfolioSum + employerSupplement) } : {}),
+      ...(homeMarket > 0 ? { home: homeMarket } : {}),
+    }
+
+    const portfolio: PortfolioSnapshot | null = portfolioSum > 0
+      ? {
+          value: Math.round(portfolioSum * 100) / 100,
+          cost: Math.round(portfolioCost * 100) / 100,
+          gl: Math.round((portfolioSum - portfolioCost) * 100) / 100,
+          glPct: portfolioCost > 0 ? Math.round(((portfolioSum - portfolioCost) / portfolioCost) * 1000) / 10 : 0,
+          updatedAt: portfolioUpdated,
+          employerSupplement,
+        }
+      : null
 
     // ── Investment data ───────────────────────────────────────────
     const investments: InvestmentData =
@@ -615,6 +654,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       waterfallData,
       investments,
       burnAnalysis,
+      portfolio,
     }
   } catch (err) {
     console.error('[financial-data-service] Unexpected error, falling back:', err)

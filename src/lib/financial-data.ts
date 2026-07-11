@@ -37,6 +37,21 @@ export interface ActionItem {
   priority: 'red' | 'amber' | 'blue'
   title: string
   detail: string
+  // Present when backed by the action_items table (trackable/closeable)
+  id?: string
+  dueDate?: string | null
+  amount?: number | null
+  status?: 'active' | 'done' | 'dismissed'
+  completedAt?: string | null
+}
+
+export interface PortfolioSnapshot {
+  value: number
+  cost: number
+  gl: number
+  glPct: number
+  updatedAt: string | null
+  employerSupplement: number
 }
 
 export interface PromoDeadline {
@@ -271,6 +286,7 @@ export interface FinancialData {
   assets: Assets
   investments: InvestmentData
   burnAnalysis: BurnAnalysis
+  portfolio: PortfolioSnapshot | null
 }
 
 // ── Data ───────────────────────────────────────────
@@ -893,5 +909,6 @@ export function getAllData(): FinancialData {
     assets: ASSETS,
     investments: EMPTY_INVESTMENT_DATA,
     burnAnalysis: { ...EMPTY_BURN, monthlyIncome: INCOME_BRIDGE.consultingMonthlyNet },
+    portfolio: null,
   }
 }

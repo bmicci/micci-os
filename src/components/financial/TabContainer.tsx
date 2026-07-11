@@ -85,7 +85,7 @@ export default function TabContainer({ data }: { data: FinancialData }) {
 
       {/* Tab content */}
       <div className="flex-1 p-3 sm:p-6 max-w-[1400px] mx-auto w-full">
-        {activeTab === 'overview' && <OverviewTab data={data} />}
+        {activeTab === 'overview' && <OverviewTab data={data} onNavigate={(t) => setActiveTab(t as TabId)} />}
         {activeTab === 'cashflow' && (
           <CashFlowTab
             bills={data.bills}
