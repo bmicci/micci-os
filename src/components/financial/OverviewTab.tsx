@@ -228,9 +228,12 @@ export default function OverviewTab({ data, onNavigate }: {
           note="Left on the line" accent="green" onClick={() => go('heloc')} />
       </div>
 
-      {/* ── Row 2: Money In vs Out + Actions rail ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ alignItems: 'start' }}>
-        <div className="lg:col-span-2 glass-card p-5">
+      {/* ── Main band: two interlocked column stacks — flex-1 absorbers keep
+             both columns bottom-aligned, so no height holes are possible ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+        {/* Left stack: money flow → spending */}
+        <div className="lg:col-span-2 flex flex-col gap-4">
+        <div className="glass-card p-5">
           <div className="flex justify-between items-center mb-1">
             <h3 className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>
               💸 Money In vs Out — last 6 months
@@ -242,7 +245,7 @@ export default function OverviewTab({ data, onNavigate }: {
           <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
             Real income vs real spend from imported transactions
           </p>
-          <ResponsiveContainer width="100%" height={230}>
+          <ResponsiveContainer width="100%" height={260}>
             <BarChart data={flowData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
               <XAxis dataKey="label" tick={{ fill: 'rgba(240,246,255,0.45)', fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -258,12 +261,7 @@ export default function OverviewTab({ data, onNavigate }: {
           </ResponsiveContainer>
         </div>
 
-        <ActionCenter items={actionItems} />
-      </div>
-
-      {/* ── Row 3: Where the money goes + Portfolio allocation ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ alignItems: 'start' }}>
-        <div className="lg:col-span-2 glass-card p-5 cursor-pointer transition-all hover:scale-[1.005]" onClick={() => go('budget')}>
+        <div className="glass-card p-5 flex-1 cursor-pointer transition-all hover:scale-[1.005]" onClick={() => go('budget')}>
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>
               🧾 Where the money goes — last 90 days
@@ -291,9 +289,14 @@ export default function OverviewTab({ data, onNavigate }: {
             )}
           </div>
         </div>
+        </div>
+
+        {/* Right stack: actions → portfolio */}
+        <div className="flex flex-col gap-4">
+        <ActionCenter items={actionItems} />
 
         {/* Portfolio — today's performance & movers */}
-        <div className="glass-card p-4 cursor-pointer transition-all hover:scale-[1.01]" onClick={() => go('investments')}>
+        <div className="glass-card p-5 flex-1 cursor-pointer transition-all hover:scale-[1.01]" onClick={() => go('investments')}>
           <div className="flex justify-between items-baseline">
             <h3 className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>📈 Portfolio — today</h3>
             {portfolio?.updatedAt && (
@@ -383,6 +386,7 @@ export default function OverviewTab({ data, onNavigate }: {
               No live positions — import portfolio CSVs at /finance/investments
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>
