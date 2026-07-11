@@ -6,7 +6,6 @@ import KPICard from './KPICard'
 import WealthProjectionChart from './WealthProjectionChart'
 import TaxSnapshotCard from './TaxSnapshotCard'
 import SpendTrendChart from './SpendTrendChart'
-import BalanceHistoryChart from './BalanceHistoryChart'
 import {
   BarChart,
   Bar,
@@ -71,14 +70,13 @@ export default function BudgetActualTab({
       {/* 1. KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KPICard label="Monthly Budget" value={fmt(totalBudget)} note="Sum of survival targets" accent="green" />
-        <KPICard label="Actual Monthly Spend" value={fmt(totalActual)} note="Sum of current spend" accent="amber" />
+        <KPICard label="Actual Monthly Spend" value={fmt(totalActual)} note="12-mo avg · incl. pre-exit months (Cash Flow = recent 90d)" accent="amber" />
         <KPICard label="Over/Under Budget" value={fmt(Math.abs(overUnder))} note={overUnder <= 0 ? 'Under budget (good!)' : 'Over budget'} accent={overUnder <= 0 ? 'green' : 'red'} />
         <KPICard label="Savings Potential" value={fmt(savingsPotential)} note="Gap between actual & budget" accent="cyan" />
       </div>
 
-      {/* Spend Trend + Balance History */}
+      {/* Spend Trend (live from imported transactions) */}
       <SpendTrendChart />
-      <BalanceHistoryChart />
 
       {/* 2. Budget vs. Actual Bar Chart */}
       <div className="glass-card p-5">

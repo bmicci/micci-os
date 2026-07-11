@@ -725,7 +725,7 @@ export const PROPERTY_TAX: PropertyTaxConfig = {
 // Updated June 4, 2026
 export const ASSETS: Assets = {
   home:       850000,
-  retirement: 207675.85,  // Chase Self-Directed 3509: $178,209 + JPMC 2-01: $29,467
+  retirement: 210000,     // Jul 2026: $205K target hit + exceeded — Chase rollover IRA + employer plan
   brokerage:  0,          // Confirmed Jun 2026 — no brokerage account exists
   cash:       2678.76,    // Chase checking (operating) — as of Jun 15, 2026
   savings:    20128.04,   // Wealthfront Cash Account (HYSA) — reserve, no withdrawals yet
