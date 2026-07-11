@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { monthlyTrend, type TxnRow } from '@/lib/finance/txnAggregate'
+import { monthlyTrend, fetchAllTxns } from '@/lib/finance/txnAggregate'
 
 export async function GET(request: NextRequest) {
   // Auth gate uses the user session; data reads use the service client so the
@@ -22,17 +22,9 @@ export async function GET(request: NextRequest) {
 
   if (view === 'monthly_spend') {
     // Aggregate transactions by month + category for the spend trend chart.
-    // Signed amounts + category exclusion handled by the shared aggregator.
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('transaction_date, amount, category')
-      .order('transaction_date', { ascending: true })
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    const { months, categories } = monthlyTrend((data ?? []) as TxnRow[])
+    // Paged fetch — a single select silently caps at 1,000 rows.
+    const rows = await fetchAllTxns(supabase)
+    const { months, categories } = monthlyTrend(rows)
     return NextResponse.json({ months, categories })
   }
 

@@ -68,6 +68,32 @@ export function categoryColor(cat: string): string {
   return CATEGORY_COLORS[cat] || '#' + ((Math.abs(hashStr(cat)) % 0xffffff).toString(16).padStart(6, '0'))
 }
 
+/**
+ * Fetch ALL transaction rows, paging past Supabase's 1,000-row response cap.
+ * A single .select() silently truncates to an arbitrary 1,000 of the rows,
+ * which corrupts every downstream aggregate.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function fetchAllTxns(supabase: any): Promise<TxnRow[]> {
+  const PAGE = 1000
+  const all: TxnRow[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('transaction_date, amount, category')
+      .order('transaction_date', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) {
+      console.warn('[fetchAllTxns]', error.message)
+      break
+    }
+    const rows = (data ?? []) as TxnRow[]
+    all.push(...rows)
+    if (rows.length < PAGE) break
+  }
+  return all
+}
+
 const num = (v: number | string) => (typeof v === 'number' ? v : parseFloat(v) || 0)
 const inWindow = (d: string, since?: string, until?: string) =>
   (!since || d >= since) && (!until || d <= until)

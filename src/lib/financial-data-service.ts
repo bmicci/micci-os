@@ -4,7 +4,7 @@
 // zero changes needed in any component or chart file.
 
 import { createServiceClient } from './supabase/service'
-import { liveSpendCategories, computeBurn, type TxnRow } from './finance/txnAggregate'
+import { liveSpendCategories, computeBurn, fetchAllTxns, type TxnRow } from './finance/txnAggregate'
 import type {
   DbDebtAccount,
   DbFinancialModule,
@@ -406,7 +406,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       supabase.from('investment_accounts').select('*').order('total_value', { ascending: false }),
       supabase.from('tax_lots').select('*').order('value', { ascending: false }),
       supabase.from('investment_transactions').select('*').order('trade_date', { ascending: false }),
-      supabase.from('transactions').select('transaction_date, amount, category'),
+      fetchAllTxns(supabase),
     ])
 
     const fallback = getAllData()
@@ -443,7 +443,7 @@ export async function getFinancialData(): Promise<FinancialData> {
     // ── Spending categories ──────────────────────────────────────
     // Prefer LIVE data computed from imported transactions (trailing 12 months).
     // Fall back to the budget_categories table, then hardcoded defaults.
-    const txns = (txnsRes.data ?? []) as TxnRow[]
+    const txns: TxnRow[] = txnsRes
     const since12mo = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10)
     const liveCats = txns.length > 0 ? liveSpendCategories(txns, since12mo) : []
     const spendingCategories: SpendingCategory[] =
