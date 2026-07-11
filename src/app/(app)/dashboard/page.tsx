@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getFinancialData } from '@/lib/financial-data-service'
+import { getJobSearchData } from '@/lib/job-search-data-service'
 import { fmtK, HELOC_LIMIT } from '@/lib/financial-data'
 
 export const dynamic = 'force-dynamic'
@@ -30,9 +31,9 @@ const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export default async function DashboardPage() {
   const supabase = createServiceClient()
 
-  const [data, pipelineRes, protocolsRes, goalsRes, perksRes] = await Promise.all([
+  const [data, jobData, protocolsRes, goalsRes, perksRes] = await Promise.all([
     getFinancialData(),
-    supabase?.from('job_pipeline').select('*').limit(20) ?? Promise.resolve({ data: null }),
+    getJobSearchData(),
     supabase?.from('hormone_protocols').select('name, dosage, day_of_week, time_of_day, is_active').eq('is_active', true) ?? Promise.resolve({ data: null }),
     supabase?.from('goals').select('id', { count: 'exact', head: true }).eq('status', 'active') ?? Promise.resolve({ count: null }),
     supabase?.from('perk_credits').select('amount, used, used_amount') ?? Promise.resolve({ data: null }),
@@ -61,10 +62,9 @@ export default async function DashboardPage() {
     .sort((a, b) => (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999'))
     .slice(0, 4)
 
-  const pipeline = ((pipelineRes.data ?? []) as any[])
-  const activePipeline = pipeline.filter(p => {
-    const s = String(p.status ?? '').toLowerCase()
-    return s !== 'closed' && s !== 'rejected' && s !== 'dead'
+  const activePipeline = jobData.pipeline.filter(p => {
+    const st = String(p.status ?? '').toLowerCase()
+    return st === 'active' || st === 'waiting' || st === 'offer'
   })
   const jobToday = activePipeline
     .filter(p => p.next_step)
@@ -228,7 +228,7 @@ export default async function DashboardPage() {
           <h3 className="text-[13px] font-bold text-[var(--text-primary)] mb-2">💸 Money — this month</h3>
           <div className="flex items-end gap-[3px] h-[64px]">
             {flows.map(f => (
-              <div key={f.month} className="flex-1 flex items-end gap-[2px]" title={`${f.month}: in ${fmtRound(f.income)} / out ${fmtRound(f.spend)}`}>
+              <div key={f.month} className="flex-1 h-full flex items-end gap-[2px]" title={`${f.month}: in ${fmtRound(f.income)} / out ${fmtRound(f.spend)}`}>
                 <div className="flex-1 rounded-t" style={{ height: `${(f.income / maxFlow) * 100}%`, background: 'rgba(34,197,94,0.8)', minHeight: 2 }} />
                 <div className="flex-1 rounded-t" style={{ height: `${(f.spend / maxFlow) * 100}%`, background: 'rgba(239,68,68,0.65)', minHeight: 2 }} />
               </div>
