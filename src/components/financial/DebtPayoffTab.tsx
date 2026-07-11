@@ -207,7 +207,8 @@ const decisionBadge = (d: string) => {
  * Days until promo expires
  */
 function daysUntil(dateStr: string): number {
-  const d = new Date(dateStr)
+  // Date-only strings parse as UTC midnight — anchor to local midnight instead
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr + 'T00:00:00' : dateStr)
   return Math.ceil((d.getTime() - Date.now()) / 86400000)
 }
 

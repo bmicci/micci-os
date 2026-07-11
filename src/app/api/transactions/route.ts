@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { monthlyTrend, fetchAllTxns } from '@/lib/finance/txnAggregate'
 
 export async function GET(request: NextRequest) {
-  // Auth gate uses the user session; data reads use the service client so the
-  // dashboard works regardless of which of the owner's accounts is signed in
-  // (matches financial-data-service). Single-user personal app.
+  // Auth gate uses the user session; data reads use the TRUE service-role
+  // client (supabase/service — bypasses RLS). The server.ts variant attaches
+  // the user's cookie session, so RLS runs as the signed-in user and returns
+  // nothing when logged in with the owner's secondary account.
   const authClient = await createClient()
   const {
     data: { user },
@@ -15,7 +17,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabase = (await createServiceClient()) ?? authClient
+  const supabase = createServiceClient() ?? authClient
 
   const { searchParams } = new URL(request.url)
   const view = searchParams.get('view') // 'monthly_spend' | 'balance_history' | 'recent'

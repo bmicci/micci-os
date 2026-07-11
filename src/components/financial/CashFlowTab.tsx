@@ -22,10 +22,20 @@ function fmtK(n: number): string {
   return n >= 1000 ? '$' + (n / 1000).toFixed(1) + 'K' : '$' + n.toFixed(0)
 }
 
+// Parse a date-only string in LOCAL time — new Date('YYYY-MM-DD') is UTC
+// midnight, which renders as the previous day in US timezones.
+function parseLocal(dateStr: string): Date {
+  return new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr + 'T00:00:00' : dateStr)
+}
+
 function monthsUntil(dateStr: string): number {
-  const target = new Date(dateStr)
+  const target = parseLocal(dateStr)
   const now = new Date()
   return (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth())
+}
+
+function daysUntil(dateStr: string): number {
+  return Math.ceil((parseLocal(dateStr).getTime() - Date.now()) / 86400000)
 }
 
 // ── Props ────────────────────────────────────────────
@@ -389,10 +399,9 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
           ) : (
             <div className="space-y-0">
               {upcomingPromos.map((p, i) => {
-                const months = monthsUntil(p.expires)
-                const urgency = months <= 1 ? '#ef4444' : months <= 3 ? '#f59e0b' : '#22c55e'
-                const expiresDate = new Date(p.expires)
-                const dateLabel = expiresDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
+                const days = daysUntil(p.expires)
+                const urgency = days <= 30 ? '#ef4444' : days <= 90 ? '#f59e0b' : '#22c55e'
+                const dateLabel = parseLocal(p.expires).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
 
                 return (
                   <div
@@ -432,7 +441,7 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
                             color: urgency,
                           }}
                         >
-                          {months <= 0 ? 'OVERDUE' : months === 1 ? '1 month' : `${months} months`}
+                          {days < 0 ? 'OVERDUE' : days === 0 ? 'TODAY' : days < 60 ? `${days} days` : `${Math.round(days / 30.4)} months`}
                         </span>
                       </div>
                       <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>

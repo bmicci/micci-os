@@ -3,13 +3,18 @@
 import type { PromoDeadline, HelocKPIs } from '@/lib/financial-data'
 import { fmt } from '@/lib/financial-data'
 
+// Parse date-only strings in LOCAL time — new Date('YYYY-MM-DD') is UTC
+// midnight and renders a day early in US timezones.
+function parseLocal(dateStr: string): Date {
+  return new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr + 'T00:00:00' : dateStr)
+}
+
 function daysUntil(dateStr: string): number {
-  const d = new Date(dateStr)
-  return Math.ceil((d.getTime() - Date.now()) / 86400000)
+  return Math.ceil((parseLocal(dateStr).getTime() - Date.now()) / 86400000)
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return parseLocal(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 export default function PromoDeadlinesTab({ promos, helocKPIs }: { promos: PromoDeadline[]; helocKPIs: HelocKPIs }) {
