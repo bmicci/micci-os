@@ -45,6 +45,12 @@ export interface ActionItem {
   completedAt?: string | null
 }
 
+export interface PortfolioMover {
+  ticker: string
+  pct: number       // today's % change
+  amt: number       // today's $ change for the position (per-share change × shares)
+}
+
 export interface PortfolioSnapshot {
   value: number
   cost: number
@@ -52,7 +58,11 @@ export interface PortfolioSnapshot {
   glPct: number
   updatedAt: string | null
   employerSupplement: number
-  positions: { label: string; value: number }[] // top holdings for the allocation donut
+  positions: { label: string; value: number }[] // top holdings
+  dayChange: number      // today's total $ move across positions
+  dayChangePct: number   // today's % move
+  movers: PortfolioMover[] // sorted by |pct| desc
+  history: { date: string; value: number }[] // daily totals (sparkline)
 }
 
 export interface MonthlyFlowPoint {

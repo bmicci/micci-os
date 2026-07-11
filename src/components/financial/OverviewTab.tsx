@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend,
+  ResponsiveContainer, AreaChart, Area,
 } from 'recharts'
 import type { FinancialData, ActionItem } from '@/lib/financial-data'
 import { getDebtTotals, fmtK, HELOC_LIMIT } from '@/lib/financial-data'
@@ -24,8 +24,6 @@ const dotColor: Record<string, string> = {
   amber: '#f59e0b',
   blue: 'var(--accent-cyan)',
 }
-
-const DONUT_COLORS = ['#00d4ff', '#8b5cf6', '#22c55e', '#f59e0b', '#3b82f6', '#ec4899', '#64748b']
 
 function daysUntil(dateStr: string): number {
   const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr + 'T00:00:00' : dateStr)
@@ -294,10 +292,10 @@ export default function OverviewTab({ data, onNavigate }: {
           </div>
         </div>
 
-        {/* Portfolio allocation */}
+        {/* Portfolio — today's performance & movers */}
         <div className="glass-card p-4 cursor-pointer transition-all hover:scale-[1.01]" onClick={() => go('investments')}>
           <div className="flex justify-between items-baseline">
-            <h3 className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>📈 Portfolio</h3>
+            <h3 className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>📈 Portfolio — today</h3>
             {portfolio?.updatedAt && (
               <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
                 prices {new Date(portfolio.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -310,28 +308,74 @@ export default function OverviewTab({ data, onNavigate }: {
                 <span className="text-[20px] font-extrabold" style={{ color: 'var(--text-primary)' }}>
                   {fmtRound(portfolioTotal)}
                 </span>
-                <span className="text-[11px] font-mono font-semibold" style={{ color: portfolio.gl >= 0 ? '#22c55e' : '#ef4444' }}>
-                  {portfolio.gl >= 0 ? '+' : ''}{fmtK(portfolio.gl)} ({portfolio.glPct}%)
+                <span className="text-[12px] font-mono font-bold"
+                  style={{ color: portfolio.dayChange >= 0 ? '#22c55e' : '#ef4444' }}>
+                  {portfolio.dayChange >= 0 ? '▲' : '▼'} {fmtRound(Math.abs(portfolio.dayChange))} ({portfolio.dayChangePct >= 0 ? '+' : ''}{portfolio.dayChangePct}%) today
                 </span>
               </div>
-              <ResponsiveContainer width="100%" height={170}>
-                <PieChart>
-                  <Pie data={portfolio.positions} dataKey="value" nameKey="label"
-                    cx="50%" cy="50%" innerRadius={42} outerRadius={62} paddingAngle={2}>
-                    {portfolio.positions.map((_, i) => (
-                      <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ background: '#0a0e27', border: '1px solid rgba(0,212,255,0.25)', borderRadius: 8, fontSize: 11 }}
-                    formatter={(v) => fmtRound(Number(v))}
-                  />
-                  <Legend iconType="circle" iconSize={7}
-                    wrapperStyle={{ fontSize: 10, color: 'var(--text-muted)' }} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="text-[10px] text-center" style={{ color: 'var(--text-muted)' }}>
-                IRA at market · employer plan {fmtK(portfolio.employerSupplement)} added
+              <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                All-time {portfolio.gl >= 0 ? '+' : ''}{fmtK(portfolio.gl)} ({portfolio.glPct}%) · employer plan {fmtK(portfolio.employerSupplement)} incl.
+              </div>
+
+              {/* Value sparkline — accumulates daily from the price cron */}
+              {portfolio.history.length > 1 && (
+                <div className="mt-2 -mx-1">
+                  <ResponsiveContainer width="100%" height={54}>
+                    <AreaChart data={portfolio.history} margin={{ top: 2, right: 2, left: 2, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="var(--accent-cyan)" stopOpacity={0.3} />
+                          <stop offset="100%" stopColor="var(--accent-cyan)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <YAxis hide domain={['dataMin', 'dataMax']} />
+                      <Tooltip
+                        contentStyle={{ background: '#0a0e27', border: '1px solid rgba(0,212,255,0.25)', borderRadius: 8, fontSize: 10 }}
+                        formatter={(v) => [fmtRound(Number(v)), 'Value']}
+                        labelFormatter={(_, p) => (p?.[0]?.payload?.date ?? '') as string}
+                      />
+                      <Area type="monotone" dataKey="value" stroke="var(--accent-cyan)" strokeWidth={1.5}
+                        fill="url(#sparkFill)" dot={false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Today's movers — diverging bars */}
+              <div className="mt-3 space-y-1.5">
+                <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                  Today&apos;s movers
+                </div>
+                {portfolio.movers.slice(0, 6).map(m => {
+                  const maxPct = Math.max(...portfolio.movers.map(x => Math.abs(x.pct)), 0.1)
+                  const width = Math.min(Math.abs(m.pct) / maxPct, 1) * 50
+                  const up = m.pct >= 0
+                  return (
+                    <div key={m.ticker} className="flex items-center gap-2 text-[11px]">
+                      <span className="w-[44px] font-mono font-semibold shrink-0" style={{ color: 'var(--text-secondary)' }}>
+                        {m.ticker}
+                      </span>
+                      <div className="flex-1 flex items-center h-3">
+                        <div className="w-1/2 flex justify-end">
+                          {!up && <div className="h-2.5 rounded-l" style={{ width: `${width}%`, background: '#ef4444', minWidth: 2 }} />}
+                        </div>
+                        <div className="w-px h-3 shrink-0" style={{ background: 'rgba(255,255,255,0.2)' }} />
+                        <div className="w-1/2">
+                          {up && <div className="h-2.5 rounded-r" style={{ width: `${width}%`, background: '#22c55e', minWidth: 2 }} />}
+                        </div>
+                      </div>
+                      <span className="w-[52px] text-right font-mono font-semibold shrink-0"
+                        style={{ color: up ? '#22c55e' : '#ef4444' }}>
+                        {up ? '+' : ''}{m.pct}%
+                      </span>
+                    </div>
+                  )
+                })}
+                {portfolio.movers.length === 0 && (
+                  <div className="text-[11px] py-2" style={{ color: 'var(--text-muted)' }}>
+                    Day-change data arrives with the next price refresh.
+                  </div>
+                )}
               </div>
             </>
           ) : (

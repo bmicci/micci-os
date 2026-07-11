@@ -391,6 +391,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       txnsRes,
       portfolioRes,
       actionRowsRes,
+      historyRes,
     ] = await Promise.all([
       supabase
         .from('debt_accounts')
@@ -410,8 +411,9 @@ export async function getFinancialData(): Promise<FinancialData> {
       supabase.from('tax_lots').select('*').order('value', { ascending: false }),
       supabase.from('investment_transactions').select('*').order('trade_date', { ascending: false }),
       fetchAllTxns(supabase),
-      supabase.from('portfolio_positions').select('ticker, current_value, cost_basis, updated_at'),
+      supabase.from('portfolio_positions').select('ticker, shares, current_value, cost_basis, day_change, day_change_pct, updated_at'),
       supabase.from('action_items').select('*').order('due_date', { ascending: true, nullsFirst: false }),
+      supabase.from('portfolio_history').select('snapshot_date, total_value').order('snapshot_date', { ascending: true }).limit(60),
     ])
 
     const fallback = getAllData()
@@ -584,6 +586,31 @@ export async function getFinancialData(): Promise<FinancialData> {
             const top = sorted.slice(0, 6)
             const rest = sorted.slice(6).reduce((s2, pos) => s2 + pos.value, 0)
             return rest > 0 ? [...top, { label: 'Other', value: Math.round(rest) }] : top
+          })(),
+          ...(() => {
+            /* eslint-disable @typescript-eslint/no-explicit-any */
+            const dayChange = posRows.reduce(
+              (s2, r: any) => s2 + Number(r.day_change ?? 0) * Number(r.shares ?? 0), 0)
+            const movers = posRows
+              .filter((r: any) => r.day_change_pct != null && String(r.ticker ?? '') !== 'CASH')
+              .map((r: any) => ({
+                ticker: String(r.ticker),
+                pct: Math.round(Number(r.day_change_pct) * 100) / 100,
+                amt: Math.round(Number(r.day_change ?? 0) * Number(r.shares ?? 0) * 100) / 100,
+              }))
+              .sort((a: any, b: any) => Math.abs(b.pct) - Math.abs(a.pct))
+            const history = ((historyRes.data ?? []) as any[]).map(h => ({
+              date: String(h.snapshot_date),
+              value: Number(h.total_value ?? 0),
+            }))
+            /* eslint-enable @typescript-eslint/no-explicit-any */
+            const prevTotal = portfolioSum - dayChange
+            return {
+              dayChange: Math.round(dayChange * 100) / 100,
+              dayChangePct: prevTotal > 0 ? Math.round((dayChange / prevTotal) * 1000) / 10 : 0,
+              movers,
+              history,
+            }
           })(),
         }
       : null
