@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { Hexagon, Waves, BarChart3, PiggyBank, TrendingUp, Landmark, CreditCard, Timer, Package } from 'lucide-react'
 import type { FinancialData } from '@/lib/financial-data'
 import OverviewTab from './OverviewTab'
 import CashFlowTab from './CashFlowTab'
@@ -13,15 +14,15 @@ import SubscriptionsTab from './SubscriptionsTab'
 import InvestmentsTab from './InvestmentsTab'
 
 const TABS = [
-  { id: 'overview', label: 'Overview', icon: '⬡' },
-  { id: 'cashflow', label: 'Cash Flow', icon: '📈' },
-  { id: 'budget', label: 'Budget vs Actual', icon: '📊' },
-  { id: 'networth', label: 'Net Worth', icon: '💰' },
-  { id: 'investments', label: 'Investments', icon: '📈' },
-  { id: 'heloc', label: 'HELOC Plan', icon: '🏦' },
-  { id: 'debtpayoff', label: 'Debt Payoff', icon: '💳' },
-  { id: 'promos', label: 'Promo Deadlines', icon: '⏰' },
-  { id: 'subscriptions', label: 'Subscriptions', icon: '📦' },
+  { id: 'overview', label: 'Overview', icon: Hexagon },
+  { id: 'cashflow', label: 'Cash Flow', icon: Waves },
+  { id: 'budget', label: 'Budget vs Actual', icon: BarChart3 },
+  { id: 'networth', label: 'Net Worth', icon: PiggyBank },
+  { id: 'investments', label: 'Investments', icon: TrendingUp },
+  { id: 'heloc', label: 'HELOC Plan', icon: Landmark },
+  { id: 'debtpayoff', label: 'Debt Payoff', icon: CreditCard },
+  { id: 'promos', label: 'Promo Deadlines', icon: Timer },
+  { id: 'subscriptions', label: 'Subscriptions', icon: Package },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
@@ -66,7 +67,7 @@ export default function TabContainer({ data }: { data: FinancialData }) {
                 background: activeTab === tab.id ? 'rgba(0,212,255,0.04)' : 'transparent',
               }}
             >
-              <span className="mr-1 sm:mr-1.5">{tab.icon}</span>
+              <tab.icon size={13} strokeWidth={2} className="inline mr-1 sm:mr-1.5 -mt-0.5" />
               <span className="hidden sm:inline">{tab.label}</span>
               <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
             </button>

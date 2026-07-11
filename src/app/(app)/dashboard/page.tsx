@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Wallet, Briefcase, HeartPulse, Gem, Target, ClipboardList, ArrowLeftRight } from 'lucide-react'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getFinancialData } from '@/lib/financial-data-service'
 import { getJobSearchData } from '@/lib/job-search-data-service'
@@ -100,7 +101,7 @@ export default async function DashboardPage() {
       {/* ── Header — derived from today, never frozen ── */}
       <div className="flex items-end justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-3xl font-bold gradient-text mb-1">🏠 Command Center</h1>
+          <h1 className="text-3xl font-bold gradient-text mb-1">Command Center</h1>
           <p className="text-[var(--text-secondary)] text-sm">
             {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
             {' · '}Post-JPMC · Stabilization
@@ -159,7 +160,7 @@ export default async function DashboardPage() {
         {/* Today — across everything */}
         <div className="lg:col-span-2 glass-card p-5">
           <div className="flex justify-between items-baseline mb-2">
-            <h3 className="text-[13px] font-bold text-[var(--text-primary)]">📋 Today — across everything</h3>
+            <h3 className="text-[13px] font-bold text-[var(--text-primary)] flex items-center gap-2"><ClipboardList size={14} strokeWidth={2} className="text-[var(--accent-cyan)]" /> Today — across everything</h3>
             <span className="text-[10px] text-[var(--text-muted)]">{dateLabel}</span>
           </div>
 
@@ -225,7 +226,7 @@ export default async function DashboardPage() {
 
         {/* Money — this month */}
         <div className="glass-card p-5 flex flex-col">
-          <h3 className="text-[13px] font-bold text-[var(--text-primary)] mb-2">💸 Money — this month</h3>
+          <h3 className="text-[13px] font-bold text-[var(--text-primary)] mb-2 flex items-center gap-2"><ArrowLeftRight size={14} strokeWidth={2} className="text-[var(--accent-cyan)]" /> Money — this month</h3>
           <div className="flex items-end gap-[3px] h-[64px]">
             {flows.map(f => (
               <div key={f.month} className="flex-1 h-full flex items-end gap-[2px]" title={`${f.month}: in ${fmtRound(f.income)} / out ${fmtRound(f.spend)}`}>
@@ -276,23 +277,23 @@ export default async function DashboardPage() {
       <div className="flex flex-wrap gap-2.5">
         <Link href="/financial" className="text-[11.5px] px-3 py-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
           style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)' }}>
-          💰 Financial · <b className="text-[var(--text-primary)]">live</b>
+          <Wallet size={12} strokeWidth={2} className="inline mr-1 -mt-0.5" /> Financial · <b className="text-[var(--text-primary)]">live</b>
         </Link>
         <Link href="/job-search" className="text-[11.5px] px-3 py-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
           style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)' }}>
-          🚀 Job Search · <b className="text-[var(--text-primary)]">{activePipeline.length} active</b>
+          <Briefcase size={12} strokeWidth={2} className="inline mr-1 -mt-0.5" /> Job Search · <b className="text-[var(--text-primary)]">{activePipeline.length} active</b>
         </Link>
         <Link href="/health" className="text-[11.5px] px-3 py-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
           style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)' }}>
-          🏋️ Health · <b className="text-[var(--text-primary)]">{protocolsToday.length} today</b>
+          <HeartPulse size={12} strokeWidth={2} className="inline mr-1 -mt-0.5" /> Health · <b className="text-[var(--text-primary)]">{protocolsToday.length} today</b>
         </Link>
         <Link href="/perks" className="text-[11.5px] px-3 py-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
           style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)' }}>
-          💎 Perks · <b className="text-[var(--text-primary)]">{fmtRound(perksUnclaimed)} unclaimed</b>
+          <Gem size={12} strokeWidth={2} className="inline mr-1 -mt-0.5" /> Perks · <b className="text-[var(--text-primary)]">{fmtRound(perksUnclaimed)} unclaimed</b>
         </Link>
         <Link href="/goals" className="text-[11.5px] px-3 py-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
           style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)' }}>
-          🎯 Goals · <b className="text-[var(--text-primary)]">{goalsCount ?? '—'} active</b>
+          <Target size={12} strokeWidth={2} className="inline mr-1 -mt-0.5" /> Goals · <b className="text-[var(--text-primary)]">{goalsCount ?? '—'} active</b>
         </Link>
       </div>
     </div>

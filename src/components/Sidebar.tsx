@@ -2,26 +2,46 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  Wallet,
+  Gem,
+  Target,
+  CalendarDays,
+  Briefcase,
+  ListChecks,
+  HeartPulse,
+  Upload,
+  Banknote,
+  Landmark,
+  Waves,
+  Scale,
+  TrendingUp,
+  Receipt,
+  type LucideIcon,
+} from "lucide-react";
 
-const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: "🏠", exact: true },
-  { href: "/financial", label: "Financial", icon: "💰", exact: false },
-  { href: "/perks", label: "Perks & Points", icon: "💎", exact: false },
-  { href: "/goals", label: "Goals + Vision", icon: "🎯", exact: false },
-  { href: "/planner", label: "Planner", icon: "📅", exact: false },
-  { href: "/job-search", label: "Job Search", icon: "🚀", exact: false },
-  { href: "/tasks", label: "Tasks", icon: "✅", exact: false },
-  { href: "/health", label: "Health", icon: "🏋️", exact: false },
-  { href: "/import", label: "Import", icon: "📥", exact: false },
+// Monochrome stroke icons replace the emoji set — they inherit currentColor,
+// so active items pick up the cyan accent instead of fixed emoji colors.
+const NAV_ITEMS: { href: string; label: string; icon: LucideIcon; exact: boolean }[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/financial", label: "Financial", icon: Wallet, exact: false },
+  { href: "/perks", label: "Perks & Points", icon: Gem, exact: false },
+  { href: "/goals", label: "Goals + Vision", icon: Target, exact: false },
+  { href: "/planner", label: "Planner", icon: CalendarDays, exact: false },
+  { href: "/job-search", label: "Job Search", icon: Briefcase, exact: false },
+  { href: "/tasks", label: "Tasks", icon: ListChecks, exact: false },
+  { href: "/health", label: "Health", icon: HeartPulse, exact: false },
+  { href: "/import", label: "Import", icon: Upload, exact: false },
 ];
 
-const SIMULATOR_ITEMS = [
-  { href: "/finance/paycheck",     label: "Paycheck",    icon: "💵" },
-  { href: "/finance/heloc",        label: "HELOC",       icon: "🏦" },
-  { href: "/finance/cashflow",     label: "Cash Flow",   icon: "📊" },
-  { href: "/finance/scenarios",    label: "Scenarios",   icon: "⚖️" },
-  { href: "/finance/investments",  label: "Investments", icon: "📈" },
-  { href: "/finance/tax",          label: "Tax Center",  icon: "🧾" },
+const SIMULATOR_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/finance/paycheck", label: "Paycheck", icon: Banknote },
+  { href: "/finance/heloc", label: "HELOC", icon: Landmark },
+  { href: "/finance/cashflow", label: "Cash Flow", icon: Waves },
+  { href: "/finance/scenarios", label: "Scenarios", icon: Scale },
+  { href: "/finance/investments", label: "Investments", icon: TrendingUp },
+  { href: "/finance/tax", label: "Tax Center", icon: Receipt },
 ];
 
 export default function Sidebar() {
@@ -73,23 +93,22 @@ export default function Sidebar() {
         </div>
 
         {/* Nav */}
-        <nav className="flex flex-col gap-1 px-3 py-4">
-          {NAV_ITEMS.map(({ href, label, icon, exact }) => {
+        <nav className="flex flex-col gap-0.5 px-3 py-4">
+          {NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => {
             const active = isActive(href, exact);
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 ${
-                  active ? "nav-active" : ""
-                }`}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150"
                 style={{
                   color: active ? "var(--accent-cyan)" : "var(--text-secondary)",
-                  borderLeft: active ? undefined : "2px solid transparent",
+                  background: active ? "rgba(0,212,255,0.08)" : "transparent",
+                  boxShadow: active ? "inset 2px 0 0 var(--accent-cyan)" : "none",
                   textDecoration: "none",
                 }}
               >
-                <span style={{ fontSize: 16, lineHeight: 1 }}>{icon}</span>
+                <Icon size={16} strokeWidth={active ? 2.2 : 1.75} style={{ flexShrink: 0 }} />
                 <span className="font-medium">{label}</span>
               </Link>
             );
@@ -97,26 +116,27 @@ export default function Sidebar() {
 
           {/* Finance Simulators sub-section */}
           <div className="mt-2 pt-2" style={{ borderTop: "1px solid rgba(0,212,255,0.08)" }}>
-            <div className="px-3 py-1 text-[10px] uppercase tracking-widest font-semibold"
-              style={{ color: "var(--text-muted)" }}>
+            <div
+              className="px-3 py-1 text-[10px] uppercase tracking-widest font-semibold"
+              style={{ color: "var(--text-muted)" }}
+            >
               Simulators
             </div>
-            {SIMULATOR_ITEMS.map(({ href, label, icon }) => {
+            {SIMULATOR_ITEMS.map(({ href, label, icon: Icon }) => {
               const active = pathname === href || pathname.startsWith(href + "/");
               return (
                 <Link
                   key={href}
                   href={href}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all duration-150 ${
-                    active ? "nav-active" : ""
-                  }`}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all duration-150"
                   style={{
                     color: active ? "var(--accent-cyan)" : "var(--text-muted)",
-                    borderLeft: active ? undefined : "2px solid transparent",
+                    background: active ? "rgba(0,212,255,0.08)" : "transparent",
+                    boxShadow: active ? "inset 2px 0 0 var(--accent-cyan)" : "none",
                     textDecoration: "none",
                   }}
                 >
-                  <span style={{ fontSize: 13, lineHeight: 1 }}>{icon}</span>
+                  <Icon size={14} strokeWidth={active ? 2.2 : 1.75} style={{ flexShrink: 0 }} />
                   <span className="font-medium">{label}</span>
                 </Link>
               );
@@ -133,11 +153,11 @@ export default function Sidebar() {
             fontFamily: "var(--font-geist-mono)",
           }}
         >
-          v0.1.0
+          v0.2.0
         </div>
       </aside>
 
-      {/* ── Mobile bottom tab bar ── */}
+      {/* ── Mobile bottom tab bar (top 5 sections) ── */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 flex items-center justify-around z-50"
         style={{
@@ -149,7 +169,7 @@ export default function Sidebar() {
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
-        {NAV_ITEMS.map(({ href, label, icon, exact }) => {
+        {NAV_ITEMS.slice(0, 5).map(({ href, label, icon: Icon, exact }) => {
           const active = isActive(href, exact);
           return (
             <Link
@@ -161,7 +181,7 @@ export default function Sidebar() {
                 textDecoration: "none",
               }}
             >
-              <span style={{ fontSize: 20, lineHeight: 1 }}>{icon}</span>
+              <Icon size={20} strokeWidth={active ? 2.2 : 1.75} />
               <span className="font-medium">{label.split(" ")[0]}</span>
             </Link>
           );
