@@ -388,6 +388,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       taxLotsRes,
       invTxnsRes,
       txnsRes,
+      portfolioRes,
     ] = await Promise.all([
       supabase
         .from('debt_accounts')
@@ -407,6 +408,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       supabase.from('tax_lots').select('*').order('value', { ascending: false }),
       supabase.from('investment_transactions').select('*').order('trade_date', { ascending: false }),
       fetchAllTxns(supabase),
+      supabase.from('portfolio_positions').select('current_value'),
     ])
 
     const fallback = getAllData()
@@ -519,10 +521,24 @@ export async function getFinancialData(): Promise<FinancialData> {
         : PROPERTY_TAX
 
     const assetsRaw = getSetting(settings, 'assets')
-    const assets: Assets =
+    const assetsBase: Assets =
       assetsRaw && typeof assetsRaw === 'object'
         ? mapAssets(assetsRaw as Record<string, unknown>)
         : ASSETS_FALLBACK
+
+    // Retirement DERIVES from the live tracker: sum of portfolio_positions
+    // (IRA, price-refreshed) + manual employer-plan supplement (until that
+    // account's positions are imported). Falls back to the stored figure
+    // only when the tracker has no positions.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const portfolioSum = ((portfolioRes.data ?? []) as any[])
+      .reduce((s, r) => s + Number(r.current_value ?? 0), 0)
+    const employerSupplement = Number(
+      (assetsRaw as Record<string, unknown> | null)?.retirement_employer ?? 0,
+    )
+    const assets: Assets = portfolioSum > 0
+      ? { ...assetsBase, retirement: Math.round(portfolioSum + employerSupplement) }
+      : assetsBase
 
     // ── Investment data ───────────────────────────────────────────
     const investments: InvestmentData =
