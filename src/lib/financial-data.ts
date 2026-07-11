@@ -729,7 +729,7 @@ export const ASSETS: Assets = {
   brokerage:  0,          // Confirmed Jun 2026 — no brokerage account exists
   cash:       2678.76,    // Chase checking (operating) — as of Jun 15, 2026
   savings:    20128.04,   // Wealthfront Cash Account (HYSA) — reserve, no withdrawals yet
-  vehicles:   35000,      // TBD — not updated
+  vehicles:   0,          // Excluded from net worth by owner definition (Jul 2026)
 }
 
 export const TOP_ACTIONS: TopAction[] = [
