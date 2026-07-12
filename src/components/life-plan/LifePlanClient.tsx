@@ -54,7 +54,7 @@ function groupGoals(goals: DBGoal[], sectionId: string) {
   return byTf
 }
 
-const TF_ORDER = ['40', '45', '50', '60', 'all', 'pinned']
+const TF_ORDER = ['40', '45', '50', '55', '60', 'all', 'pinned']
 
 // ── Main Component ─────────────────────────────────────────────
 export default function LifePlanClient({ initialSections, initialGoals }: Props) {
@@ -212,7 +212,7 @@ export default function LifePlanClient({ initialSections, initialGoals }: Props)
           {activeView === 'goals' && (
             <>
               <div className="flex gap-1.5 flex-wrap">
-                {([['all', 'All Ages'], ['40', 'Age 40'], ['45', 'Age 45'], ['50', 'Age 50'], ['60', 'Age 60']] as [string, string][]).map(([f, label]) => (
+                {([['all', 'All Ages'], ['40', 'Age 40'], ['45', 'Age 45'], ['50', 'Age 50'], ['55', 'Age 55'], ['60', 'Age 60']] as [string, string][]).map(([f, label]) => (
                   <button key={f} onClick={() => setActiveFilter(f)}
                     className="px-3 py-1.5 rounded-full text-xs font-medium border transition-all"
                     style={{ background: activeFilter === f ? 'var(--accent-cyan)' : 'transparent', color: activeFilter === f ? '#000' : 'var(--text-secondary)', borderColor: activeFilter === f ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.1)' }}>
@@ -417,7 +417,7 @@ function GoalsSectionView({ section, goals, activeFilter, searchQuery, stats, ed
 
       {orderedTfs.map(([tf, data]) => {
         if (!data) return null
-        const isStandardTf = ['40', '45', '50', '60'].includes(tf)
+        const isStandardTf = ['40', '45', '50', '55', '60'].includes(tf)
         if (activeFilter !== 'all' && isStandardTf && activeFilter !== tf) return null
 
         const tfGoals = goals.filter(g => g.section_id === section.id && g.timeframe === tf)
@@ -508,7 +508,7 @@ function TimelineView({ sections, goals, onToggle }: { sections: DBSection[]; go
           <tr>
             <th className="text-left text-xs font-semibold uppercase tracking-widest px-3 py-3"
               style={{ color: 'var(--text-muted)', width: 160, background: 'var(--card-bg)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Life Area</th>
-            {(['40', '45', '50', '60'] as const).map(tf => (
+            {(['40', '45', '50', '55', '60'] as const).map(tf => (
               <th key={tf} className="text-left text-xs font-semibold px-3 py-3"
                 style={{ color: 'var(--text-primary)', background: tf === '40' ? 'rgba(0,212,255,0.06)' : 'var(--card-bg)', borderBottom: tf === '40' ? '2px solid var(--accent-cyan)' : '1px solid rgba(255,255,255,0.06)' }}>
                 Age {tf}{tf === '40' ? ' ↗ Now' : ''}
@@ -521,7 +521,7 @@ function TimelineView({ sections, goals, onToggle }: { sections: DBSection[]; go
             <tr key={s.id}>
               <td className="px-3 py-2 text-xs font-semibold"
                 style={{ color: s.color_hex, background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.04)', verticalAlign: 'top' }}>{s.name}</td>
-              {(['40', '45', '50', '60'] as const).map(tf => {
+              {(['40', '45', '50', '55', '60'] as const).map(tf => {
                 const all = goals.filter(g => g.section_id === s.id && g.timeframe === tf)
                 return (
                   <td key={tf} className="px-2 py-1.5" style={{ background: 'transparent', borderBottom: '1px solid rgba(255,255,255,0.04)', verticalAlign: 'top' }}>
@@ -700,7 +700,7 @@ function VisionView() {
                 {s.allAges && !s.timeframes ? 'All Ages' : 'Ages 40–60'}
               </div>
               <ul className="space-y-1.5" style={{ listStyle: 'none', padding: 0 }}>
-                {s.timeframes && (['40', '45', '50', '60'] as const).map(tf => {
+                {s.timeframes && (['40', '45', '50', '55', '60'] as const).map(tf => {
                   const tfData = s.timeframes![tf]
                   if (!tfData) return null
                   const summary = tfData.categories[0]?.goals.slice(0, 3).join('; ')

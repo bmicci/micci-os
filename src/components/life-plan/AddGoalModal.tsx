@@ -7,6 +7,7 @@ const TIMEFRAMES = [
   { value: '40', label: 'Age 40 (1 Year)' },
   { value: '45', label: 'Age 45 (5 Years)' },
   { value: '50', label: 'Age 50 (10 Years)' },
+  { value: '55', label: 'Age 55 (15 Years)' },
   { value: '60', label: 'Age 60 (20 Years)' },
   { value: 'all', label: 'All Ages' },
   { value: 'pinned', label: 'Pinned / Top Priority' },
