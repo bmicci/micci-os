@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import LifePlanClient, { type DBSection, type DBGoal } from '@/components/life-plan/LifePlanClient'
+import type { FoundationData, RitualsData } from '@/lib/life-plan-data'
 import { SECTIONS } from '@/lib/life-plan-data'
 
 // ── Static fallback builders ───────────────────────────────────
@@ -113,15 +114,22 @@ function buildStaticGoals(): DBGoal[] {
 export default async function GoalsPage() {
   let sections: DBSection[] = []
   let goals: DBGoal[] = []
+  let foundation: FoundationData | null = null
+  let rituals: RitualsData | null = null
 
   try {
     const supabase = await createClient()
-    const [{ data: dbSections, error: se }, { data: dbGoals, error: ge }] = await Promise.all([
+    const [{ data: dbSections, error: se }, { data: dbGoals, error: ge }, { data: docs }] = await Promise.all([
       supabase.from('life_plan_sections').select('*').order('sort_order'),
       supabase.from('life_plan_goals').select('*').order('sort_order'),
+      supabase.from('life_plan_foundation').select('key, data'),
     ])
     if (!se && dbSections && dbSections.length > 0) sections = dbSections
     if (!ge && dbGoals && dbGoals.length > 0) goals = dbGoals
+    for (const d of docs ?? []) {
+      if (d.key === 'foundation') foundation = d.data as FoundationData
+      if (d.key === 'rituals') rituals = d.data as RitualsData
+    }
   } catch { /* tables may not exist yet — fall back to static */ }
 
   if (sections.length === 0) sections = buildStaticSections()
@@ -140,7 +148,7 @@ export default async function GoalsPage() {
           Foundation · Life goals by timeframe · Vision board
         </p>
       </div>
-      <LifePlanClient initialSections={sections} initialGoals={goals} />
+      <LifePlanClient initialSections={sections} initialGoals={goals} initialFoundation={foundation} initialRituals={rituals} />
     </div>
   )
 }

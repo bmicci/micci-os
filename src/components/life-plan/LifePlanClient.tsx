@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
-import { FOUNDATION_DATA, RITUALS_DATA, SECTIONS } from '@/lib/life-plan-data'
+import { FOUNDATION_DATA, RITUALS_DATA, SECTIONS, type FoundationData, type RitualsData } from '@/lib/life-plan-data'
+import FoundationEditModal, { type FieldSpec, type FieldValues } from './FoundationEditor'
+import { Pencil } from 'lucide-react'
 import AddGoalModal from './AddGoalModal'
 import VisionBoardView from '@/components/goals/VisionBoardView'
 import HouseBoardView from '@/components/goals/HouseBoardView'
@@ -33,6 +35,8 @@ type View = 'foundation' | 'goals' | 'timeline' | 'vision' | 'backlog'
 interface Props {
   initialSections: DBSection[]
   initialGoals: DBGoal[]
+  initialFoundation?: FoundationData | null
+  initialRituals?: RitualsData | null
 }
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -57,12 +61,30 @@ function groupGoals(goals: DBGoal[], sectionId: string) {
 const TF_ORDER = ['40', '45', '50', '55', '60', 'all', 'pinned']
 
 // ── Main Component ─────────────────────────────────────────────
-export default function LifePlanClient({ initialSections, initialGoals }: Props) {
+export default function LifePlanClient({ initialSections, initialGoals, initialFoundation, initialRituals }: Props) {
   const [activeSection, setActiveSection] = useState(initialSections[0]?.id ?? 'health')
   const [activeFilter, setActiveFilter] = useState('all')
   const [activeView, setActiveView] = useState<View>('goals')
   const [searchQuery, setSearchQuery] = useState('')
   const [goals, setGoals] = useState<DBGoal[]>(initialGoals)
+  const [fdDoc, setFdDoc] = useState<FoundationData>(initialFoundation ?? FOUNDATION_DATA)
+  const [rdDoc, setRdDoc] = useState<RitualsData>(initialRituals ?? RITUALS_DATA)
+
+  // Persist a foundation document (optimistic; throws on failure so the
+  // editor modal can surface the error and stay open)
+  const saveFoundationDoc = useCallback(async (key: 'foundation' | 'rituals', data: FoundationData | RitualsData) => {
+    const res = await fetch('/api/life-plan/foundation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, data }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error ?? 'Save failed')
+    }
+    if (key === 'foundation') setFdDoc(data as FoundationData)
+    else setRdDoc(data as RitualsData)
+  }, [])
   const [visionSubTab, setVisionSubTab] = useState<'overview' | 'board' | 'house'>('overview')
   const [showAddModal, setShowAddModal] = useState(false)
   const [addTarget, setAddTarget] = useState<{ sectionId: string; timeframe: string; timeframeLabel: string; categoryHeader: string | null } | null>(null)
@@ -232,7 +254,7 @@ export default function LifePlanClient({ initialSections, initialGoals }: Props)
           )}
         </div>
 
-        {activeView === 'foundation' && <FoundationView />}
+        {activeView === 'foundation' && <FoundationView fd={fdDoc} rd={rdDoc} onSave={saveFoundationDoc} />}
 
         {activeView === 'goals' && (
           <QuarterlyReviewBanner onDismiss={() => {}} />
@@ -271,7 +293,7 @@ export default function LifePlanClient({ initialSections, initialGoals }: Props)
                 </button>
               ))}
             </div>
-            {visionSubTab === 'overview' && <VisionView />}
+            {visionSubTab === 'overview' && <VisionView fd={fdDoc} rd={rdDoc} />}
             {visionSubTab === 'board' && <VisionBoardView />}
             {visionSubTab === 'house' && <HouseBoardView />}
           </div>
@@ -625,9 +647,7 @@ function GoldSectionHeader({ eyebrow, heading }: { eyebrow: string; heading: str
   )
 }
 
-function VisionView() {
-  const fd = FOUNDATION_DATA
-  const rd = RITUALS_DATA
+function VisionView({ fd, rd }: { fd: FoundationData; rd: RitualsData }) {
 
   return (
     <div className="space-y-12 pb-10">
@@ -839,23 +859,104 @@ function VisionView() {
 }
 
 // ── FOUNDATION VIEW ───────────────────────────────────────────
-function FoundationView() {
-  const fd = FOUNDATION_DATA
-  const rd = RITUALS_DATA
+function FoundationView({ fd, rd, onSave }: {
+  fd: FoundationData
+  rd: RitualsData
+  onSave: (key: 'foundation' | 'rituals', data: FoundationData | RitualsData) => Promise<void>
+}) {
+  const [editCard, setEditCard] = useState<string | null>(null)
+
+  // Card registry: field specs + how saved values fold back into the docs
+  const CARDS: Record<string, { title: string; fields: FieldSpec[]; apply: (v: FieldValues) => Promise<void> }> = {
+    purpose: {
+      title: "Life's Purpose & Mission",
+      fields: [{ key: 'purpose', kind: 'text', label: 'Purpose statement', value: fd.purpose }],
+      apply: v => onSave('foundation', { ...fd, purpose: v.purpose as string }),
+    },
+    vision: {
+      title: 'Vision for My Life',
+      fields: [{ key: 'vision', kind: 'text', label: 'Vision', value: fd.vision }],
+      apply: v => onSave('foundation', { ...fd, vision: v.vision as string }),
+    },
+    roleModels: {
+      title: 'Role Models',
+      fields: [{ key: 'roleModels', kind: 'lines', label: 'Role models (one per line)', value: fd.roleModels }],
+      apply: v => onSave('foundation', { ...fd, roleModels: v.roleModels as string[] }),
+    },
+    coreValues: {
+      title: 'Core Values',
+      fields: [{ key: 'coreValues', kind: 'pairs', label: 'Values — "Name | description" per line', value: fd.coreValues }],
+      apply: v => onSave('foundation', { ...fd, coreValues: v.coreValues as { name: string; desc: string }[] }),
+    },
+    gratitude: {
+      title: 'Gratitude',
+      fields: [{ key: 'gratitude', kind: 'lines', label: 'Gratitude (one per line)', value: rd.gratitude }],
+      apply: v => onSave('rituals', { ...rd, gratitude: v.gratitude as string[] }),
+    },
+    affirmations: {
+      title: 'Daily Affirmations',
+      fields: [{ key: 'affirmations', kind: 'lines', label: 'Affirmations (one per line)', value: rd.affirmations }],
+      apply: v => onSave('rituals', { ...rd, affirmations: v.affirmations as string[] }),
+    },
+    passions: {
+      title: "What I'm Passionate About",
+      fields: [
+        { key: 'energize', kind: 'lines', label: 'Activities that energize me', value: fd.passions.energize },
+        { key: 'talkAbout', kind: 'lines', label: 'Topics I could talk about for hours', value: fd.passions.talkAbout },
+        { key: 'recharge', kind: 'lines', label: 'How I recharge', value: fd.passions.recharge },
+        { key: 'mostMyself', kind: 'lines', label: 'When I feel most like myself', value: fd.passions.mostMyself },
+      ],
+      apply: v => onSave('foundation', { ...fd, passions: {
+        energize: v.energize as string[], talkAbout: v.talkAbout as string[],
+        recharge: v.recharge as string[], mostMyself: v.mostMyself as string[],
+      } }),
+    },
+    avoid: {
+      title: 'What to Avoid',
+      fields: [
+        { key: 'people', kind: 'lines', label: 'People to limit', value: fd.avoid.people },
+        { key: 'habits', kind: 'lines', label: 'Habits to break', value: fd.avoid.habits },
+        { key: 'environments', kind: 'lines', label: 'Environments to leave', value: fd.avoid.environments },
+        { key: 'mindsets', kind: 'lines', label: 'Mindsets to manage', value: fd.avoid.mindsets },
+      ],
+      apply: v => onSave('foundation', { ...fd, avoid: {
+        people: v.people as string[], habits: v.habits as string[],
+        environments: v.environments as string[], mindsets: v.mindsets as string[],
+      } }),
+    },
+    reminders: {
+      title: 'Things I Need to Remind Myself',
+      fields: [{ key: 'reminders', kind: 'lines', label: 'Reminders (one per line)', value: rd.reminders }],
+      apply: v => onSave('rituals', { ...rd, reminders: v.reminders as string[] }),
+    },
+  }
+
+  const active = editCard ? CARDS[editCard] : null
+
   return (
     <div className="space-y-5">
-      <div className="p-6 rounded-2xl text-center" style={{ background: 'linear-gradient(135deg,rgba(201,168,76,0.12),rgba(201,168,76,0.04))', border: '1px solid rgba(201,168,76,0.3)' }}>
+      {active && (
+        <FoundationEditModal
+          title={active.title}
+          fields={active.fields}
+          onSave={active.apply}
+          onClose={() => setEditCard(null)}
+        />
+      )}
+
+      <div className="p-6 rounded-2xl text-center relative" style={{ background: 'linear-gradient(135deg,rgba(201,168,76,0.12),rgba(201,168,76,0.04))', border: '1px solid rgba(201,168,76,0.3)' }}>
+        <EditPencil onClick={() => setEditCard('purpose')} />
         <p className="text-[11px] uppercase tracking-widest mb-3" style={{ color: 'rgba(201,168,76,0.6)' }}>Life&apos;s Purpose & Mission</p>
         <p className="text-lg leading-relaxed" style={{ fontFamily: 'var(--font-geist-sans)', fontStyle: 'italic', color: '#e8c97a', maxWidth: 700, margin: '0 auto' }}>
           &ldquo;{fd.purpose}&rdquo;
         </p>
       </div>
 
-      <FoundCard title="Vision for My Life" icon="🔭" accent="#C9A84C">
+      <FoundCard title="Vision for My Life" icon="🔭" accent="#C9A84C" onEdit={() => setEditCard('vision')}>
         <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{fd.vision}</p>
       </FoundCard>
 
-      <FoundCard title="Role Models" icon="👑" accent="#C9A84C">
+      <FoundCard title="Role Models" icon="👑" accent="#C9A84C" onEdit={() => setEditCard('roleModels')}>
         <div className="flex gap-3 flex-wrap mt-1">
           {fd.roleModels.map(rm => (
             <span key={rm} className="px-4 py-2 rounded-xl text-sm font-medium" style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#e8c97a' }}>{rm}</span>
@@ -864,7 +965,7 @@ function FoundationView() {
       </FoundCard>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <FoundCard title="Core Values" icon="🧭" accent="#C9A84C">
+        <FoundCard title="Core Values" icon="🧭" accent="#C9A84C" onEdit={() => setEditCard('coreValues')}>
           <div className="space-y-2 mt-1">
             {fd.coreValues.map((v, i) => (
               <div key={i} className="flex gap-2.5">
@@ -878,7 +979,7 @@ function FoundationView() {
           </div>
         </FoundCard>
         <div className="space-y-4">
-          <FoundCard title="Gratitude" icon="❤️" accent="#C9A84C">
+          <FoundCard title="Gratitude" icon="❤️" accent="#C9A84C" onEdit={() => setEditCard('gratitude')}>
             <div className="space-y-1.5 mt-1">
               {rd.gratitude.map((g, i) => (
                 <div key={i} className="flex gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -887,7 +988,7 @@ function FoundationView() {
               ))}
             </div>
           </FoundCard>
-          <FoundCard title="Daily Affirmations" icon="⚡" accent="#4361EE">
+          <FoundCard title="Daily Affirmations" icon="⚡" accent="#4361EE" onEdit={() => setEditCard('affirmations')}>
             <div className="space-y-1 mt-1">
               {rd.affirmations.map((a, i) => (
                 <div key={i} className="flex gap-2.5 text-sm px-2 py-1.5 rounded-lg" style={{ background: 'rgba(67,97,238,0.06)', borderLeft: '3px solid rgba(67,97,238,0.4)' }}>
@@ -900,7 +1001,7 @@ function FoundationView() {
         </div>
       </div>
 
-      <FoundCard title="What I&apos;m Passionate About" icon="🔥" accent="#C9A84C">
+      <FoundCard title="What I&apos;m Passionate About" icon="🔥" accent="#C9A84C" onEdit={() => setEditCard('passions')}>
         <div className="grid grid-cols-2 gap-4 mt-2">
           {([['Activities That Energize Me', fd.passions.energize], ['Topics I Could Talk About for Hours', fd.passions.talkAbout], ['How I Recharge', fd.passions.recharge], ["When I Feel Most Like Myself", fd.passions.mostMyself]] as [string, string[]][]).map(([label, items]) => (
             <div key={label}>
@@ -913,7 +1014,7 @@ function FoundationView() {
         </div>
       </FoundCard>
 
-      <FoundCard title="What to Avoid" icon="🛡️" accent="#C1121F">
+      <FoundCard title="What to Avoid" icon="🛡️" accent="#C1121F" onEdit={() => setEditCard('avoid')}>
         <div className="grid grid-cols-2 gap-4 mt-2">
           {([['People to Limit', fd.avoid.people], ['Habits to Break', fd.avoid.habits], ['Environments to Leave', fd.avoid.environments], ['Mindsets to Manage', fd.avoid.mindsets]] as [string, string[]][]).map(([label, items]) => (
             <div key={label}>
@@ -924,7 +1025,7 @@ function FoundationView() {
         </div>
       </FoundCard>
 
-      <FoundCard title="Things I Need to Remind Myself" icon="📌" accent="#2A9D8F">
+      <FoundCard title="Things I Need to Remind Myself" icon="📌" accent="#2A9D8F" onEdit={() => setEditCard('reminders')}>
         <div className="grid grid-cols-2 gap-2 mt-1">
           {rd.reminders.map((r, i) => (
             <div key={i} className="flex gap-2.5 text-sm px-3 py-2 rounded-lg" style={{ background: 'rgba(42,157,143,0.06)', borderLeft: '3px solid rgba(42,157,143,0.4)' }}>
@@ -943,10 +1044,21 @@ function FoundationView() {
   )
 }
 
-function FoundCard({ title, icon, accent, children }: { title: string; icon: string; accent: string; children: React.ReactNode }) {
+function EditPencil({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} title="Edit"
+      className="absolute top-3 right-3 p-1.5 rounded-md transition-all opacity-40 hover:opacity-100 hover:bg-white/[0.08]"
+      style={{ color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+      <Pencil size={13} strokeWidth={2} />
+    </button>
+  )
+}
+
+function FoundCard({ title, icon, accent, children, onEdit }: { title: string; icon: string; accent: string; children: React.ReactNode; onEdit?: () => void }) {
   return (
     <div className="p-5 rounded-2xl border relative overflow-hidden" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
       <div className="absolute left-0 top-0 bottom-0 w-0.5" style={{ background: accent }} />
+      {onEdit && <EditPencil onClick={onEdit} />}
       <div className="flex items-center gap-2 mb-3">
         <span>{icon}</span>
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h3>
