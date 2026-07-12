@@ -16,6 +16,16 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: 'var(--text-muted)',
 }
 
+function weekLabel(): string {
+  const now = new Date()
+  const mon = new Date(now)
+  mon.setDate(now.getDate() - ((now.getDay() + 6) % 7))
+  const fri = new Date(mon)
+  fri.setDate(mon.getDate() + 4)
+  const f = (d: Date) => d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })
+  return `${f(mon)}–${f(fri)}`
+}
+
 function ProgressBar({ value, max }: { value: number; max: number }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0
   const color = pct >= 100 ? '#22c55e' : pct >= 60 ? '#f59e0b' : 'var(--accent-cyan)'
@@ -69,7 +79,7 @@ export default function DashboardTab({ data }: Props) {
     { num: postsPublished, label: 'Posts Published', color: '#a855f7' },
   ]
 
-  const todayActions = [
+  const liveActions = [
     ...data.pipeline
       .filter((p) => p.priority === 'high' && p.next_step && p.status === 'active')
       .map((p) => ({ task: `${p.company}: ${p.next_step}`, urgency: 'high' as const })),
@@ -88,6 +98,23 @@ export default function DashboardTab({ data }: Props) {
         urgency: 'medium' as const,
       })),
   ]
+
+  // Rebuild mode: pipeline is empty — derive actions from reality instead of
+  // stale plans: add opportunities + re-engage contacts from closed history.
+  const reEngage = data.pipeline
+    .filter((p) => p.status === 'closed' && p.contact && !/tbd|recruiter$/i.test(p.contact))
+    .slice(0, 3)
+    .map((p) => ({
+      task: `Re-engage ${p.contact} (${p.company}) — new roles since spring?`,
+      urgency: 'medium' as const,
+    }))
+  const todayActions = activePipeline > 0
+    ? liveActions
+    : [
+        { task: 'Add real opportunities to the pipeline (Pipeline tab → + Add)', urgency: 'high' as const },
+        ...reEngage,
+        { task: 'Ping 2 exec recruiters (Korn Ferry, Spencer Stuart) with updated availability', urgency: 'medium' as const },
+      ]
 
   return (
     <div>
@@ -119,7 +146,7 @@ export default function DashboardTab({ data }: Props) {
               className="text-[13px] font-bold tracking-widest uppercase mb-4"
               style={{ color: 'var(--accent-cyan)' }}
             >
-              This Week&apos;s KPIs — {kpi.week_label}
+              This Week&apos;s KPIs — {weekLabel()}
             </h3>
             {[
               { label: 'Applications', val: kpi.apps, target: kpi.target_apps },
