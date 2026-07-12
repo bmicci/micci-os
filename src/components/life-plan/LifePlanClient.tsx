@@ -944,7 +944,7 @@ function FoundationView({ fd, rd, onSave }: {
         />
       )}
 
-      <div className="p-6 rounded-2xl text-center relative" style={{ background: 'linear-gradient(135deg,rgba(201,168,76,0.12),rgba(201,168,76,0.04))', border: '1px solid rgba(201,168,76,0.3)' }}>
+      <div className="p-6 rounded-2xl text-center relative group" style={{ background: 'linear-gradient(135deg,rgba(201,168,76,0.12),rgba(201,168,76,0.04))', border: '1px solid rgba(201,168,76,0.3)' }}>
         <EditPencil onClick={() => setEditCard('purpose')} />
         <p className="text-[11px] uppercase tracking-widest mb-3" style={{ color: 'rgba(201,168,76,0.6)' }}>Life&apos;s Purpose & Mission</p>
         <p className="text-lg leading-relaxed" style={{ fontFamily: 'var(--font-geist-sans)', fontStyle: 'italic', color: '#e8c97a', maxWidth: 700, margin: '0 auto' }}>
@@ -1047,7 +1047,7 @@ function FoundationView({ fd, rd, onSave }: {
 function EditPencil({ onClick }: { onClick: () => void }) {
   return (
     <button onClick={onClick} title="Edit"
-      className="absolute top-3 right-3 p-1.5 rounded-md transition-all opacity-40 hover:opacity-100 hover:bg-white/[0.08]"
+      className="absolute top-3 right-3 p-1.5 rounded-md transition-all opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-white/[0.08]"
       style={{ color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
       <Pencil size={13} strokeWidth={2} />
     </button>
@@ -1056,7 +1056,7 @@ function EditPencil({ onClick }: { onClick: () => void }) {
 
 function FoundCard({ title, icon, accent, children, onEdit }: { title: string; icon: string; accent: string; children: React.ReactNode; onEdit?: () => void }) {
   return (
-    <div className="p-5 rounded-2xl border relative overflow-hidden" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+    <div className="p-5 rounded-2xl border relative overflow-hidden group" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
       <div className="absolute left-0 top-0 bottom-0 w-0.5" style={{ background: accent }} />
       {onEdit && <EditPencil onClick={onEdit} />}
       <div className="flex items-center gap-2 mb-3">
