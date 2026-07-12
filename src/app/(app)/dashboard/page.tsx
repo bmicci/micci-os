@@ -278,8 +278,12 @@ export default async function DashboardPage() {
           <Wallet size={12} strokeWidth={2} className="inline mr-1 -mt-0.5" /> Financial · <b className="text-[var(--text-primary)]">live</b>
         </Link>
         <Link href="/job-search" className="text-[11.5px] px-3 py-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
-          style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)' }}>
-          <Briefcase size={12} strokeWidth={2} className="inline mr-1 -mt-0.5" /> Job Search · <b className="text-[var(--text-primary)]">{activePipeline.length} active</b>
+          style={{
+            border: `1px solid ${activePipeline.length === 0 ? 'rgba(239,68,68,0.45)' : 'rgba(255,255,255,0.1)'}`,
+            background: activePipeline.length === 0 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.03)',
+            color: activePipeline.length === 0 ? '#f87171' : 'var(--text-secondary)',
+          }}>
+          <Briefcase size={12} strokeWidth={2} className="inline mr-1 -mt-0.5" /> Job Search · <b style={{ color: activePipeline.length === 0 ? '#ef4444' : 'var(--text-primary)' }}>{activePipeline.length === 0 ? 'pipeline empty' : `${activePipeline.length} active`}</b>
         </Link>
         <Link href="/health" className="text-[11.5px] px-3 py-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
           style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)' }}>

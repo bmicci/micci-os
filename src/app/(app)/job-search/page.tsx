@@ -1,20 +1,26 @@
 import { getJobSearchData } from '@/lib/job-search-data-service'
+import { getFinancialData } from '@/lib/financial-data-service'
 import JobSearchApp from '@/components/job-search/JobSearchApp'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Job Search — Micci OS' }
 
-const SPRINT_END = new Date('2026-04-30')
-
-function getSprintDaysRemaining() {
-  const now = new Date()
-  const diff = Math.ceil((SPRINT_END.getTime() - now.getTime()) / 86400000)
-  return Math.max(0, diff)
-}
+// De-sprinted (rule: time never freezes). The header derives from live
+// pipeline state + the real cash runway — the number this search is racing.
 
 export default async function JobSearchPage() {
-  const data = await getJobSearchData()
-  const daysRemaining = getSprintDaysRemaining()
+  const [data, fin] = await Promise.all([getJobSearchData(), getFinancialData()])
+
+  const active = data.pipeline.filter(p =>
+    ['active', 'waiting', 'offer'].includes(String(p.status).toLowerCase()),
+  ).length
+  const closed = data.pipeline.length - active
+
+  const liquid = fin.assets.cash + fin.assets.savings
+  const burn = fin.burnAnalysis.hasData ? fin.burnAnalysis.monthlyNetBurn : 0
+  const runwayMonths = burn > 0 ? liquid / burn : Infinity
+
+  const pipelineEmpty = active === 0
 
   return (
     <div className="flex flex-col min-h-full">
@@ -29,26 +35,29 @@ export default async function JobSearchPage() {
         <div>
           <div
             className="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full mb-1.5"
-            style={{ background: 'rgba(0,212,255,0.15)', color: 'var(--accent-cyan)' }}
+            style={{
+              background: pipelineEmpty ? 'rgba(239,68,68,0.15)' : 'rgba(0,212,255,0.15)',
+              color: pipelineEmpty ? '#ef4444' : 'var(--accent-cyan)',
+            }}
           >
-            APRIL SPRINT · POST-JPMC
+            {pipelineEmpty ? 'PIPELINE EMPTY — REBUILD MODE' : `${active} ACTIVE CONVERSATIONS`}
           </div>
           <h1 className="text-lg font-bold gradient-text">
             Job Search Command Center
           </h1>
           <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
-            March 24 – April 30, 2026 · Full-time execution mode
+            {closed > 0 ? `${closed} closed in history · ` : ''}Every week here is a week of runway
           </p>
         </div>
         <div className="text-right">
           <div
             className="text-2xl font-extrabold"
-            style={{ color: daysRemaining <= 14 ? '#f59e0b' : 'var(--accent-cyan)' }}
+            style={{ color: runwayMonths < 4 ? '#ef4444' : '#f59e0b' }}
           >
-            {daysRemaining}
+            {runwayMonths === Infinity ? '∞' : `${runwayMonths.toFixed(1)} mo`}
           </div>
           <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            days remaining in sprint
+            cash runway — the clock that matters
           </div>
         </div>
       </header>
