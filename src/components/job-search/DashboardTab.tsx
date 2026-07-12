@@ -68,7 +68,10 @@ export default function DashboardTab({ data }: Props) {
   const postsPublished = data.content.filter((c) => c.status === 'published').length
 
   // Current week KPIs (find based on week_number closest to now)
-  const kpi = data.weeklyKpis[0]
+  const kpi = data.weeklyKpis[0] ?? {
+    apps: 0, outreach: 0, posts: 0, comments: 0, interviews: 0,
+    target_apps: 8, target_outreach: 6, target_posts: 2, target_comments: 15, target_interviews: 2,
+  }
 
   const metrics = [
     { num: activePipeline, label: 'Active Pipeline', color: '#22c55e' },

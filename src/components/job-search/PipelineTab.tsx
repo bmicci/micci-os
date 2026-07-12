@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Pencil, Trash2 } from 'lucide-react'
 import type { JobSearchData } from '@/lib/job-search-data'
 import type { DbJobPipeline } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
@@ -19,12 +20,16 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: 'var(--text-muted)',
 }
 
+// Sort: live conversations first (by priority), closed history last
+const STATUS_ORDER: Record<string, number> = { offer: 0, active: 1, waiting: 2, rejected: 3, closed: 4 }
+const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 }
+
 interface Props {
   data: JobSearchData
   setData: React.Dispatch<React.SetStateAction<JobSearchData>>
 }
 
-const emptyItem: {
+type FormShape = {
   company: string
   role: string
   status: 'active' | 'waiting' | 'rejected' | 'offer' | 'closed'
@@ -34,7 +39,9 @@ const emptyItem: {
   next_step: string
   priority: 'high' | 'medium' | 'low'
   notes: string
-} = {
+}
+
+const emptyItem: FormShape = {
   company: '',
   role: '',
   status: 'active',
@@ -47,38 +54,71 @@ const emptyItem: {
 }
 
 export default function PipelineTab({ data, setData }: Props) {
-  const [showAdd, setShowAdd] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyItem)
+  const [error, setError] = useState<string | null>(null)
 
-  const addItem = async () => {
-    if (!form.company) return
-    const newItem: DbJobPipeline = {
-      id: crypto.randomUUID(),
-      company: form.company,
-      role: form.role,
-      status: form.status,
-      stage: form.stage,
-      contact: form.contact || null,
-      last_action: form.last_action || null,
-      next_step: form.next_step || null,
-      priority: form.priority,
-      notes: form.notes || null,
-      sort_order: data.pipeline.length,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-
-    setData((s) => ({ ...s, pipeline: [...s.pipeline, newItem] }))
+  const openAdd = () => {
+    setEditingId(null)
     setForm(emptyItem)
-    setShowAdd(false)
+    setShowForm(true)
+    setError(null)
+  }
 
-    try {
-      const supabase = createClient()
-      const { id: _id, created_at: _ca, updated_at: _ua, ...insert } = newItem
-      await supabase.from('job_pipeline').insert(insert)
-    } catch {
-      // Supabase may not have table yet — local state still works
+  const openEdit = (p: DbJobPipeline) => {
+    setEditingId(p.id)
+    setForm({
+      company: p.company,
+      role: p.role,
+      status: p.status,
+      stage: p.stage ?? '',
+      contact: p.contact ?? '',
+      last_action: p.last_action ?? '',
+      next_step: p.next_step ?? '',
+      priority: p.priority,
+      notes: p.notes ?? '',
+    })
+    setShowForm(true)
+    setError(null)
+  }
+
+  const toRow = () => ({
+    company: form.company,
+    role: form.role,
+    status: form.status,
+    stage: form.stage,
+    contact: form.contact || null,
+    last_action: form.last_action || null,
+    next_step: form.next_step || null,
+    priority: form.priority,
+    notes: form.notes || null,
+    updated_at: new Date().toISOString(),
+  })
+
+  const save = async () => {
+    if (!form.company) return
+    const supabase = createClient()
+    setError(null)
+
+    if (editingId) {
+      const row = toRow()
+      const { error: err } = await supabase.from('job_pipeline').update(row).eq('id', editingId)
+      if (err) { setError(`Save failed: ${err.message}`); return }
+      setData((s) => ({
+        ...s,
+        pipeline: s.pipeline.map((p) => (p.id === editingId ? { ...p, ...row } : p)),
+      }))
+    } else {
+      const insert = { ...toRow(), sort_order: data.pipeline.length }
+      const { data: created, error: err } = await supabase
+        .from('job_pipeline').insert(insert).select().single()
+      if (err) { setError(`Save failed: ${err.message}`); return }
+      setData((s) => ({ ...s, pipeline: [...s.pipeline, created as DbJobPipeline] }))
     }
+    setForm(emptyItem)
+    setEditingId(null)
+    setShowForm(false)
   }
 
   const updateStatus = async (id: string, status: string) => {
@@ -88,15 +128,27 @@ export default function PipelineTab({ data, setData }: Props) {
         p.id === id ? { ...p, status: status as DbJobPipeline['status'] } : p
       ),
     }))
-    try {
-      const supabase = createClient()
-      await supabase.from('job_pipeline').update({ status }).eq('id', id)
-    } catch {}
+    const supabase = createClient()
+    await supabase.from('job_pipeline')
+      .update({ status, updated_at: new Date().toISOString() }).eq('id', id)
+  }
+
+  const deleteItem = async (p: DbJobPipeline) => {
+    if (!window.confirm(`Delete ${p.company} — ${p.role}? (Consider "closed" instead to keep the history.)`)) return
+    setData((s) => ({ ...s, pipeline: s.pipeline.filter((x) => x.id !== p.id) }))
+    const supabase = createClient()
+    await supabase.from('job_pipeline').delete().eq('id', p.id)
   }
 
   const activeCount = data.pipeline.filter(
     (p) => p.status === 'active' || p.status === 'waiting'
   ).length
+
+  const sorted = [...data.pipeline].sort((a, b) => {
+    const so = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9)
+    if (so !== 0) return so
+    return (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9)
+  })
 
   const inputStyle: React.CSSProperties = {
     background: 'rgba(0,0,0,0.3)',
@@ -119,35 +171,34 @@ export default function PipelineTab({ data, setData }: Props) {
         <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
           {data.pipeline.length} total · {activeCount} active
         </div>
-        <button
-          onClick={() => setShowAdd(!showAdd)}
-          className="px-4 py-2 rounded-lg text-[11px] font-semibold tracking-wide uppercase"
-          style={{
-            background: 'var(--accent-gradient)',
-            color: '#050505',
-            border: 'none',
-            cursor: 'pointer',
-          }}
-        >
+        <button onClick={openAdd} className="btn btn-primary btn-sm" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           + Add Opportunity
         </button>
       </div>
 
-      {showAdd && (
-        <div
-          className="glass-card p-5 mb-4"
-          style={{ borderColor: 'var(--accent-cyan)' }}
-        >
+      {showForm && (
+        <div className="glass-card p-5 mb-4" style={{ borderColor: 'var(--accent-cyan)' }}>
+          <div className="text-[12px] font-bold mb-3" style={{ color: 'var(--accent-cyan)' }}>
+            {editingId ? 'Edit opportunity' : 'New opportunity'}
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
             <input style={inputStyle} placeholder="Company" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
             <input style={inputStyle} placeholder="Role / Title" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
             <input style={inputStyle} placeholder="Stage (e.g., Applied, Phone Screen)" value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value })} />
             <input style={inputStyle} placeholder="Contact name" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
+            <input style={inputStyle} placeholder="Last action taken" value={form.last_action} onChange={(e) => setForm({ ...form, last_action: e.target.value })} />
             <input style={inputStyle} placeholder="Next step" value={form.next_step} onChange={(e) => setForm({ ...form, next_step: e.target.value })} />
-            <select style={selectStyle} value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value as 'high' | 'medium' | 'low' })}>
+            <select style={selectStyle} value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value as FormShape['priority'] })}>
               <option value="high">High Priority</option>
               <option value="medium">Medium Priority</option>
               <option value="low">Low Priority</option>
+            </select>
+            <select style={selectStyle} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as FormShape['status'] })}>
+              <option value="active">Active</option>
+              <option value="waiting">Waiting</option>
+              <option value="offer">Offer!</option>
+              <option value="rejected">Rejected</option>
+              <option value="closed">Closed</option>
             </select>
           </div>
           <textarea
@@ -156,30 +207,34 @@ export default function PipelineTab({ data, setData }: Props) {
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
           />
+          {error && (
+            <div className="text-[11px] mt-2" style={{ color: '#ef4444' }}>{error}</div>
+          )}
           <div className="flex gap-2 mt-3">
-            <button
-              onClick={addItem}
-              className="px-4 py-2 rounded-lg text-[11px] font-semibold uppercase"
-              style={{ background: 'var(--accent-cyan)', color: '#050505', border: 'none', cursor: 'pointer' }}
-            >
-              Save
+            <button onClick={save} className="btn btn-primary btn-sm" style={{ textTransform: 'uppercase' }}>
+              {editingId ? 'Save changes' : 'Save'}
             </button>
-            <button
-              onClick={() => setShowAdd(false)}
-              className="px-4 py-2 rounded-lg text-[11px] font-semibold uppercase"
-              style={{ background: 'transparent', color: 'var(--accent-cyan)', border: '1px solid var(--accent-cyan)', cursor: 'pointer' }}
-            >
+            <button onClick={() => { setShowForm(false); setEditingId(null) }} className="btn btn-ghost btn-sm" style={{ textTransform: 'uppercase' }}>
               Cancel
             </button>
           </div>
         </div>
       )}
 
-      {data.pipeline.map((p) => (
+      {sorted.length === 0 && (
+        <div className="glass-card p-8 text-center text-[12.5px]" style={{ color: 'var(--text-muted)' }}>
+          Pipeline is empty — add your first opportunity above.
+        </div>
+      )}
+
+      {sorted.map((p) => (
         <div
           key={p.id}
           className="glass-card p-5 mb-3"
-          style={{ borderLeft: `3px solid ${PRIORITY_COLORS[p.priority]}` }}
+          style={{
+            borderLeft: `3px solid ${PRIORITY_COLORS[p.priority]}`,
+            opacity: p.status === 'closed' || p.status === 'rejected' ? 0.6 : 1,
+          }}
         >
           <div className="flex justify-between items-start flex-wrap gap-2">
             <div>
@@ -212,6 +267,16 @@ export default function PipelineTab({ data, setData }: Props) {
                 <option value="rejected">Rejected</option>
                 <option value="closed">Closed</option>
               </select>
+              <button onClick={() => openEdit(p)} title="Edit"
+                className="p-1.5 rounded-md transition-colors hover:bg-white/[0.08]"
+                style={{ color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', cursor: 'pointer' }}>
+                <Pencil size={13} strokeWidth={2} />
+              </button>
+              <button onClick={() => deleteItem(p)} title="Delete"
+                className="p-1.5 rounded-md transition-colors hover:bg-red-500/15"
+                style={{ color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', cursor: 'pointer' }}>
+                <Trash2 size={13} strokeWidth={2} />
+              </button>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 text-[11px]">
