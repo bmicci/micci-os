@@ -202,7 +202,7 @@ export default function DashboardTab({ data }: Props) {
           className="text-[13px] font-bold tracking-widest uppercase mb-4"
           style={{ color: 'var(--accent-cyan)' }}
         >
-          Active Pipeline — Quick View
+          Pipeline — Quick View
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-[12px]" style={{ borderCollapse: 'collapse' }}>
@@ -280,6 +280,47 @@ export default function DashboardTab({ data }: Props) {
                     </td>
                   </tr>
                 ))}
+              {data.pipeline.filter((p) => p.status !== 'closed').length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-3 py-4 text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
+                    No active conversations yet — add real opportunities in the Pipeline tab.
+                  </td>
+                </tr>
+              )}
+              {data.pipeline.some((p) => p.status === 'closed') && (
+                <>
+                  <tr>
+                    <td colSpan={5} className="px-3 pt-4 pb-1 text-[10px] font-bold tracking-widest uppercase"
+                      style={{ color: 'var(--text-muted)' }}>
+                      Interview history — stages reached & contacts worth re-engaging
+                    </td>
+                  </tr>
+                  {data.pipeline
+                    .filter((p) => p.status === 'closed')
+                    .map((p) => (
+                      <tr key={p.id} style={{ opacity: 0.65 }}>
+                        <td className="px-3 py-2 font-semibold" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid rgba(0,212,255,0.04)' }}>
+                          {p.company}
+                        </td>
+                        <td className="px-3 py-2 text-[11px]" style={{ color: 'var(--text-muted)', borderBottom: '1px solid rgba(0,212,255,0.04)' }}>
+                          {p.role}
+                        </td>
+                        <td className="px-3 py-2 text-[11px]" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid rgba(0,212,255,0.04)' }}>
+                          {p.stage}
+                        </td>
+                        <td className="px-3 py-2" style={{ borderBottom: '1px solid rgba(0,212,255,0.04)' }}>
+                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase"
+                            style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            closed
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-[11px]" style={{ color: 'var(--text-muted)', borderBottom: '1px solid rgba(0,212,255,0.04)' }}>
+                          {p.contact ?? '—'}
+                        </td>
+                      </tr>
+                    ))}
+                </>
+              )}
             </tbody>
           </table>
         </div>
