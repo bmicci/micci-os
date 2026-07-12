@@ -212,7 +212,7 @@ export default function LifePlanClient({ initialSections, initialGoals }: Props)
           {activeView === 'goals' && (
             <>
               <div className="flex gap-1.5 flex-wrap">
-                {([['all', 'All Ages'], ['40', 'Age 40'], ['45', 'Age 45'], ['50', 'Age 50'], ['55', 'Age 55'], ['60', 'Age 60']] as [string, string][]).map(([f, label]) => (
+                {([['all', 'All Ages'], ['40', 'Age 40'], ['45', 'Age 45'], ['50', 'Age 50'], ...(goals.some(g => g.timeframe === '55') ? [['55', 'Age 55']] : []), ['60', 'Age 60']] as [string, string][]).map(([f, label]) => (
                   <button key={f} onClick={() => setActiveFilter(f)}
                     className="px-3 py-1.5 rounded-full text-xs font-medium border transition-all"
                     style={{ background: activeFilter === f ? 'var(--accent-cyan)' : 'transparent', color: activeFilter === f ? '#000' : 'var(--text-secondary)', borderColor: activeFilter === f ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.1)' }}>
@@ -501,6 +501,10 @@ function AddBtn({ onClick }: { onClick: () => void }) {
 
 // ── TIMELINE VIEW ─────────────────────────────────────────────
 function TimelineView({ sections, goals, onToggle }: { sections: DBSection[]; goals: DBGoal[]; onToggle: (id: string) => void }) {
+  // Age 55 stays hidden until its first goal exists — no empty columns
+  const tfCols = (['40', '45', '50', '55', '60'] as const).filter(
+    tf => tf !== '55' || goals.some(g => g.timeframe === '55'),
+  )
   return (
     <div style={{ overflowX: 'auto', paddingBottom: 20 }}>
       <table style={{ minWidth: 900, borderCollapse: 'collapse', width: '100%' }}>
@@ -508,7 +512,7 @@ function TimelineView({ sections, goals, onToggle }: { sections: DBSection[]; go
           <tr>
             <th className="text-left text-xs font-semibold uppercase tracking-widest px-3 py-3"
               style={{ color: 'var(--text-muted)', width: 160, background: 'var(--card-bg)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Life Area</th>
-            {(['40', '45', '50', '55', '60'] as const).map(tf => (
+            {tfCols.map(tf => (
               <th key={tf} className="text-left text-xs font-semibold px-3 py-3"
                 style={{ color: 'var(--text-primary)', background: tf === '40' ? 'rgba(0,212,255,0.06)' : 'var(--card-bg)', borderBottom: tf === '40' ? '2px solid var(--accent-cyan)' : '1px solid rgba(255,255,255,0.06)' }}>
                 Age {tf}{tf === '40' ? ' ↗ Now' : ''}
@@ -521,7 +525,7 @@ function TimelineView({ sections, goals, onToggle }: { sections: DBSection[]; go
             <tr key={s.id}>
               <td className="px-3 py-2 text-xs font-semibold"
                 style={{ color: s.color_hex, background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.04)', verticalAlign: 'top' }}>{s.name}</td>
-              {(['40', '45', '50', '55', '60'] as const).map(tf => {
+              {tfCols.map(tf => {
                 const all = goals.filter(g => g.section_id === s.id && g.timeframe === tf)
                 return (
                   <td key={tf} className="px-2 py-1.5" style={{ background: 'transparent', borderBottom: '1px solid rgba(255,255,255,0.04)', verticalAlign: 'top' }}>
