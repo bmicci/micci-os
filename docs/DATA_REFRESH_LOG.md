@@ -6,7 +6,7 @@ data. Three categories:
 - 🔁 **ROUTINE** — recurring refresh, with cadence and method
 - ⚙️ **AUTO** — refreshes itself; listed so nobody re-builds it
 
-_Last updated: Jul 13, 2026_
+_Last updated: Jul 14, 2026_
 
 ---
 
@@ -79,5 +79,8 @@ _Last updated: Jul 13, 2026_
 
 | Item | Type | How | Status |
 |---|---|---|---|
-| Planner | — | Rebuild in progress (Battle Plan → archive, week from today) | 🔨 |
+| This Week schedule | ⚙️ AUTO | Regenerates from `LIVE_TEMPLATE` + today's date every load | ✅ rebuilt Jul 14 |
+| Daily block completions | 🔁 daily | Tap a block in This Week — keyed by real date, not week #  | Fresh, 0 checked |
+| Custom/edited blocks (This Week) | 🔁 as-desired | Edit mode → ✏/✕/add — persists to `schedule_blocks` (`week=0`) | Empty |
+| Battle Plan (Feb 27–Mar 31) | — | Archived read-only under Planner → Archive tab | 🔒 frozen, preserved |
 | Tasks | — | Pending merge into Action Center | Backlog |

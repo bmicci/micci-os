@@ -1012,3 +1012,101 @@ export const WEEK_LABELS: Record<number, string> = {
 export function getDaysForWeek(week: number): Day[] {
   return DAYS.filter(d => d.week === week)
 }
+
+// ── Live weekly rhythm template ─────────────────────────────
+// Everything above (DAYS, MAR19, MILESTONES) is the archived Feb 27 – Mar 31
+// "Battle Plan" — a snapshot of the JPMC-exit sprint. It's preserved as
+// historical record, never edited. The live Planner instead generates
+// "this week" from LIVE_TEMPLATE + today's actual date (rule: time never
+// freezes). Job search / HELOC / tax / TRT content now lives in their own
+// sections (Job Search, Financial, Health) — this template only covers the
+// evergreen daily rhythm (sleep, fitness, meals) plus open blocks the user
+// fills in day to day.
+
+export type DowKey = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun'
+
+export const DOW_ORDER: DowKey[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+const weekdayBase = (gymTask: string): DayBlock[] => [
+  { t: '7:00 AM', cat: 'sleep',    task: 'Wake up — sunlight, hydrate' },
+  { t: '7:15',    cat: 'wellness', task: 'Meditation + journaling' },
+  { t: '7:30',    cat: 'recovery', task: 'Morning stretch (15-20 min)' },
+  { t: '8:00',    cat: 'fitness',  task: gymTask },
+  { t: '9:15',    cat: 'personal', task: 'Breakfast' },
+  { t: '10:00',   cat: 'personal', task: 'Open block — deep work, job search, or errands' },
+  { t: '12:30',   cat: 'personal', task: 'Lunch' },
+  { t: '1:15 PM', cat: 'personal', task: 'Open block — deep work, errands, or personal projects' },
+  { t: '4:00',    cat: 'fitness',  task: 'Outdoor walk (30-45 min)' },
+  { t: '6:00',    cat: 'personal', task: 'Dinner' },
+  { t: '7:00',    cat: 'personal', task: 'Free time' },
+  { t: '10:00',   cat: 'sleep',    task: 'Wind down' },
+  { t: '11:00',   cat: 'sleep',    task: 'Lights out' },
+]
+
+export const LIVE_TEMPLATE: Record<DowKey, DayBlock[]> = {
+  Mon: weekdayBase('Gym: Heavy legs — squats, deadlifts, hip thrusts (60 min)'),
+  Tue: weekdayBase('Gym: Heavy pull — rows, pull-ups, face pulls, curls (60 min)'),
+  Wed: weekdayBase('Gym: Heavy push — bench, OHP, incline DB (60 min)'),
+  Thu: weekdayBase('Gym: Legs + core — front squats, RDLs, lunges, planks (60 min)'),
+  Fri: weekdayBase('Gym: Full body (60 min)'),
+  Sat: [
+    { t: '8:00 AM', cat: 'sleep',    task: 'Wake up naturally (by 8:00)' },
+    { t: '8:15',    cat: 'wellness', task: 'Meditation + gratitude journal' },
+    { t: '8:30',    cat: 'recovery', task: 'Extended stretch (20-30 min)' },
+    { t: '9:15',    cat: 'personal', task: 'Breakfast + coffee' },
+    { t: '10:00',   cat: 'recovery', task: '💆 Massage (60-90 min)' },
+    { t: '11:30',   cat: 'fitness',  task: 'Outdoor: cycling, hike, or long walk (60-90 min)' },
+    { t: '1:00 PM', cat: 'personal', task: 'Lunch' },
+    { t: '1:45',    cat: 'personal', task: 'House: clean, laundry, organize' },
+    { t: '3:15',    cat: 'personal', task: 'Grocery shopping + meal prep' },
+    { t: '5:00',    cat: 'recovery', task: '🧖 IR sauna (30-45 min)' },
+    { t: '6:00',    cat: 'personal', task: 'Free time — hobbies' },
+    { t: '7:30',    cat: 'personal', task: 'Social: dinner out, friends, date' },
+    { t: '10:30',   cat: 'sleep',    task: 'Wind down' },
+    { t: '11:00',   cat: 'sleep',    task: 'Lights out' },
+  ],
+  Sun: [
+    { t: '8:00 AM', cat: 'sleep',    task: 'Wake up — sunlight, hydrate' },
+    { t: '8:15',    cat: 'wellness', task: 'Meditation + gratitude journal' },
+    { t: '8:30',    cat: 'recovery', task: 'Extended stretch (20-30 min) — yoga flow' },
+    { t: '9:15',    cat: 'personal', task: 'Breakfast' },
+    { t: '10:00',   cat: 'personal', task: 'Weekly planning: review last week, set priorities ahead' },
+    { t: '12:00',   cat: 'personal', task: 'Lunch' },
+    { t: '2:30',    cat: 'recovery', task: 'Optional 2nd massage (or rest)' },
+    { t: '4:00',    cat: 'fitness',  task: 'Gym: Upper body (60 min)' },
+    { t: '5:15',    cat: 'fitness',  task: 'Outdoor walk (30 min)' },
+    { t: '6:00',    cat: 'personal', task: 'Dinner' },
+    { t: '7:00',    cat: 'personal', task: 'Free time — prep for the week' },
+    { t: '10:00',   cat: 'sleep',    task: 'Wind down' },
+    { t: '11:00',   cat: 'sleep',    task: 'Lights out' },
+  ],
+}
+
+export interface LiveDay {
+  isoDate: string   // YYYY-MM-DD
+  dow: DowKey
+  label: string     // "Mon, Jul 13"
+  isToday: boolean
+}
+
+/** The 7 real calendar days (Mon–Sun) of the week containing `ref`. */
+export function getCurrentWeekDates(ref: Date = new Date()): LiveDay[] {
+  const todayIso = ref.toISOString().slice(0, 10)
+  const dayOfWeek = ref.getDay() // 0=Sun..6=Sat
+  const mondayOffset = (dayOfWeek + 6) % 7
+  const monday = new Date(ref)
+  monday.setDate(ref.getDate() - mondayOffset)
+  monday.setHours(0, 0, 0, 0)
+
+  return DOW_ORDER.map((dow, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    const isoDate = d.toISOString().slice(0, 10)
+    return {
+      isoDate,
+      dow,
+      label: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+      isToday: isoDate === todayIso,
+    }
+  })
+}

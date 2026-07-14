@@ -16,15 +16,14 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { DAYS, WEEK_LABELS, getDaysForWeek, CAT, CC } from '@/lib/planner-data'
+import { LIVE_TEMPLATE, LiveDay, CAT, CC } from '@/lib/planner-data'
 import { ScheduleBlock } from '@/lib/supabase/types'
-import { MergedBlock, mergeBlocks } from '@/lib/planner-utils'
+import { MergedBlock, mergeLiveBlocks } from '@/lib/planner-utils'
 
 // ── Sortable block row ────────────────────────────────────
 
 interface BlockRowProps {
   block: MergedBlock
-  completionKey: string
   checked: boolean
   editMode: boolean
   onToggle: () => void
@@ -32,7 +31,7 @@ interface BlockRowProps {
   onDelete: () => void
 }
 
-function SortableBlockRow({ block, completionKey, checked, editMode, onToggle, onEdit, onDelete }: BlockRowProps) {
+function SortableBlockRow({ block, checked, editMode, onToggle, onEdit, onDelete }: BlockRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: block.id,
     disabled: !editMode,
@@ -63,7 +62,6 @@ function SortableBlockRow({ block, completionKey, checked, editMode, onToggle, o
       style={rowStyle}
       className="w-full flex gap-2 rounded-xl border px-3 py-2.5 items-stretch transition-colors duration-150"
     >
-      {/* Drag handle — only in edit mode */}
       {editMode && (
         <div
           {...attributes}
@@ -75,12 +73,10 @@ function SortableBlockRow({ block, completionKey, checked, editMode, onToggle, o
         </div>
       )}
 
-      {/* Time */}
       <div className="w-14 shrink-0 pt-0.5">
         <span className="text-[11px] text-[var(--text-muted)] font-mono tabular-nums">{block.time_label}</span>
       </div>
 
-      {/* Content — click to toggle in view mode */}
       <button
         className="flex-1 min-w-0 text-left"
         onClick={editMode ? undefined : onToggle}
@@ -108,7 +104,6 @@ function SortableBlockRow({ block, completionKey, checked, editMode, onToggle, o
         </div>
       </button>
 
-      {/* Edit mode: edit + delete buttons */}
       {editMode && (
         <div className="flex items-center gap-1 shrink-0">
           <button
@@ -130,7 +125,6 @@ function SortableBlockRow({ block, completionKey, checked, editMode, onToggle, o
         </div>
       )}
 
-      {/* View mode: checkbox */}
       {!editMode && (
         <button onClick={onToggle} className="shrink-0 self-center">
           <div
@@ -148,79 +142,62 @@ function SortableBlockRow({ block, completionKey, checked, editMode, onToggle, o
   )
 }
 
-// ── Main ScheduleTab ──────────────────────────────────────
+// ── Main LiveScheduleTab ──────────────────────────────────
 
 interface Props {
-  week: number
+  weekDates: LiveDay[]
   dayIdx: number
   completions: Set<string>
   customBlocks: ScheduleBlock[]
-  setWeek: (w: number) => void
   setDayIdx: (i: number) => void
   toggle: (key: string) => void
   onViewModeChange?: (mode: 'day' | 'week') => void
-  onAddBlock: (week: number, dayIdx: number, dayDate: string) => void
-  onEditBlock: (block: MergedBlock, dayDate: string, week: number, dayIdx: number) => void
-  onDeleteBlock: (block: MergedBlock) => void
-  onReorderBlocks: (reordered: MergedBlock[]) => void
+  onAddBlock: (day: LiveDay) => void
+  onEditBlock: (block: MergedBlock, day: LiveDay) => void
+  onDeleteBlock: (block: MergedBlock, day: LiveDay) => void
+  onReorderBlocks: (reordered: MergedBlock[], day: LiveDay) => void
 }
 
-export default function ScheduleTab({
-  week, dayIdx, completions, customBlocks,
-  setWeek, setDayIdx, toggle, onViewModeChange,
-  onAddBlock, onEditBlock, onDeleteBlock, onReorderBlocks,
+export default function LiveScheduleTab({
+  weekDates, dayIdx, completions, customBlocks,
+  setDayIdx, toggle, onViewModeChange, onAddBlock, onEditBlock, onDeleteBlock, onReorderBlocks,
 }: Props) {
   const [viewMode, setViewMode] = useState<'day' | 'week'>('day')
   const [editMode, setEditMode] = useState(false)
-
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   function changeViewMode(mode: 'day' | 'week') {
     setViewMode(mode)
     onViewModeChange?.(mode)
   }
 
-  const wDays = getDaysForWeek(week)
-  const day = wDays[dayIdx] ?? wDays[0]
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
-  const merged = day ? mergeBlocks(day, week, dayIdx, customBlocks) : []
+  const day = weekDates[dayIdx] ?? weekDates[0]
+  const merged = day ? mergeLiveBlocks(LIVE_TEMPLATE[day.dow], day.isoDate, customBlocks) : []
   const done = merged.filter(b => completions.has(b.completionKey)).length
   const pct = merged.length ? Math.round((done / merged.length) * 100) : 0
 
-  const isJpmc = day?.tag.includes('JPMC') ?? false
-  const isDeadline = day?.tag.includes('Deadline') || day?.tag.includes('Days to')
+  const weekRangeLabel = weekDates.length
+    ? `${weekDates[0].label} – ${weekDates[6].label}`
+    : ''
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
-    if (!over || active.id === over.id) return
+    if (!over || active.id === over.id || !day) return
     const oldIdx = merged.findIndex(b => b.id === active.id)
     const newIdx = merged.findIndex(b => b.id === over.id)
     if (oldIdx < 0 || newIdx < 0) return
     const reordered = arrayMove(merged, oldIdx, newIdx)
-    onReorderBlocks(reordered)
+    onReorderBlocks(reordered, day)
   }
 
   return (
     <div className="space-y-4">
-      {/* Week nav + view toggle + edit toggle */}
+      {/* Week label + edit + view toggle */}
       <div className="flex items-center gap-2">
-        <div className="flex gap-2 flex-wrap flex-1">
-          {([1, 2, 3, 4, 5] as const).map((w) => (
-            <button
-              key={w}
-              onClick={() => { setWeek(w); setDayIdx(0) }}
-              className="px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all duration-150 whitespace-nowrap"
-              style={{
-                background: week === w ? (w === 4 ? '#dc2626' : '#1e3a5f') : 'var(--card-bg)',
-                borderColor: week === w ? (w === 4 ? '#ef4444' : 'var(--accent-blue)') : 'var(--card-border)',
-                color: week === w ? '#fff' : 'var(--text-muted)',
-              }}
-            >
-              {WEEK_LABELS[w]}
-            </button>
-          ))}
+        <div className="flex-1 text-[11px] font-semibold text-[var(--text-muted)]">
+          This week · {weekRangeLabel}
         </div>
-        {/* Edit mode toggle */}
         <button
           onClick={() => setEditMode(e => !e)}
           className="shrink-0 px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all duration-150"
@@ -233,7 +210,6 @@ export default function ScheduleTab({
         >
           {editMode ? '✓ Done' : '✏ Edit'}
         </button>
-        {/* Day / Week toggle */}
         <button
           onClick={() => changeViewMode(viewMode === 'day' ? 'week' : 'day')}
           className="shrink-0 px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all duration-150"
@@ -255,24 +231,23 @@ export default function ScheduleTab({
           </p>
           <div className="overflow-x-auto -mx-4 px-4">
             <div className="flex gap-2 pb-2">
-              {wDays.map((d, i) => {
-                const dayMerged = mergeBlocks(d, week, i, customBlocks)
+              {weekDates.map((d, i) => {
+                const dayMerged = mergeLiveBlocks(LIVE_TEMPLATE[d.dow], d.isoDate, customBlocks)
                 const dd = dayMerged.filter(b => completions.has(b.completionKey)).length
                 const dp = dayMerged.length ? Math.round((dd / dayMerged.length) * 100) : 0
-                const parts = d.date.split(', ')
+                const parts = d.label.split(', ')
                 const isSelected = dayIdx === i
-                const isJpmcDay = d.date.includes('Mar 19')
 
                 return (
                   <div
-                    key={i}
+                    key={d.isoDate}
                     className="flex-1 min-w-[80px] flex flex-col rounded-xl border overflow-hidden"
                     style={{
                       background: isSelected ? '#1a1f35' : 'var(--card-bg)',
-                      borderColor: isJpmcDay
-                        ? '#ef4444'
-                        : isSelected
+                      borderColor: d.isToday
                         ? 'var(--accent-cyan)'
+                        : isSelected
+                        ? 'var(--accent-blue)'
                         : 'var(--card-border)',
                     }}
                   >
@@ -283,8 +258,8 @@ export default function ScheduleTab({
                     >
                       <div className="text-[10px] font-bold text-[var(--text-primary)]">{parts[0]}</div>
                       <div className="text-[9px] text-[var(--text-muted)]">{parts[1]}</div>
-                      {isJpmcDay && (
-                        <div className="text-[8px] font-bold text-red-400 mt-0.5">🔴 JPMC</div>
+                      {d.isToday && (
+                        <div className="text-[8px] font-bold mt-0.5" style={{ color: 'var(--accent-cyan)' }}>TODAY</div>
                       )}
                       <div className="mt-1.5 h-0.5 bg-white/5 rounded-full overflow-hidden">
                         <div
@@ -306,9 +281,7 @@ export default function ScheduleTab({
                             key={b.id}
                             className="rounded px-1 py-0.5 text-[8px] leading-snug"
                             style={{
-                              background: checked
-                                ? 'rgba(52,211,153,0.08)'
-                                : `${CC[b.cat]}18`,
+                              background: checked ? 'rgba(52,211,153,0.08)' : `${CC[b.cat]}18`,
                               color: checked ? '#34d399' : CC[b.cat],
                               opacity: checked ? 0.5 : 1,
                               textDecoration: checked ? 'line-through' : 'none',
@@ -331,21 +304,20 @@ export default function ScheduleTab({
       {/* ── DAY VIEW ── */}
       {viewMode === 'day' && day && (
         <>
-          {/* Day nav */}
           <div className="flex gap-1.5 overflow-x-auto pb-1">
-            {wDays.map((d, i) => {
-              const dayMerged = mergeBlocks(d, week, i, customBlocks)
+            {weekDates.map((d, i) => {
+              const dayMerged = mergeLiveBlocks(LIVE_TEMPLATE[d.dow], d.isoDate, customBlocks)
               const dd = dayMerged.filter(b => completions.has(b.completionKey)).length
               const dp = dayMerged.length ? Math.round((dd / dayMerged.length) * 100) : 0
-              const parts = d.date.split(', ')
+              const parts = d.label.split(', ')
               return (
                 <button
-                  key={i}
+                  key={d.isoDate}
                   onClick={() => setDayIdx(i)}
                   className="flex flex-col items-center px-3 py-2 rounded-lg border text-center shrink-0 min-w-[52px] transition-all duration-150"
                   style={{
                     background: dayIdx === i ? '#1a1f35' : 'transparent',
-                    borderColor: dayIdx === i ? 'var(--card-border)' : 'transparent',
+                    borderColor: d.isToday ? 'var(--accent-cyan)' : dayIdx === i ? 'var(--card-border)' : 'transparent',
                     color: dayIdx === i ? 'var(--text-primary)' : 'var(--text-muted)',
                   }}
                 >
@@ -362,19 +334,17 @@ export default function ScheduleTab({
             })}
           </div>
 
-          {/* Day header */}
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="text-base font-bold text-[var(--text-primary)]">{day.date}</span>
-              <span
-                className="text-[10px] font-bold px-2 py-0.5 rounded"
-                style={{
-                  background: isJpmc ? '#dc2626' : isDeadline ? '#92400e' : '#312e81',
-                  color: '#fff',
-                }}
-              >
-                {day.tag}
-              </span>
+              <span className="text-base font-bold text-[var(--text-primary)]">{day.label}</span>
+              {day.isToday && (
+                <span
+                  className="text-[10px] font-bold px-2 py-0.5 rounded"
+                  style={{ background: 'rgba(0,212,255,0.15)', color: 'var(--accent-cyan)' }}
+                >
+                  Today
+                </span>
+              )}
               {editMode && (
                 <span
                   className="text-[9px] font-semibold px-2 py-0.5 rounded"
@@ -384,7 +354,6 @@ export default function ScheduleTab({
                 </span>
               )}
             </div>
-            <p className="text-xs text-[var(--text-muted)] italic mb-2">{day.theme}</p>
 
             <div className="h-1 bg-white/5 rounded-full overflow-hidden mb-1">
               <div
@@ -400,7 +369,6 @@ export default function ScheduleTab({
             </div>
           </div>
 
-          {/* Time blocks */}
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={merged.map(b => b.id)} strategy={verticalListSortingStrategy}>
               <div className="space-y-1.5">
@@ -408,22 +376,20 @@ export default function ScheduleTab({
                   <SortableBlockRow
                     key={b.id}
                     block={b}
-                    completionKey={b.completionKey}
                     checked={completions.has(b.completionKey)}
                     editMode={editMode}
                     onToggle={() => toggle(b.completionKey)}
-                    onEdit={() => onEditBlock(b, day.date, week, dayIdx)}
-                    onDelete={() => onDeleteBlock(b)}
+                    onEdit={() => onEditBlock(b, day)}
+                    onDelete={() => onDeleteBlock(b, day)}
                   />
                 ))}
               </div>
             </SortableContext>
           </DndContext>
 
-          {/* Add block button */}
           {editMode && (
             <button
-              onClick={() => onAddBlock(week, dayIdx, day.date)}
+              onClick={() => onAddBlock(day)}
               className="w-full rounded-xl border border-dashed py-3 text-xs font-semibold transition-all mt-1"
               style={{
                 borderColor: 'rgba(99,102,241,0.4)',
