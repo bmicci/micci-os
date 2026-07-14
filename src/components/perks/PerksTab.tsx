@@ -92,12 +92,17 @@ const SEED_CREDITS: Omit<DbPerkCredit, 'id' | 'updated_at'>[] = [
 
 // ── Component ────────────────────────────────────────────────────
 
-export default function PerksTab({ initialCredits }: { initialCredits: DbPerkCredit[] }) {
+export default function PerksTab({ initialCredits, initialMrBalance, mrAsOf }: {
+  initialCredits: DbPerkCredit[]
+  initialMrBalance?: number | null
+  mrAsOf?: string | null
+}) {
   const [credits, setCredits] = useState<DbPerkCredit[]>(initialCredits)
   const [loading, setLoading] = useState(initialCredits.length === 0)
-  const [mrBalance, setMrBalance] = useState(DEFAULT_MR_BALANCE)
+  const [mrBalance, setMrBalance] = useState(initialMrBalance ?? DEFAULT_MR_BALANCE)
+  const [asOf, setAsOf] = useState<string | null>(mrAsOf ?? null)
   const [editingBalance, setEditingBalance] = useState(false)
-  const [balanceInput, setBalanceInput] = useState(String(DEFAULT_MR_BALANCE))
+  const [balanceInput, setBalanceInput] = useState(String(initialMrBalance ?? DEFAULT_MR_BALANCE))
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const supabase = createClient()
@@ -142,9 +147,22 @@ export default function PerksTab({ initialCredits }: { initialCredits: DbPerkCre
     setTogglingId(null)
   }
 
-  function saveBalance() {
+  async function saveBalance() {
     const parsed = parseInt(balanceInput.replace(/[^0-9]/g, ''), 10)
-    if (!isNaN(parsed) && parsed >= 0) setMrBalance(parsed)
+    if (!isNaN(parsed) && parsed >= 0) {
+      setMrBalance(parsed)
+      try {
+        const res = await fetch('/api/perks/mr-balance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ balance: parsed }),
+        })
+        if (res.ok) {
+          const body = await res.json()
+          setAsOf(body.as_of ?? null)
+        }
+      } catch { /* balance shown optimistically; persists next save */ }
+    }
     setEditingBalance(false)
   }
 
@@ -257,7 +275,10 @@ export default function PerksTab({ initialCredits }: { initialCredits: DbPerkCre
             </div>
           )}
           <div className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
-            Balance as of Apr 7, 2026 · Click &ldquo;Update Balance&rdquo; to change
+            {asOf
+              ? `Balance as of ${new Date(asOf + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+              : 'Balance not yet confirmed'}
+            {' '}· Click &ldquo;Update Balance&rdquo; to change
           </div>
         </div>
 
