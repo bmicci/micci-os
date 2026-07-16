@@ -43,6 +43,8 @@ export interface ActionItem {
   amount?: number | null
   status?: 'active' | 'done' | 'dismissed'
   completedAt?: string | null
+  // Life area — 'finance'|'heloc'|'tax'|'legal'|'job_search'|'health'|'personal'|'career'
+  category?: string
 }
 
 export interface PortfolioMover {

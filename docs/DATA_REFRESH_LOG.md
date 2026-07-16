@@ -83,4 +83,4 @@ _Last updated: Jul 14, 2026_
 | Daily block completions | 🔁 daily | Tap a block in This Week — keyed by real date, not week #  | Fresh, 0 checked |
 | Custom/edited blocks (This Week) | 🔁 as-desired | Edit mode → ✏/✕/add — persists to `schedule_blocks` (`week=0`) | Empty |
 | Battle Plan (Feb 27–Mar 31) | — | Archived read-only under Planner → Archive tab | 🔒 frozen, preserved |
-| Tasks | — | Pending merge into Action Center | Backlog |
+| Unified actions (all life areas) | 🔁 as-happens | /tasks Action Center — add/edit/check off; Financial Overview rail shows money-scoped view of the same list | ✅ merged Jul 14 (13 items, `action_items` + category) |

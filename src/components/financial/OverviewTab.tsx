@@ -69,8 +69,13 @@ function KpiCard({ label, value, note, accent, onClick }: {
 }
 
 // ── Compact Action Center (rail) ────────────────────────────────────────────
+// Money-scoped view of the unified action list — /tasks shows every category.
+const MONEY_CATS = new Set(['finance', 'heloc', 'tax', 'legal'])
+
 function ActionCenter({ items: initialItems }: { items: ActionItem[] }) {
-  const [items, setItems] = useState(initialItems)
+  const [items, setItems] = useState(
+    initialItems.filter(i => !i.category || MONEY_CATS.has(i.category)),
+  )
   const [showAll, setShowAll] = useState(false)
   const [showDone, setShowDone] = useState(false)
   const VISIBLE = 5

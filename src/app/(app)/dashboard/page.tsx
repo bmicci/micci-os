@@ -57,8 +57,9 @@ export default async function DashboardPage() {
   const dow = DOW[today.getDay()]
   const dateLabel = today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
-  const moneyToday = actionItems
-    .filter(i => (i.status ?? 'active') === 'active')
+  const openActions = actionItems.filter(i => (i.status ?? 'active') === 'active')
+  const overdueActions = openActions.filter(i => i.dueDate && daysUntil(i.dueDate) < 0).length
+  const actionsToday = openActions
     .filter(i => i.priority === 'red' || (i.dueDate && daysUntil(i.dueDate) <= 30))
     .sort((a, b) => (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999'))
     .slice(0, 4)
@@ -163,8 +164,8 @@ export default async function DashboardPage() {
           </div>
 
           <div>
-            {moneyToday.map(item => (
-              <Link key={item.id ?? item.title} href="/financial"
+            {actionsToday.map(item => (
+              <Link key={item.id ?? item.title} href="/tasks"
                 className="flex items-center gap-3 py-2 text-[12.5px] hover:bg-white/[0.02] transition-colors"
                 style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                 {dot(item.priority === 'red' ? '#ef4444' : item.priority === 'amber' ? '#f59e0b' : '#00d4ff')}
@@ -194,7 +195,7 @@ export default async function DashboardPage() {
                 <span className="font-mono text-[11px] text-[var(--text-muted)] shrink-0">{p.time_of_day ?? 'today'}</span>
               </Link>
             ))}
-            {moneyToday.length + jobToday.length + protocolsToday.length === 0 && (
+            {actionsToday.length + jobToday.length + protocolsToday.length === 0 && (
               <div className="py-6 text-center text-[12px] text-[var(--text-muted)]">
                 Clear day — nothing due across money, job search, or health.
               </div>
@@ -296,6 +297,14 @@ export default async function DashboardPage() {
         <Link href="/goals" className="text-[11.5px] px-3 py-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
           style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)' }}>
           <Target size={12} strokeWidth={2} className="inline mr-1 -mt-0.5" /> Goals · <b className="text-[var(--text-primary)]">{goalsCount ?? '—'} active</b>
+        </Link>
+        <Link href="/tasks" className="text-[11.5px] px-3 py-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
+          style={{
+            border: `1px solid ${overdueActions > 0 ? 'rgba(239,68,68,0.45)' : 'rgba(255,255,255,0.1)'}`,
+            background: overdueActions > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.03)',
+            color: overdueActions > 0 ? '#f87171' : 'var(--text-secondary)',
+          }}>
+          <ClipboardList size={12} strokeWidth={2} className="inline mr-1 -mt-0.5" /> Actions · <b style={{ color: overdueActions > 0 ? '#ef4444' : 'var(--text-primary)' }}>{overdueActions > 0 ? `${overdueActions} overdue` : `${openActions.length} open`}</b>
         </Link>
       </div>
     </div>

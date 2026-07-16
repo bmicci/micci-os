@@ -507,6 +507,7 @@ export async function getFinancialData(): Promise<FinancialData> {
           amount: r.amount != null ? Number(r.amount) : null,
           status: (r.status ?? 'active') as ActionItem['status'],
           completedAt: r.completed_at ?? null,
+          category: (r.category ?? 'finance') as string,
         }))
       : (() => {
           const raw = getSetting(settings, 'action_items')

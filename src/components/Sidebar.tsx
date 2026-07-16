@@ -30,7 +30,7 @@ const NAV_ITEMS: { href: string; label: string; icon: LucideIcon; exact: boolean
   { href: "/goals", label: "Goals + Vision", icon: Target, exact: false },
   { href: "/planner", label: "Planner", icon: CalendarDays, exact: false },
   { href: "/job-search", label: "Job Search", icon: Briefcase, exact: false },
-  { href: "/tasks", label: "Tasks", icon: ListChecks, exact: false },
+  { href: "/tasks", label: "Actions", icon: ListChecks, exact: false },
   { href: "/health", label: "Health", icon: HeartPulse, exact: false },
   { href: "/import", label: "Import", icon: Upload, exact: false },
 ];

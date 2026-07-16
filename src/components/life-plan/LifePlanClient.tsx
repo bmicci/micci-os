@@ -341,7 +341,8 @@ function GoalItem({ goal, isEditing, editText, setEditText, onToggle, onEdit, on
   const [expanded, setExpanded] = useState(false)
 
   function handleCreateTask(goalText: string) {
-    // Store pending task in sessionStorage for TaskManager to pick up
+    // Hand off to the Action Center — ActionHub reads this key and opens
+    // its add form prefilled with the goal text
     sessionStorage.setItem('micci-os-pending-task', JSON.stringify({ title: goalText, category: 'personal', priority: 'medium' }))
     window.location.href = '/tasks'
   }
