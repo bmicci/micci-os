@@ -4,7 +4,7 @@
 // zero changes needed in any component or chart file.
 
 import { createServiceClient } from './supabase/service'
-import { liveSpendCategories, computeBurn, fetchAllTxns, monthlyFlows, type TxnRow } from './finance/txnAggregate'
+import { liveSpendCategories, computeBurn, fetchAllTxns, monthlyFlows, computeRunwayProjection, type TxnRow } from './finance/txnAggregate'
 import type {
   DbDebtAccount,
   DbFinancialModule,
@@ -231,6 +231,7 @@ function mapIncomeBridge(val: Record<string, unknown>): IncomeBridge {
     targetTotalComp: Number(val.target_total_comp ?? 0),
     monthlyOutflow: Number(val.monthly_outflow ?? 0),
     newJobMonthlyNet: Number(val.new_job_monthly_net ?? 0),
+    benefitsEndDate: val.benefits_end_date != null ? String(val.benefits_end_date) : null,
   }
 }
 
@@ -651,6 +652,16 @@ export async function getFinancialData(): Promise<FinancialData> {
       ? { ...incomeBridge, monthlyOutflow: burnAnalysis.monthlySpend }
       : incomeBridge
 
+    // ── Cliff-aware runway: walks forward day by day so a confirmed income
+    // cutoff (e.g. TWC benefits exhausting) actually changes the cash-out
+    // date, instead of assuming today's burn rate holds forever ──
+    const runwayProjection = computeRunwayProjection(
+      assets.cash + assets.savings,
+      burnAnalysis.hasData ? burnAnalysis.monthlySpend : incomeBridgeFinal.monthlyOutflow,
+      steadyIncome,
+      incomeBridgeFinal.benefitsEndDate,
+    )
+
     // ── Deadlines (already in Supabase — fetched via API route) ──
     // The DeadlineTimeline component fetches via /api/finance/deadlines
     // We pass the hardcoded fallback here for getAllData() compat
@@ -693,6 +704,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       waterfallData,
       investments,
       burnAnalysis,
+      runwayProjection,
       portfolio,
       monthlyFlows: flows,
     }

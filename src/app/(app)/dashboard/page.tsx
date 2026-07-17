@@ -41,14 +41,17 @@ export default async function DashboardPage() {
   ])
 
   // ── Derived: runway & money ──
-  const { burnAnalysis, assets, portfolio, actionItems, monthlyFlows, promos, debts } = data
+  // Cliff-aware: walks day by day so a confirmed income cutoff (e.g. TWC
+  // benefits exhausting on a known date) actually moves the cash-out date,
+  // instead of assuming today's burn rate holds forever.
+  const { burnAnalysis, runwayProjection, assets, portfolio, actionItems, monthlyFlows, promos, debts } = data
   const liquid = assets.cash + assets.savings
-  const burn = burnAnalysis.hasData ? burnAnalysis.monthlyNetBurn : 0
-  const runwayMonths = burn > 0 ? liquid / burn : Infinity
-  const cashOut = runwayMonths !== Infinity
-    ? new Date(Date.now() + runwayMonths * 30.44 * 86400000)
-    : null
+  const cashOut = runwayProjection.cashOutDate ? new Date(runwayProjection.cashOutDate + 'T00:00:00') : null
+  const runwayMonths = cashOut ? Math.max(0, (cashOut.getTime() - Date.now()) / (30.44 * 86400000)) : Infinity
   const meterPct = runwayMonths === Infinity ? 100 : Math.min(runwayMonths / 12, 1) * 100
+  const burn = runwayProjection.phase === 'post-cliff' ? runwayProjection.postCliffMonthlyBurn : runwayProjection.preCliffMonthlyBurn
+  const cliffDate = runwayProjection.cliffDate ? new Date(runwayProjection.cliffDate + 'T00:00:00') : null
+  const showCliff = cliffDate && runwayProjection.phase === 'pre-cliff'
   const helocBal = debts.find(d => d.category === 'HELOC')?.balance ?? 0
   const helocLeft = HELOC_LIMIT - helocBal
 
@@ -146,8 +149,20 @@ export default async function DashboardPage() {
           <div className="font-mono text-[22px] font-bold" style={{ color: '#ef4444' }}>
             −{fmtRound(Math.max(burn, 0))}
           </div>
-          <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Net burn / mo</div>
+          <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+            Net burn / mo{runwayProjection.phase === 'post-cliff' ? ' (post-benefits)' : ''}
+          </div>
         </div>
+        {showCliff && (
+          <div>
+            <div className="font-mono text-[22px] font-bold" style={{ color: '#fbbf24' }}>
+              {cliffDate!.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </div>
+            <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+              Benefits end → burn jumps to {fmtRound(runwayProjection.postCliffMonthlyBurn)}/mo
+            </div>
+          </div>
+        )}
         <Link href="/job-search" className="btn btn-primary ml-auto">
           Job pipeline →
         </Link>

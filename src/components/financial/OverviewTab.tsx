@@ -192,7 +192,7 @@ export default function OverviewTab({ data, onNavigate }: {
   data: FinancialData
   onNavigate?: (tab: string) => void
 }) {
-  const { debts, actionItems, assets, burnAnalysis, incomeBridge, portfolio, monthlyFlows } = data
+  const { debts, actionItems, assets, burnAnalysis, runwayProjection, portfolio, monthlyFlows } = data
   const totals = getDebtTotals(debts)
   const go = (tab: string) => onNavigate?.(tab)
 
@@ -201,11 +201,16 @@ export default function OverviewTab({ data, onNavigate }: {
     const totalDebts = debts.reduce((s, d) => s + d.balance, 0)
     const netWorth = totalAssets - totalDebts
     const liquid = assets.cash + assets.savings
-    const burn = burnAnalysis.hasData ? burnAnalysis.monthlyNetBurn : incomeBridge.monthlyOutflow - incomeBridge.consultingMonthlyNet
-    const runwayMonths = burn > 0 ? liquid / burn : Infinity
+    // Cliff-aware: real burn is pre- or post-benefits depending on today,
+    // and runway comes from the day-by-day projected cash-out date rather
+    // than assuming today's burn rate holds forever.
+    const burn = runwayProjection.phase === 'post-cliff' ? runwayProjection.postCliffMonthlyBurn : runwayProjection.preCliffMonthlyBurn
+    const runwayMonths = runwayProjection.cashOutDate
+      ? Math.max(0, (new Date(runwayProjection.cashOutDate + 'T00:00:00').getTime() - Date.now()) / (30.44 * 86400000))
+      : Infinity
     const helocBal = debts.find(d => d.category === 'HELOC')?.balance ?? 0
     return { netWorth, liquid, burn, runwayMonths, helocHeadroom: HELOC_LIMIT - helocBal }
-  }, [debts, assets, burnAnalysis, incomeBridge])
+  }, [debts, assets, runwayProjection])
 
   const flowData = monthlyFlows.map(f => ({ ...f, label: fmtMonth(f.month) }))
   const topCats = burnAnalysis.hasData ? burnAnalysis.byCategory.slice(0, 8) : []

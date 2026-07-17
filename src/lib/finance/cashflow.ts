@@ -123,6 +123,11 @@ export function project12Months(inputs: {
   grossPayPerPeriod: number
   ssPerPeriodSavings: number
   scheduledEvents: { monthOffset: number; label: string; amountDelta: number }[]
+  // Month offset (0 = this month) a confirmed income cliff hits — e.g.
+  // unemployment benefits exhausting on a known date. Income drops to $0
+  // from that month forward, permanently (unlike scheduledEvents, which
+  // are one-time deltas). Null = no known cliff in the next 12 months.
+  incomeCliffMonth?: number | null
 }): MonthlyProjection[] {
   const {
     baseCashFlow,
@@ -131,6 +136,7 @@ export function project12Months(inputs: {
     grossPayPerPeriod,
     ssPerPeriodSavings,
     scheduledEvents,
+    incomeCliffMonth = null,
   } = inputs
 
   const baseFlow = calculateMonthlyFlow(baseCashFlow)
@@ -163,6 +169,13 @@ export function project12Months(inputs: {
         obligationAdjust += evt.amountDelta
         events.push(evt.label)
       }
+    }
+
+    // Confirmed income cliff — e.g. unemployment benefits exhausting.
+    // Permanent from that month forward, not a one-time delta.
+    if (incomeCliffMonth !== null && m >= incomeCliffMonth) {
+      incomeAdjust -= baseFlow.totalIncome
+      if (m === incomeCliffMonth) events.push('Unemployment benefits exhausted — income drops to $0')
     }
 
     const income = baseFlow.totalIncome + incomeAdjust

@@ -270,3 +270,77 @@ export function liveSpendCategories(rows: TxnRow[], since?: string, until?: stri
     }
   })
 }
+
+// ── Runway projection (income cliff-aware) ──────────────────────────────────
+// A flat "liquid ÷ monthly burn" runway is wrong once a known income cliff
+// (e.g. unemployment benefits exhausting on a confirmed date) falls inside
+// the projection window — burn jumps the day that income stops. This walks
+// forward day by day so the cash-out date reflects the real step change.
+
+export interface RunwayProjection {
+  today: string                    // YYYY-MM-DD
+  cliffDate: string | null         // confirmed income-drop date, if any
+  daysUntilCliff: number | null    // negative if the cliff has already passed
+  preCliffMonthlyBurn: number      // monthlySpend − currentIncome (may be negative = surplus)
+  postCliffMonthlyBurn: number     // monthlySpend − 0 (full spend once income stops)
+  cashOutDate: string | null       // projected zero-cash date, or null if it never happens within 10y
+  phase: 'pre-cliff' | 'post-cliff' | 'no-cliff'
+}
+
+function parseLocalDate(dateStr: string): Date {
+  return new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr + 'T00:00:00' : dateStr)
+}
+
+function isoDate(d: Date): string {
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+const DAYS_PER_MONTH = 365 / 12
+
+/**
+ * Project the real cash-out date given a monthly spend rate, current income,
+ * and an optional confirmed date that income drops to $0 (an income cliff —
+ * e.g. unemployment benefits exhausting). Walks forward day by day rather
+ * than assuming a single flat burn rate forever.
+ */
+export function computeRunwayProjection(
+  liquidCash: number,
+  monthlySpend: number,
+  currentMonthlyIncome: number,
+  cliffDateIso: string | null,
+  today: Date = new Date(),
+): RunwayProjection {
+  const cursor = new Date(today)
+  cursor.setHours(0, 0, 0, 0)
+  const cliff = cliffDateIso ? parseLocalDate(cliffDateIso) : null
+
+  const preCliffMonthlyBurn = Math.round(monthlySpend - currentMonthlyIncome)
+  const postCliffMonthlyBurn = Math.round(monthlySpend)
+  const daysUntilCliff = cliff ? Math.round((cliff.getTime() - cursor.getTime()) / 86400000) : null
+
+  const phase: RunwayProjection['phase'] = !cliff ? 'no-cliff' : daysUntilCliff! > 0 ? 'pre-cliff' : 'post-cliff'
+
+  // Cash-flow positive with no cliff ahead → never runs out.
+  if (!cliff && preCliffMonthlyBurn <= 0) {
+    return { today: isoDate(cursor), cliffDate: cliffDateIso, daysUntilCliff, preCliffMonthlyBurn, postCliffMonthlyBurn, cashOutDate: null, phase }
+  }
+
+  const dailySpend = monthlySpend / DAYS_PER_MONTH
+  const dailyIncome = currentMonthlyIncome / DAYS_PER_MONTH
+  let cash = liquidCash
+  const walker = new Date(cursor)
+  const MAX_DAYS = 3652 // 10-year cap
+
+  for (let i = 0; i < MAX_DAYS; i++) {
+    const pastCliff = cliff ? walker >= cliff : false
+    const dailyNet = pastCliff ? -dailySpend : dailyIncome - dailySpend
+    if (dailyNet < 0 && cash + dailyNet <= 0) {
+      return { today: isoDate(cursor), cliffDate: cliffDateIso, daysUntilCliff, preCliffMonthlyBurn, postCliffMonthlyBurn, cashOutDate: isoDate(walker), phase }
+    }
+    cash += dailyNet
+    walker.setDate(walker.getDate() + 1)
+  }
+
+  return { today: isoDate(cursor), cliffDate: cliffDateIso, daysUntilCliff, preCliffMonthlyBurn, postCliffMonthlyBurn, cashOutDate: null, phase }
+}

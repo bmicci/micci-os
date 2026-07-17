@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import type { Bill, PromoDeadline, DebtAccount, HelocKPIs, BurnAnalysis } from '@/lib/financial-data'
+import type { Bill, PromoDeadline, DebtAccount, HelocKPIs, BurnAnalysis, RunwayProjection } from '@/lib/financial-data'
 import { fmt, HELOC_RATE, HELOC_DRAWN } from '@/lib/financial-data'
 import {
   calculateMonthlyFlow,
@@ -45,16 +45,18 @@ interface CashFlowTabProps {
   debts: DebtAccount[]
   helocKPIs: HelocKPIs
   burnAnalysis: BurnAnalysis
+  runwayProjection: RunwayProjection
   incomeBridge: {
     targetSalary: number
     newJobMonthlyNet: number
     monthlyOutflow: number
     liquidCash: number
     consultingMonthlyNet: number
+    benefitsEndDate: string | null
   }
 }
 
-export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnalysis, incomeBridge }: CashFlowTabProps) {
+export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnalysis, runwayProjection, incomeBridge }: CashFlowTabProps) {
   const real = burnAnalysis.hasData
   // ── Derive inputs from live data ──
   const cashFlowData = useMemo(() => {
@@ -117,6 +119,13 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
       }))
       .filter(e => e.monthOffset < 12)
 
+    // Confirmed income cliff (e.g. TWC benefits exhausting) — permanent
+    // income drop from that month forward, not a one-time delta.
+    const cliffMonth = incomeBridge.benefitsEndDate
+      ? monthsUntil(incomeBridge.benefitsEndDate)
+      : null
+    const incomeCliffMonth = cliffMonth !== null && cliffMonth >= 0 && cliffMonth < 12 ? cliffMonth : null
+
     const projections = project12Months({
       baseCashFlow: projInputs,
       ssCapPeriod: onBridge ? null : 18, // no SS cap-out on unemployment income
@@ -124,6 +133,7 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
       grossPayPerPeriod: netPayPerPeriod,
       ssPerPeriodSavings: onBridge ? 0 : 42,
       scheduledEvents,
+      incomeCliffMonth,
     })
 
     return { monthlyFlow, projections, inputs, onBridge, currentMonthlyNet }
@@ -134,8 +144,11 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
   // ── Headline burn: prefer REAL transaction-derived numbers ──
   const income = real ? burnAnalysis.monthlyIncome : monthlyFlow.totalIncome
   const spend = real ? burnAnalysis.monthlySpend : monthlyFlow.totalObligations + monthlyFlow.totalLivingExpenses
-  const monthlyBurn = real ? burnAnalysis.monthlyNetBurn : -monthlyFlow.freeCash
-  const runwayMonths = monthlyBurn > 0 ? incomeBridge.liquidCash / monthlyBurn : null
+  // Cliff-aware: current burn is pre- or post-benefits depending on where
+  // today actually falls, not a flat rate assumed to hold forever.
+  const monthlyBurn = runwayProjection.phase === 'post-cliff' ? runwayProjection.postCliffMonthlyBurn : runwayProjection.preCliffMonthlyBurn
+  const runwayMonths = runwayProjection.cashOutDate ? daysUntil(runwayProjection.cashOutDate) / 30.44 : null
+  const showCliff = runwayProjection.cliffDate && runwayProjection.phase === 'pre-cliff'
   const topCategory = burnAnalysis.byCategory[0]
 
   // ── Upcoming bills (next 30 days) ──
@@ -176,11 +189,11 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
           note={monthlyBurn > 0 ? 'Cash drawn down each month' : 'Cash-flow positive'}
           accent={monthlyBurn > 0 ? 'red' : 'green'}
         />
-        {runwayMonths !== null ? (
+        {runwayMonths !== null && runwayProjection.cashOutDate ? (
           <KPICard
             label="Cash Runway"
             value={`${runwayMonths.toFixed(1)} mo`}
-            note={`${fmtK(incomeBridge.liquidCash)} liquid ÷ ${fmtK(monthlyBurn)}/mo`}
+            note={`Est. cash-out ${parseLocal(runwayProjection.cashOutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
             accent={runwayMonths < 4 ? 'red' : 'amber'}
           />
         ) : (
@@ -189,6 +202,14 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
             value="∞"
             note="Income covers spend"
             accent="green"
+          />
+        )}
+        {showCliff && (
+          <KPICard
+            label="Benefits End"
+            value={parseLocal(runwayProjection.cliffDate!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            note={`Burn jumps to ${fmtRound(runwayProjection.postCliffMonthlyBurn)}/mo after`}
+            accent="amber"
           />
         )}
         <KPICard

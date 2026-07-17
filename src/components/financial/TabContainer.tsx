@@ -95,6 +95,7 @@ export default function TabContainer({ data }: { data: FinancialData }) {
             helocKPIs={data.helocKPIs}
             burnAnalysis={data.burnAnalysis}
             incomeBridge={data.incomeBridge}
+            runwayProjection={data.runwayProjection}
           />
         )}
         {activeTab === 'investments' && (

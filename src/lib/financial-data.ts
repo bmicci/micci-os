@@ -169,6 +169,10 @@ export interface IncomeBridge {
   targetTotalComp: number
   monthlyOutflow: number
   newJobMonthlyNet: number
+  // Confirmed TWC final benefit week end date (YYYY-MM-DD) — the income
+  // cliff. consultingMonthlyNet drops to 0 the day after, unless a new job
+  // has already started. Null once there's no unemployment income to track.
+  benefitsEndDate: string | null
 }
 
 export interface SpendingSummary {
@@ -276,9 +280,9 @@ export const EMPTY_INVESTMENT_DATA: InvestmentData = {
   transactions: [],
 }
 
-export type { BurnAnalysis } from './finance/txnAggregate'
-import type { BurnAnalysis } from './finance/txnAggregate'
-import { EMPTY_BURN } from './finance/txnAggregate'
+export type { BurnAnalysis, RunwayProjection } from './finance/txnAggregate'
+import type { BurnAnalysis, RunwayProjection } from './finance/txnAggregate'
+import { EMPTY_BURN, computeRunwayProjection } from './finance/txnAggregate'
 
 export interface FinancialData {
   debts: DebtAccount[]
@@ -305,6 +309,7 @@ export interface FinancialData {
   assets: Assets
   investments: InvestmentData
   burnAnalysis: BurnAnalysis
+  runwayProjection: RunwayProjection
   portfolio: PortfolioSnapshot | null
   monthlyFlows: MonthlyFlowPoint[]
 }
@@ -552,18 +557,18 @@ export const DEADLINES: Deadline[] = [
   { date: 'Oct 9, 2026',  event: 'Chase Freedom Unlim BT3 expires — $7,000',       amount: 7000,     risk: '🟡 Pay from HELOC' },
   { date: 'Dec 9, 2026',  event: 'Chase Freedom Unlim BT4 expires — $4,000',       amount: 4000,     risk: '🟢 Pay from HELOC' },
   { date: 'Dec 12, 2026', event: 'Chase Freedom BT3 expires — $3,000',             amount: 3000,     risk: '🟢 Pay from HELOC' },
-  { date: 'Dec 27, 2026', event: 'Best Buy Promo 2 — $918 deferred int $312',      amount: 917.96,   risk: '🟡 Pay from HELOC' },
+  { date: 'Dec 27, 2026', event: 'Best Buy Promo 2 — $860 deferred int $342',      amount: 860.40,   risk: '🟡 Pay from HELOC' },
   { date: 'Dec 31, 2026', event: 'Roth conversion deadline — low income year',     amount: null,     risk: '🟡 Coordinate with CPA' },
-  { date: 'Jun 18, 2027', event: 'Citi Diamond BT expires — $11,999',              amount: 11999,    risk: '✅ Low urgency' },
+  { date: 'Jun 18, 2027', event: 'Citi Diamond BT expires — $11,879',              amount: 11879,    risk: '✅ Low urgency' },
 ]
 
-// Updated June 4, 2026
+// Updated Jul 16, 2026
 export const ACTION_ITEMS: ActionItem[] = [
   { priority: 'red',   title: 'Pay Chase Prime promo $1,398 — Jul 22 deadline', detail: 'Next promo expiry. Draw from HELOC per plan.' },
   { priority: 'red',   title: 'Roll AmEx Gold ($4,519) + Platinum ($4,514) to HELOC', detail: 'Both accruing at 27.49% vs HELOC 6.85% — costing ~$170/mo in unnecessary interest.' },
   { priority: 'amber', title: 'Pay Chase Freedom (4628) BT1 $7,384 — Aug 12 deadline', detail: 'Draw from HELOC per drawdown schedule.' },
   { priority: 'amber', title: 'Follow up on DCAD property tax protest', detail: 'Filed before May 15 deadline. Check ifile.dallascad.org for hearing date or informal offer.' },
-  { priority: 'red',   title: 'Confirm unemployment benefit end date with TWC', detail: 'TX is typically 26 weeks — likely exhausts ~late Sep 2026. Burn jumps from ~$5.1K to ~$7.3K/mo after.' },
+  { priority: 'red',   title: 'Unemployment benefits exhaust ~Oct 10, 2026', detail: 'TWC confirmed: final benefit week Oct 4–10. Net $2,176/mo income stops then unless a new job starts first — burn jumps from ~$5.1K to ~$7.3K/mo after.' },
   { priority: 'blue',  title: 'Roth conversion decision — Dec 31, 2026 deadline', detail: '2026 is a low-income year (unemployment only). Convert up to the top of 22% bracket. Coordinate with CPA.' },
   { priority: 'blue',  title: 'File 2025 taxes — resolve IRS balance first', detail: 'Do not file until IRS balance strategy is determined. Extension filed if needed.' },
 ]
@@ -716,9 +721,9 @@ export const TAX_SNAPSHOT: TaxSnapshot = {
   ],
 }
 
-// Updated June 4, 2026 — post-JPMC, unemployment only
+// Updated Jul 16, 2026 — post-JPMC, unemployment only, TWC end date confirmed
 export const INCOME_BRIDGE: IncomeBridge = {
-  liquidCash:           22806.80,  // Checking $2,678.76 + Wealthfront savings $20,128.04 (as of Jun 15)
+  liquidCash:           15098.45, // Checking $2,911.92 (Jul 14) + Wealthfront savings $12,186.53 (Jul 8)
   marchPaychecks:       0,         // Received — no longer pending
   severanceEstimate:    0,         // Resolved
   familyBridge:         0,
@@ -727,6 +732,7 @@ export const INCOME_BRIDGE: IncomeBridge = {
   targetTotalComp:      312000,
   monthlyOutflow:       7320,      // Mortgage $2,487 + HELOC int $816 + property tax $1,216 + insurance/utils $800 + living $2,000
   newJobMonthlyNet:     13670,
+  benefitsEndDate:      '2026-10-10', // TWC confirmed: 14 wks left @ $605/wk from last-paid week Jun28-Jul4
 }
 
 export const SPENDING_SUMMARY: SpendingSummary = {
@@ -929,6 +935,12 @@ export function getAllData(): FinancialData {
     assets: ASSETS,
     investments: EMPTY_INVESTMENT_DATA,
     burnAnalysis: { ...EMPTY_BURN, monthlyIncome: INCOME_BRIDGE.consultingMonthlyNet },
+    runwayProjection: computeRunwayProjection(
+      ASSETS.cash + ASSETS.savings,
+      INCOME_BRIDGE.monthlyOutflow,
+      INCOME_BRIDGE.consultingMonthlyNet,
+      INCOME_BRIDGE.benefitsEndDate,
+    ),
     portfolio: null,
     monthlyFlows: [],
   }
