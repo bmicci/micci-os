@@ -22,11 +22,12 @@ _Last updated: Jul 17, 2026_
 | Wealthfront balance | 🔁 monthly | Settings `assets.savings` | ✅ $12,186.53 as of Jul 8 — down $8K from 3 draws to checking (6/24, 6/25, 7/8) |
 | **Exact HELOC draw amounts** (Best Buy + CFU payoffs) | 🔴 OWED | From Texas CU statement → true-up `debt_accounts` | Estimated at $962.44 + $8,453.66 |
 | Debt balances (cards/HELOC) | 🔁 as-paid | Tell Claude when payments/payoffs happen | Current as of Jul 7 payoffs |
+| Chase Prime Visa (...9313) | ⚙️ AUTO | Wasn't tracked at all — added via Jun statement. Bad action item ($1,398 "pay from HELOC") deleted: card is 6 Equal Pay 0% installments (no deferred-interest cliff, unlike Citi), already on autopay | ✅ added — balance $1,677.54, $556.13/mo autopay covers it, no HELOC action needed |
 | TWC unemployment end date | ✅ confirmed | TWC portal → `income_bridge.benefits_end_date` | Final benefit week Oct 4–10, 2026 (14 wks × $605 left) |
 | Cliff-aware runway | ⚙️ AUTO | `computeRunwayProjection()` walks day-by-day: current burn until `benefits_end_date`, full spend (no income) after — real cash-out date, not a flat liquid÷burn guess | ✅ built Jul 17 — cash-out ≈ Oct 17, 2026 (liquid cash and benefits both run out within ~a week of each other) |
 | Burn rate / spend categories | ⚙️ AUTO | Derives from imported transactions | — |
 | Action items | ⚙️ AUTO | Check off in Overview Action Center | — |
-| Promo schedule | 🔁 as-paid | Claude updates on each payoff | Next: Chase Prime Jul 22 |
+| Promo schedule | 🔁 as-paid | Claude updates on each payoff | Next real deferred-interest deadline: Best Buy Promo 2, Dec 27 |
 
 ## 📈 Investments
 

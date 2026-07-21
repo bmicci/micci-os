@@ -325,9 +325,10 @@ export const DEBTS: DebtAccount[] = [
   // ── 0% Promo Cards (pay from HELOC as buckets expire) ─────────────────────
   { name: 'Chase Freedom Unlimited (7117)', balance: 13409.34,  rate: 0,     min: 0,       decision: 'promo', category: 'Credit Card' },
   { name: 'Chase Freedom (4628)',           balance: 12876.00,  rate: 0,     min: 0,       decision: 'promo', category: 'Credit Card' },
-  { name: 'Citi Diamond Preferred (4205)',  balance: 11999.00,  rate: 0,     min: 124,     decision: 'promo', category: 'Credit Card' },
-  { name: 'Citi Best Buy (4802)',           balance: 917.96,    rate: 0,     min: 50,      decision: 'promo', category: 'Credit Card' },
-  { name: 'Chase Prime Visa (9313)',        balance: 1398.00,   rate: 0,     min: 0,       decision: 'promo', category: 'Credit Card' },
+  { name: 'Citi Diamond Preferred (4205)',  balance: 11879.00,  rate: 0,     min: 119,     decision: 'promo', category: 'Credit Card' },
+  { name: 'Citi Best Buy (4802)',           balance: 860.40,    rate: 0,     min: 50,      decision: 'promo', category: 'Credit Card' },
+  // Not a lump-sum deferred-interest promo — 6 Equal Pay 0% installments, already on $556/mo autopay
+  { name: 'Chase Prime Visa (9313)',        balance: 1677.54,   rate: 22.74, min: 556,     decision: 'keep',  category: 'Credit Card' },
   // ── High-Rate Revolving (roll to HELOC ASAP) ──────────────────────────────
   { name: 'AmEx Gold Card (5007)',          balance: 4519.00,   rate: 27.49, min: 115,     decision: 'roll',  category: 'Credit Card' },
   { name: 'AmEx Platinum Card (3002)',      balance: 4514.00,   rate: 27.49, min: 115,     decision: 'roll',  category: 'Credit Card' },
@@ -550,7 +551,6 @@ export const DEADLINES: Deadline[] = [
   { date: 'Mar 19, 2026', event: '✅ JPMC exit + HELOC closed',                    amount: null,     risk: '✅ Done' },
   { date: 'Jun 27, 2026', event: '✅ Best Buy Promo 1 paid from HELOC — $962',     amount: 962.44,   risk: '✅ Paid' },
   { date: 'Jul 9, 2026',  event: '✅ Chase Freedom Unlim BT1 paid from HELOC',     amount: 8453.66,  risk: '✅ Paid' },
-  { date: 'Jul 22, 2026', event: 'Chase Prime promo expires — $1,398',             amount: 1398,     risk: '🟠 Pay from HELOC' },
   { date: 'Aug 12, 2026', event: '🟠 Chase Freedom BT1 expires — $7,384',          amount: 7384.33,  risk: '🟠 Pay from HELOC' },
   { date: 'Sep 9, 2026',  event: 'Chase Freedom Unlim BT2 expires — $2,600',       amount: 2600,     risk: '🟡 Pay from HELOC' },
   { date: 'Sep 12, 2026', event: 'Chase Freedom BT2 expires — $2,600',             amount: 2600,     risk: '🟡 Pay from HELOC' },
@@ -564,7 +564,6 @@ export const DEADLINES: Deadline[] = [
 
 // Updated Jul 16, 2026
 export const ACTION_ITEMS: ActionItem[] = [
-  { priority: 'red',   title: 'Pay Chase Prime promo $1,398 — Jul 22 deadline', detail: 'Next promo expiry. Draw from HELOC per plan.' },
   { priority: 'red',   title: 'Roll AmEx Gold ($4,519) + Platinum ($4,514) to HELOC', detail: 'Both accruing at 27.49% vs HELOC 6.85% — costing ~$170/mo in unnecessary interest.' },
   { priority: 'amber', title: 'Pay Chase Freedom (4628) BT1 $7,384 — Aug 12 deadline', detail: 'Draw from HELOC per drawdown schedule.' },
   { priority: 'amber', title: 'Follow up on DCAD property tax protest', detail: 'Filed before May 15 deadline. Check ifile.dallascad.org for hearing date or informal offer.' },
@@ -578,7 +577,6 @@ export const PROMOS: PromoDeadline[] = [
   // ✅ Jun 27 Best Buy #1 ($962.44) and Jul 9 CFU BT1 ($8,453.66) PAID from HELOC
   // 🟠 URGENT
   { name: 'Chase Freedom — BT1',                balance: 7384.33,  expires: '2026-08-12', risk: null,   acct: 'Chase Freedom (4628)',        note: 'Pay from HELOC before Aug 12' },
-  { name: 'Chase Prime Visa — promo',           balance: 1398.00,  expires: '2026-07-22', risk: null,   acct: 'Chase Prime Visa (9313)',    note: 'Pay from HELOC before Jul 22' },
   // 🟡 MODERATE
   { name: 'Chase Freedom Unlim — BT2',          balance: 2600.00,  expires: '2026-09-09', risk: null,   acct: 'Chase Freedom Unlim (7117)', note: 'Pay from HELOC' },
   { name: 'Chase Freedom — BT2',                balance: 2600.00,  expires: '2026-09-12', risk: null,   acct: 'Chase Freedom (4628)',        note: 'Pay from HELOC' },
