@@ -33,7 +33,7 @@ _Last updated: Jul 17, 2026_
 
 | Item | Type | How | Status |
 |---|---|---|---|
-| **Fresh IRA CSV (tax lots)** | 🔴 OWED | Chase export → `/finance/investments` import | Holdings are April lots |
+| IRA tax lots (portfolio_positions) | 🔁 as-provided | Chase export → send to Claude (import route is upsert-only, doesn't drop sold positions — reconciled by hand this time) | ✅ Jul 22 lots — value ≈$170,282. Sold IAU/SLV/SLVP/XLV, bought ITA/DTCR/VXUS |
 | **Employer plan positions/balance** | 🔴 OWED | Chase export, or just tell Claude the balance | Manual $29,467 supplement (June) |
 | Prices + day-change + history | ⚙️ AUTO | Daily cron 4pm ET + manual refresh button | Working |
 | Portfolio value in Net Worth | ⚙️ AUTO | Derives from positions + employer supplement | — |

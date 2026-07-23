@@ -236,10 +236,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: upsertErr.message, warnings }, { status: 500 })
   }
 
+  // A Tax Lots export is a full account snapshot — anything fully sold since
+  // the last import won't appear in it at all. Upsert alone would leave that
+  // stale position sitting in the table forever, so drop what's no longer held.
+  const currentTickers = upsertRows.map(r => r.ticker)
+  const { data: staleRows } = await supabase
+    .from('portfolio_positions')
+    .select('ticker')
+    .not('ticker', 'in', `(${currentTickers.map(t => `"${t}"`).join(',')})`)
+  const staleTickers = (staleRows ?? []).map(r => r.ticker as string)
+
+  if (staleTickers.length > 0) {
+    await supabase.from('portfolio_positions').delete().in('ticker', staleTickers)
+  }
+
   return NextResponse.json({
     imported:  positions.length,
     format:    'taxlots',
     tickers:   positions.map(p => p.ticker === 'QDERQ' ? 'CASH(QDERQ)' : p.ticker),
+    removed:   staleTickers,
     warnings,
     timestamp: new Date().toISOString(),
   })
