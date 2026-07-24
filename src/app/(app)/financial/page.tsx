@@ -1,4 +1,5 @@
 import { getFinancialData } from '@/lib/financial-data-service'
+import type { RunwayProjection } from '@/lib/financial-data'
 import TabContainer from '@/components/financial/TabContainer'
 
 export const dynamic = 'force-dynamic'
@@ -7,7 +8,7 @@ export const metadata = { title: 'Financial — Micci OS' }
 const HELOC_CLOSE = new Date('2026-03-19')
 const LIFE_INS_DEADLINE = new Date('2026-04-19')
 
-function getBannerState() {
+function getBannerState(runway: RunwayProjection) {
   const now = new Date()
   const helocClosed = now >= HELOC_CLOSE
 
@@ -34,19 +35,35 @@ function getBannerState() {
     }
   }
 
+  // Stabilization mode: the number that matters from every tab is the cash
+  // runway, so it lives in the header (not buried in the Cash Flow tab).
+  if (runway.cashOutDate) {
+    const days = Math.ceil((new Date(runway.cashOutDate + 'T00:00:00').getTime() - now.getTime()) / 86400000)
+    const cashOutLabel = new Date(runway.cashOutDate + 'T00:00:00')
+      .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    return {
+      badge: 'POST-JPMC · STABILIZATION MODE',
+      badgeColor: 'rgba(59,130,246,0.2)',
+      badgeText: '#3b82f6',
+      days: Math.max(days, 0),
+      daysLabel: `days of cash runway · cash-out ≈ ${cashOutLabel}`,
+      daysColor: days < 60 ? '#ef4444' : days < 120 ? '#f59e0b' : '#3b82f6',
+    }
+  }
+
   return {
     badge: 'POST-JPMC · STABILIZATION MODE',
     badgeColor: 'rgba(59,130,246,0.2)',
     badgeText: '#3b82f6',
     days: null,
-    daysLabel: 'Focus: debt payoff · savings · DCAD protest',
+    daysLabel: 'Cash-flow positive — no cash-out date in projection',
     daysColor: 'var(--text-secondary)',
   }
 }
 
 export default async function FinancialPage() {
   const data = await getFinancialData()
-  const banner = getBannerState()
+  const banner = getBannerState(data.runwayProjection)
 
   return (
     <div className="flex flex-col min-h-full">
