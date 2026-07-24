@@ -5,6 +5,7 @@
 
 import { createServiceClient } from './supabase/service'
 import { liveSpendCategories, computeBurn, fetchAllTxns, monthlyFlows, computeRunwayProjection, type TxnRow } from './finance/txnAggregate'
+import { detectRecurring } from './finance/recurring'
 import type {
   DbDebtAccount,
   DbFinancialModule,
@@ -619,6 +620,13 @@ export async function getFinancialData(): Promise<FinancialData> {
 
     const flows = monthlyFlows(txns, 6)
 
+    // ── Live recurring charges (replaces the frozen 2025 audit list) ──
+    // The 2025 audit's cancel list still matters: an active recurring
+    // merchant matching it is flagged as a zombie (decided to cancel,
+    // still being charged).
+    const cancelNames = (allSubs ?? []).filter(s => s.action === 'cancel').map(s => s.name)
+    const recurring = detectRecurring(txns, cancelNames.length > 0 ? cancelNames : fallback.cancelSubs.map(s => s.name))
+
     // ── Investment data ───────────────────────────────────────────
     const investments: InvestmentData =
       invAccountsRes.data && invAccountsRes.data.length > 0
@@ -707,6 +715,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       runwayProjection,
       portfolio,
       monthlyFlows: flows,
+      recurring,
     }
   } catch (err) {
     console.error('[financial-data-service] Unexpected error, falling back:', err)

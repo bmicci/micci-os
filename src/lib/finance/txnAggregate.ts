@@ -21,6 +21,7 @@ export interface TxnRow {
   transaction_date: string
   amount: number | string
   category: string | null
+  merchant?: string | null
 }
 
 export interface CategorySpend {
@@ -80,7 +81,7 @@ export async function fetchAllTxns(supabase: any): Promise<TxnRow[]> {
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabase
       .from('transactions')
-      .select('transaction_date, amount, category')
+      .select('transaction_date, amount, category, merchant')
       .order('transaction_date', { ascending: true })
       .range(from, from + PAGE - 1)
     if (error) {
