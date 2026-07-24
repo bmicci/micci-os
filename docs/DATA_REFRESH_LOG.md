@@ -6,7 +6,7 @@ data. Three categories:
 - 🔁 **ROUTINE** — recurring refresh, with cadence and method
 - ⚙️ **AUTO** — refreshes itself; listed so nobody re-builds it
 
-_Last updated: Jul 17, 2026_
+_Last updated: Jul 24, 2026_
 
 ---
 
@@ -27,6 +27,7 @@ _Last updated: Jul 17, 2026_
 | Cliff-aware runway | ⚙️ AUTO | `computeRunwayProjection()` walks day-by-day: current burn until `benefits_end_date`, full spend (no income) after — real cash-out date, not a flat liquid÷burn guess | ✅ built Jul 17 — cash-out ≈ Oct 17, 2026 (liquid cash and benefits both run out within ~a week of each other) |
 | Burn rate / spend categories | ⚙️ AUTO | Derives from imported transactions | — |
 | Action items | ⚙️ AUTO | Check off in Overview Action Center | — |
+| Subscriptions tab | ⚙️ AUTO | Detected live from imported transactions (cadence + stable amount → `lib/finance/recurring.ts`); zombie flags cross-check the 2025 audit cancel list. Refreshes on every CSV re-import | ✅ built Jul 24 — replaced the frozen 2025 audit list |
 | Promo schedule | 🔁 as-paid | Claude updates on each payoff | Next real deferred-interest deadline: Best Buy Promo 2, Dec 27 |
 
 ## 📈 Investments

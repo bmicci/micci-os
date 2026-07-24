@@ -1,5 +1,13 @@
 # Financial Dashboard — Finalization Plan (Jul 11–12, 2026 weekend)
 
+> **Status (Jul 24):** Phases 1–2 landed during the weekend; the Overview
+> reorder (item 11), cliff-aware cash flow chart (12), and Action Center
+> landed the week after. Phase 3 (live Subscriptions from transactions),
+> item 10 (tab consolidation → 8 tabs, Promo Deadlines merged into Debt
+> Payoff, Budget vs Actual renamed Spending), and item 13 (runway in the
+> page header) completed Jul 24. Remaining: item 14 mobile pass spot-check,
+> Phase 5 walkthrough.
+
 Goal: every number real, every tab current, UI tightened. After this
 weekend the dashboard runs on a simple monthly routine (re-import CSVs,
 glance, act).
