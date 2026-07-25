@@ -14,7 +14,7 @@
 // amount variance.
 // ───────────────────────────────────────────────────────────────────────────
 
-import { NON_SPEND_CATEGORIES, type TxnRow } from './txnAggregate'
+import { NON_SPEND_CATEGORIES, canonCategory, type TxnRow } from './txnAggregate'
 
 export interface RecurringCharge {
   name: string          // cleaned display name
@@ -53,8 +53,9 @@ export const EMPTY_RECURRING: RecurringAnalysis = {
 }
 
 // Fixed obligations shown as "bills" rather than cancellable subscriptions.
+// (Canonical names — canonCategory() has already collapsed aliases.)
 const BILL_CATEGORIES = new Set([
-  'Housing', 'Utilities', 'Bills & Utilities', 'Insurance',
+  'Housing', 'Bills & Utilities', 'Insurance',
   'Communications', 'Taxes', 'Debt Service',
 ])
 
@@ -64,9 +65,7 @@ const BILL_MERCHANT = /txu|atmos|water|uverse|at&t|geico|state farm|insurance|nt
 
 // A restaurant or grocery run can hit a ~monthly rhythm by coincidence;
 // these categories can't be subscriptions.
-const EXCLUDE_CATEGORIES = new Set([
-  'Restaurant', 'Food & Dining', 'Food & Drink', 'Groceries',
-])
+const EXCLUDE_CATEGORIES = new Set(['Food & Dining', 'Groceries'])
 
 // Financing costs masquerade as recurring merchants — they belong to the
 // debt tabs, not the subscription list.
@@ -137,7 +136,7 @@ export function detectRecurring(rows: TxnRow[], cancelListNames: string[] = []):
   let dataEnd = ''
 
   for (const r of rows) {
-    const cat = r.category || 'Other'
+    const cat = canonCategory(r.category)
     const d = String(r.transaction_date ?? '').slice(0, 10)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue // pending rows can lack a date
     if (d > dataEnd) dataEnd = d
