@@ -17,6 +17,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const client = getPlaidClient()
+    // OAuth institutions (Chase, Amex, …) bounce through the bank's own
+    // site and back — Plaid requires a redirect_uri that EXACTLY matches
+    // one registered in the Plaid dashboard (API → Allowed redirect URIs).
+    // Derive it from the request origin so preview + production both work.
+    const origin = request.nextUrl.origin
+    const redirectUri = process.env.PLAID_REDIRECT_URI || `${origin}/import`
     const { data } = await client.linkTokenCreate({
       user: { client_user_id: user.id },
       client_name: 'micci-os',
@@ -24,6 +30,7 @@ export async function POST(request: NextRequest) {
       country_codes: [CountryCode.Us],
       language: 'en',
       transactions: { days_requested: 730 },
+      redirect_uri: redirectUri,
     })
     return NextResponse.json({ link_token: data.link_token })
   } catch (err) {

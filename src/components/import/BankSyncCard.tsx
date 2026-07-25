@@ -25,17 +25,30 @@ function timeAgo(iso: string | null): string {
   return `${days}d ago`
 }
 
-function PlaidLinkButton({ linkToken, onSuccess }: {
+// Persist the link_token across the OAuth redirect: banks like Chase and
+// Amex bounce the user to their own site and back to /import — the page
+// fully reloads, so the in-memory token is gone unless we stash it.
+const LINK_TOKEN_KEY = 'plaid_link_token'
+
+function PlaidLinkButton({ linkToken, receivedRedirectUri, onSuccess }: {
   linkToken: string
+  receivedRedirectUri?: string
   onSuccess: (publicToken: string, institutionName: string | null) => void
 }) {
   const { open, ready } = usePlaidLink({
     token: linkToken,
+    receivedRedirectUri,
     onSuccess: (publicToken, metadata) => {
       if (!publicToken) return
       onSuccess(publicToken, metadata.institution?.name ?? null)
     },
   })
+
+  // Resuming after an OAuth redirect: reopen Link immediately — the user
+  // already authenticated at the bank; making them click again is noise.
+  useEffect(() => {
+    if (receivedRedirectUri && ready) open()
+  }, [receivedRedirectUri, ready, open])
 
   return (
     <button
@@ -59,8 +72,23 @@ export default function BankSyncCard() {
   const [items, setItems] = useState<PlaidItem[]>([])
   const [configured, setConfigured] = useState<boolean | null>(null)
   const [linkToken, setLinkToken] = useState<string | null>(null)
+  const [oauthRedirectUri, setOauthRedirectUri] = useState<string | undefined>(undefined)
   const [busy, setBusy] = useState<string | null>(null) // 'connect' | 'sync' | item id
   const [notice, setNotice] = useState<string | null>(null)
+
+  // Returning from a bank's OAuth page (Chase, Amex, …): the URL carries
+  // ?oauth_state_id=… and Link must be re-initialized with the SAME token
+  // that started the flow, plus the full redirect URL.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!new URLSearchParams(window.location.search).has('oauth_state_id')) return
+    const stored = localStorage.getItem(LINK_TOKEN_KEY)
+    if (stored) {
+      setOauthRedirectUri(window.location.href)
+      setLinkToken(stored)
+      setNotice('Finishing bank connection…')
+    }
+  }, [])
 
   const refresh = useCallback(async () => {
     try {
@@ -81,6 +109,7 @@ export default function BankSyncCard() {
       const res = await fetch('/api/plaid/create-link-token', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`)
+      localStorage.setItem(LINK_TOKEN_KEY, data.link_token) // survives OAuth redirect
       setLinkToken(data.link_token)
     } catch (err) {
       setNotice(`⚠️ ${(err as Error).message}`)
@@ -91,6 +120,12 @@ export default function BankSyncCard() {
 
   async function completeConnect(publicToken: string, institutionName: string | null) {
     setLinkToken(null)
+    setOauthRedirectUri(undefined)
+    localStorage.removeItem(LINK_TOKEN_KEY)
+    // Drop the oauth_state_id from the URL so a refresh doesn't re-trigger the resume flow
+    if (typeof window !== 'undefined' && window.location.search.includes('oauth_state_id')) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
     setBusy('connect')
     setNotice('Connecting and running first sync — this can take a minute…')
     try {
@@ -221,7 +256,7 @@ export default function BankSyncCard() {
           {/* Connect flow */}
           <div className="mt-3">
             {linkToken ? (
-              <PlaidLinkButton linkToken={linkToken} onSuccess={completeConnect} />
+              <PlaidLinkButton linkToken={linkToken} receivedRedirectUri={oauthRedirectUri} onSuccess={completeConnect} />
             ) : (
               <button
                 onClick={startConnect}
