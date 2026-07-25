@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { getFinancialData } from '@/lib/financial-data-service'
 import type { RunwayProjection } from '@/lib/financial-data'
 import TabContainer from '@/components/financial/TabContainer'
@@ -61,9 +62,19 @@ function getBannerState(runway: RunwayProjection) {
   }
 }
 
+// Burn, runway, and subscriptions all derive from imported transactions —
+// they silently drift as the data ages, so surface it instead of letting a
+// stale month masquerade as current.
+const STALE_AFTER_DAYS = 21
+
 export default async function FinancialPage() {
   const data = await getFinancialData()
   const banner = getBannerState(data.runwayProjection)
+  const newestTxn = data.burnAnalysis.hasData ? data.burnAnalysis.windowEnd : null
+  const staleDays = newestTxn
+    ? Math.floor((Date.now() - new Date(newestTxn + 'T00:00:00').getTime()) / 86400000)
+    : null
+  const isStale = staleDays != null && staleDays > STALE_AFTER_DAYS
 
   return (
     <div className="flex flex-col min-h-full">
@@ -80,6 +91,15 @@ export default async function FinancialPage() {
             style={{ background: banner.badgeColor, color: banner.badgeText }}>
             {banner.badge}
           </div>
+          {isStale && (
+            <Link
+              href="/import"
+              className="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full mb-1.5 ml-2 hover:opacity-80 transition-opacity"
+              style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b', textDecoration: 'none' }}
+            >
+              ⚠ DATA {staleDays}D OLD — RE-IMPORT CSVs →
+            </Link>
+          )}
           <h1 className="text-lg font-bold gradient-text">Financial Master Plan 2026</h1>
           <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
             Brandon Micci · 9-Module Strategy

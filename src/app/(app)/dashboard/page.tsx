@@ -44,7 +44,7 @@ export default async function DashboardPage() {
   // Cliff-aware: walks day by day so a confirmed income cutoff (e.g. TWC
   // benefits exhausting on a known date) actually moves the cash-out date,
   // instead of assuming today's burn rate holds forever.
-  const { burnAnalysis, runwayProjection, assets, portfolio, actionItems, monthlyFlows, promos, debts } = data
+  const { burnAnalysis, runwayProjection, assets, portfolio, actionItems, monthlyFlows, promos, debts, recurring } = data
   const liquid = assets.cash + assets.savings
   const cashOut = runwayProjection.cashOutDate ? new Date(runwayProjection.cashOutDate + 'T00:00:00') : null
   const runwayMonths = cashOut ? Math.max(0, (cashOut.getTime() - Date.now()) / (30.44 * 86400000)) : Infinity
@@ -86,6 +86,15 @@ export default async function DashboardPage() {
   const perksUnclaimed = ((perksRes.data ?? []) as any[])
     .filter(p => !p.used)
     .reduce((s, p) => s + (Number(p.amount ?? 0) - Number(p.used_amount ?? 0)), 0)
+
+  // Everything money-side derives from imported transactions — flag when
+  // the newest one is old enough that burn/runway are drifting from reality.
+  const staleDays = burnAnalysis.hasData
+    ? Math.floor((Date.now() - new Date(burnAnalysis.windowEnd + 'T00:00:00').getTime()) / 86400000)
+    : null
+  const isStale = staleDays != null && staleDays > 21
+  const zombies = recurring.active.filter(c => c.zombie)
+  const zombieMonthly = zombies.reduce((s, z) => s + z.monthlyCost, 0)
 
   // ── Derived: money mini-chart ──
   const flows = monthlyFlows.slice(-6)
@@ -268,6 +277,20 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2 mt-auto pt-4">
+            {isStale && (
+              <Link href="/import"
+                className="text-[10.5px] px-2.5 py-1 rounded-full font-semibold"
+                style={{ border: '1px solid rgba(245,158,11,0.45)', color: '#f59e0b', background: 'rgba(245,158,11,0.08)' }}>
+                ⚠ Data {staleDays}d old — re-import
+              </Link>
+            )}
+            {zombies.length > 0 && (
+              <Link href="/financial"
+                className="text-[10.5px] px-2.5 py-1 rounded-full font-semibold"
+                style={{ border: '1px solid rgba(239,68,68,0.45)', color: '#f87171', background: 'rgba(239,68,68,0.08)' }}>
+                🧟 {zombies.length} zombie sub{zombies.length > 1 ? 's' : ''} · {fmtRound(zombieMonthly)}/mo
+              </Link>
+            )}
             {upcomingPromos.map(p => {
               const d = daysUntil(p.expires)
               return (
