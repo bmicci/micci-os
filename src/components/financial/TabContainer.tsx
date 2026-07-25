@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Hexagon, Waves, BarChart3, PiggyBank, TrendingUp, Landmark, CreditCard, Timer, Package } from 'lucide-react'
+import { Hexagon, Waves, BarChart3, PiggyBank, TrendingUp, Landmark, CreditCard, Package } from 'lucide-react'
 import type { FinancialData } from '@/lib/financial-data'
 import OverviewTab from './OverviewTab'
 import CashFlowTab from './CashFlowTab'
@@ -9,20 +9,21 @@ import HELOCPlanTab from './HELOCPlanTab'
 import BudgetActualTab from './BudgetActualTab'
 import NetWorthTab from './NetWorthTab'
 import DebtPayoffTab from './DebtPayoffTab'
-import PromoDeadlinesTab from './PromoDeadlinesTab'
 import SubscriptionsTab from './SubscriptionsTab'
 import InvestmentsTab from './InvestmentsTab'
 
+// Ordered to match how the money actually flows: status → cash movement →
+// where it goes → the debt plan → assets. Promo deadlines live inside
+// Debt Payoff (their natural home) rather than as a separate tab.
 const TABS = [
   { id: 'overview', label: 'Overview', icon: Hexagon },
   { id: 'cashflow', label: 'Cash Flow', icon: Waves },
-  { id: 'budget', label: 'Budget vs Actual', icon: BarChart3 },
-  { id: 'networth', label: 'Net Worth', icon: PiggyBank },
-  { id: 'investments', label: 'Investments', icon: TrendingUp },
+  { id: 'budget', label: 'Spending', icon: BarChart3 },
   { id: 'heloc', label: 'HELOC Plan', icon: Landmark },
   { id: 'debtpayoff', label: 'Debt Payoff', icon: CreditCard },
-  { id: 'promos', label: 'Promo Deadlines', icon: Timer },
   { id: 'subscriptions', label: 'Subscriptions', icon: Package },
+  { id: 'investments', label: 'Investments', icon: TrendingUp },
+  { id: 'networth', label: 'Net Worth', icon: PiggyBank },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
@@ -158,16 +159,7 @@ export default function TabContainer({ data }: { data: FinancialData }) {
             promos={data.promos}
           />
         )}
-        {activeTab === 'promos' && <PromoDeadlinesTab promos={data.promos} helocKPIs={data.helocKPIs} />}
-        {activeTab === 'subscriptions' && (
-          <SubscriptionsTab
-            cancelSubs={data.cancelSubs}
-            reviewSubs={data.reviewSubs}
-            essentialBills={data.essentialBills}
-            topActions={data.topActions}
-            subscriptionSummary={data.subscriptionSummary}
-          />
-        )}
+        {activeTab === 'subscriptions' && <SubscriptionsTab recurring={data.recurring} />}
       </div>
     </div>
   )

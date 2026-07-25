@@ -11,16 +11,36 @@
 /** Categories that are NOT real spend — excluded from all spend rollups. */
 export const NON_SPEND_CATEGORIES = new Set(['Card Payment', 'Transfer', 'Income'])
 
+// Different issuers name the same category differently (Amex "Restaurant",
+// Chase "Food & Drink"; "Transport" vs "Transportation"), splitting one
+// spend category into duplicate chart slices. Collapse to a canonical name
+// at aggregation time — no DB rewrite, fixes historical rows too.
+const CATEGORY_ALIASES: Record<string, string> = {
+  'Restaurant': 'Food & Dining',
+  'Food & Drink': 'Food & Dining',
+  'Merchandise & Supplies': 'Shopping',
+  'Transport': 'Transportation',
+  'Utilities': 'Bills & Utilities',
+  'Health & Medical': 'Health & Wellness',
+  'Personal Care': 'Personal',
+}
+
+export function canonCategory(cat: string | null | undefined): string {
+  const c = cat || 'Other'
+  return CATEGORY_ALIASES[c] ?? c
+}
+
 /** Fixed / essential categories — used to derive a survival floor. */
 const ESSENTIAL_CATEGORIES = new Set([
-  'Housing', 'Taxes', 'Debt Service', 'Utilities', 'Bills & Utilities',
-  'Insurance', 'Groceries', 'Health & Medical', 'Health & Wellness', 'Communications',
+  'Housing', 'Taxes', 'Debt Service', 'Bills & Utilities',
+  'Insurance', 'Groceries', 'Health & Wellness', 'Communications',
 ])
 
 export interface TxnRow {
   transaction_date: string
   amount: number | string
   category: string | null
+  merchant?: string | null
 }
 
 export interface CategorySpend {
@@ -80,7 +100,7 @@ export async function fetchAllTxns(supabase: any): Promise<TxnRow[]> {
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabase
       .from('transactions')
-      .select('transaction_date, amount, category')
+      .select('transaction_date, amount, category, merchant')
       .order('transaction_date', { ascending: true })
       .range(from, from + PAGE - 1)
     if (error) {
@@ -102,7 +122,7 @@ const inWindow = (d: string, since?: string, until?: string) =>
 export function spendByCategory(rows: TxnRow[], since?: string, until?: string): CategorySpend[] {
   const map = new Map<string, { net: number; count: number }>()
   for (const r of rows) {
-    const cat = r.category || 'Other'
+    const cat = canonCategory(r.category)
     if (NON_SPEND_CATEGORIES.has(cat)) continue
     const d = String(r.transaction_date).slice(0, 10)
     if (!inWindow(d, since, until)) continue
@@ -137,7 +157,7 @@ export function monthlyTrend(rows: TxnRow[]): {
   const monthMap = new Map<string, Map<string, number>>()
   const cats = new Set<string>()
   for (const r of rows) {
-    const cat = r.category || 'Other'
+    const cat = canonCategory(r.category)
     if (NON_SPEND_CATEGORIES.has(cat)) continue
     const month = String(r.transaction_date).slice(0, 7)
     cats.add(cat)
@@ -222,7 +242,7 @@ export interface MonthlyFlow {
 export function monthlyFlows(rows: TxnRow[], monthsBack = 6): MonthlyFlow[] {
   const map = new Map<string, { income: number; spend: number }>()
   for (const r of rows) {
-    const cat = r.category || 'Other'
+    const cat = canonCategory(r.category)
     const month = String(r.transaction_date).slice(0, 7)
     const e = map.get(month) ?? { income: 0, spend: 0 }
     if (cat === 'Income') e.income += -num(r.amount) // income stored negative

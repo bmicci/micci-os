@@ -212,6 +212,11 @@ function daysUntil(dateStr: string): number {
   return Math.ceil((d.getTime() - Date.now()) / 86400000)
 }
 
+function formatPromoDate(dateStr: string): string {
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr + 'T00:00:00' : dateStr)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 // ═══════════════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════════════
@@ -275,15 +280,12 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
 
   const sortIndicator = (key: SortKey) => (sortKey === key ? (sortDir === -1 ? ' ▾' : ' ▴') : '')
 
-  // Promo deadlines (next 6 months)
-  const urgentPromos = useMemo(() => {
-    return promos
-      .filter(p => {
-        const days = daysUntil(p.expires)
-        return days > 0 && days <= 180
-      })
-      .sort((a, b) => new Date(a.expires).getTime() - new Date(b.expires).getTime())
-  }, [promos])
+  // All promo deadlines, soonest first (absorbed from the old Promo Deadlines tab)
+  const sortedPromos = useMemo(
+    () => [...promos].sort((a, b) => new Date(a.expires).getTime() - new Date(b.expires).getTime()),
+    [promos],
+  )
+  const totalPromo = useMemo(() => promos.reduce((s, p) => s + p.balance, 0), [promos])
 
   return (
     <div className="space-y-5">
@@ -569,19 +571,29 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
         </div>
       </div>
 
-      {/* Promo Deadline Alert Section */}
-      {urgentPromos.length > 0 && (
+      {/* 0% Promo Deadlines (absorbed from the old Promo Deadlines tab) */}
+      {sortedPromos.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>
-            ⚠️ 0% Promo Deadlines (Next 6 Months)
+            ⚠️ 0% Promo Deadlines
           </h3>
+          <div
+            className="rounded-lg p-4 text-[13px]"
+            style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)' }}
+          >
+            <strong style={{ color: '#f59e0b' }}>⚠ Strategy:</strong>{' '}
+            <span style={{ color: 'var(--text-secondary)' }}>
+              All 0% promo balances are safe as long as they&apos;re paid from HELOC BEFORE expiry.
+              Total promo balance: <strong style={{ color: 'var(--text-primary)' }}>{fmt(totalPromo)}</strong> across {sortedPromos.length} accounts.
+              HELOC has <strong style={{ color: 'var(--text-primary)' }}>{fmt(helocKPIs.finalBuffer)}</strong> available after initial roll — {helocKPIs.finalBuffer >= totalPromo ? 'more than enough to cover all promos' : 'may need additional funds for full coverage'}.
+            </span>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {urgentPromos.map(p => {
+            {sortedPromos.map(p => {
               const days = daysUntil(p.expires)
-              const urgencyColor =
-                days <= 30 ? '#ef4444' : days <= 90 ? '#f59e0b' : '#22c55e'
-              const daysLabel =
-                days === 0 ? 'DUE TODAY' : days === 1 ? 'TOMORROW' : `${days} days`
+              const isExpired = days < 0
+              const urgencyColor = isExpired ? '#22c55e' : days <= 90 ? '#ef4444' : days <= 180 ? '#f59e0b' : '#22c55e'
+              const daysLabel = isExpired ? '✅ EXPIRED/PAID' : days === 0 ? 'DUE TODAY' : days === 1 ? 'TOMORROW' : `${days} days`
 
               return (
                 <div
@@ -598,9 +610,20 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
                   <div className="text-[20px] font-extrabold leading-none my-2" style={{ color: urgencyColor }}>
                     {daysLabel}
                   </div>
-                  <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
-                    {fmt(p.balance)} at 0%
+                  <div className="text-[12px] mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    {fmt(p.balance)} at 0% → expires{' '}
+                    <strong style={{ color: 'var(--text-primary)' }}>{formatPromoDate(p.expires)}</strong>
                   </div>
+                  {p.risk ? (
+                    <div className="text-[12px] mb-1" style={{ color: '#ef4444' }}>
+                      ⚠ Deferred interest at risk: {fmt(p.risk)}
+                    </div>
+                  ) : null}
+                  {p.note ? (
+                    <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                      {p.note}
+                    </div>
+                  ) : null}
                 </div>
               )
             })}

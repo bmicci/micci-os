@@ -61,9 +61,7 @@ src/
 
 ## Current Build Phase
 
-**Phase 0: Foundation Refactor** — See `docs/prds/00-PHASE-0-FOUNDATION-REFACTOR.md`
-
-This phase must complete before any new modules are built. It adds Zustand, TanStack Query, the calculation engine, Supabase-first data migration, component reorganization, and type consolidation.
+**Refinement mode (Jul 2026).** Phases 0–3 of `docs/IMPLEMENTATION_PLAN.md` are built: all sections live, Supabase-first data layer, calculation engine in `lib/finance/`, live transaction-derived spend/burn/runway/subscriptions. Remaining backlog: Plaid/auto-sync (Phase 4), advanced viz + polish (Phase 5), and whatever `docs/DATA_REFRESH_LOG.md` marks as owed.
 
 ## PRD Documents
 

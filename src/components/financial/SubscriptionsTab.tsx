@@ -1,181 +1,188 @@
 'use client'
 
-import type { Subscription, EssentialBill, TopAction, SubscriptionSummary } from '@/lib/financial-data'
-import { fmt } from '@/lib/financial-data'
+import type { RecurringAnalysis, RecurringCharge } from '@/lib/financial-data'
 import KPICard from './KPICard'
-import SubscriptionDonut from './SubscriptionDonut'
 
-export default function SubscriptionsTab({
-  cancelSubs,
-  reviewSubs,
-  essentialBills,
-  topActions,
-  subscriptionSummary,
-}: {
-  cancelSubs: Subscription[]
-  reviewSubs: Subscription[]
-  essentialBills: EssentialBill[]
-  topActions: TopAction[]
-  subscriptionSummary: SubscriptionSummary
-}) {
-  const cancelTotal = cancelSubs.reduce((s, c) => s + c.mo, 0)
-  const reviewTotal = reviewSubs.reduce((s, r) => s + r.mo, 0)
-  const essentialTotal = essentialBills.reduce((s, b) => s + b.mo, 0)
-  const keepTotal = subscriptionSummary.keepTotalMonthly
-  const keepCount = subscriptionSummary.keepCount
-  const merchantCount = subscriptionSummary.totalRecurringMerchants
+// Live recurring-charge view — detected from imported transactions on every
+// load (see lib/finance/recurring.ts). Replaces the frozen 2025 audit list.
+
+function formatDate(dateStr: string): string {
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr + 'T00:00:00' : dateStr)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+const CADENCE_LABEL: Record<RecurringCharge['cadence'], string> = {
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  annual: 'Annual',
+}
+
+function PriceTrend({ pct }: { pct: number | null }) {
+  if (pct == null || Math.abs(pct) < 3) {
+    return <span style={{ color: 'var(--text-muted)' }}>—</span>
+  }
+  const up = pct > 0
+  return (
+    <span className="font-semibold" style={{ color: up ? '#ef4444' : '#22c55e' }}>
+      {up ? '▲' : '▼'} {Math.abs(pct).toFixed(0)}%
+    </span>
+  )
+}
+
+function ChargeTable({ charges, showStatusDate }: { charges: RecurringCharge[]; showStatusDate?: boolean }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-[12px]" style={{ borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
+            {['Service', 'Cadence', 'Monthly', 'Last Charged', 'Price Trend', ''].map(h => (
+              <th key={h} className="text-left py-2 px-3 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {charges.map((c, i) => (
+            <tr key={c.key} style={{ borderBottom: i < charges.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+              <td className="py-2 px-3" style={{ color: 'var(--text-primary)' }}>
+                {c.name}
+                <span className="ml-2 text-[10px]" style={{ color: 'var(--text-muted)' }}>{c.category}</span>
+              </td>
+              <td className="py-2 px-3" style={{ color: 'var(--text-muted)' }}>
+                {CADENCE_LABEL[c.cadence]}
+                {c.cadence !== 'monthly' && (
+                  <span className="ml-1 text-[10px]">(${c.lastAmount.toFixed(2)}/chg)</span>
+                )}
+              </td>
+              <td className="py-2 px-3 font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                ${c.monthlyCost.toFixed(2)}
+              </td>
+              <td className="py-2 px-3 font-mono" style={{ color: showStatusDate ? '#f59e0b' : 'var(--text-muted)' }}>
+                {formatDate(c.lastCharged)}
+              </td>
+              <td className="py-2 px-3">
+                <PriceTrend pct={c.priceChangePct} />
+              </td>
+              <td className="py-2 px-3">
+                {c.zombie && (
+                  <span
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)' }}
+                  >
+                    🧟 ZOMBIE — on cancel list, still charging
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+export default function SubscriptionsTab({ recurring }: { recurring: RecurringAnalysis }) {
+  if (!recurring.hasData) {
+    return (
+      <div className="glass-card p-8 text-center text-[13px]" style={{ color: 'var(--text-muted)' }}>
+        No imported transactions yet — drop account CSVs at <strong style={{ color: '#60a5fa' }}>/import</strong> and
+        recurring charges will be detected automatically.
+      </div>
+    )
+  }
+
+  const subs = recurring.active.filter(c => c.kind === 'subscription')
+  const bills = recurring.active.filter(c => c.kind === 'bill')
+  const zombies = recurring.active.filter(c => c.zombie)
 
   return (
     <div className="space-y-5">
+      {/* Data provenance */}
+      <div
+        className="rounded-lg p-3 text-[12px]"
+        style={{ background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.2)', color: 'var(--text-secondary)' }}
+      >
+        ⚙️ Detected live from imported transactions through{' '}
+        <strong style={{ color: 'var(--text-primary)' }}>{formatDate(recurring.dataEnd)}</strong> — a merchant counts as
+        recurring when it charges on a regular cadence with a stable amount. Re-import CSVs at /import to refresh.
+      </div>
+
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <KPICard label="Cancel Now (Monthly)" value={`$${cancelTotal.toFixed(2)}`} note={`${cancelSubs.length} services · $${(cancelTotal * 12).toFixed(0)}/yr`} accent="red" />
-        <KPICard label="Under Review (Monthly)" value={`$${reviewTotal.toFixed(2)}`} note={`${reviewSubs.length} services · $${(reviewTotal * 12).toFixed(0)}/yr if all cut`} accent="amber" />
-        <KPICard label="Conservative Savings" value={`$${(cancelTotal + reviewTotal * 0.5).toFixed(2)}/mo`} note="Cancels + 50% of reviews cut" accent="green" />
-        <KPICard label="Keep (Justified)" value={`$${keepTotal.toFixed(2)}/mo`} note={`${keepCount} services — clear ROI`} />
-        <KPICard label="Recurring Merchants Found" value={String(merchantCount)} note="Appearing in 3+ months of 2025" />
+        <KPICard
+          label="Active Recurring (Monthly)"
+          value={`$${recurring.activeMonthlyTotal.toFixed(0)}`}
+          note={`${recurring.active.length} recurring charges`}
+          accent="cyan"
+        />
+        <KPICard
+          label="Subscriptions"
+          value={`$${recurring.subsMonthlyTotal.toFixed(2)}/mo`}
+          note={`${subs.length} services — all cancellable`}
+          accent="amber"
+        />
+        <KPICard
+          label="Bills & Fixed"
+          value={`$${recurring.billsMonthlyTotal.toFixed(0)}/mo`}
+          note={`${bills.length} obligations (shop annually)`}
+        />
+        <KPICard
+          label="Recently Stopped"
+          value={`$${recurring.lapsedMonthlySavings.toFixed(0)}/mo`}
+          note="Freed up in the last 6 months"
+          accent="green"
+        />
+        <KPICard
+          label="Flags"
+          value={`${recurring.zombieCount} 🧟 · ${recurring.creepCount} ▲`}
+          note="Zombies · price increases"
+          accent={recurring.zombieCount > 0 ? 'red' : undefined}
+        />
       </div>
 
-      {/* Cancel + Review Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Cancel Now */}
-        <div className="glass-card p-5">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: '#ef4444' }}>
-            🔴 Cancel Now — ${cancelTotal.toFixed(2)}/mo Saved Immediately
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-[12px]" style={{ borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
-                  <th className="text-left py-2 px-3 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Service</th>
-                  <th className="text-right py-2 px-3 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Monthly</th>
-                  <th className="text-left py-2 px-3 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Why Cancel</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cancelSubs.map((s, i) => (
-                  <tr key={s.name} style={{ borderBottom: i < cancelSubs.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-                    <td className="py-2 px-3" style={{ color: 'var(--text-primary)' }}>{s.name}</td>
-                    <td className="py-2 px-3 text-right font-mono font-semibold" style={{ color: '#ef4444' }}>${s.mo.toFixed(2)}</td>
-                    <td className="py-2 px-3 text-[11px]" style={{ color: 'var(--text-muted)' }}>{s.reason}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)' }}>
-                  <td className="py-3 px-3 font-bold" style={{ color: '#ef4444' }}>TOTAL</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold" style={{ color: '#ef4444' }}>${cancelTotal.toFixed(2)}/mo</td>
-                  <td className="py-3 px-3 font-bold" style={{ color: '#ef4444' }}>${(cancelTotal * 12).toFixed(2)}/yr</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+      {/* Zombie alert */}
+      {zombies.length > 0 && (
+        <div
+          className="rounded-lg p-4 text-[13px]"
+          style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)' }}
+        >
+          <strong style={{ color: '#ef4444' }}>🧟 Zombie charges:</strong>{' '}
+          <span style={{ color: 'var(--text-secondary)' }}>
+            {zombies.map(z => z.name).join(', ')} — marked cancel in the 2025 audit but still charging
+            (${zombies.reduce((s, z) => s + z.monthlyCost, 0).toFixed(2)}/mo). Cancel these first.
+          </span>
         </div>
+      )}
 
-        {/* Under Review */}
-        <div className="glass-card p-5">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: '#f59e0b' }}>
-            🟡 Under Review — Up to ${reviewTotal.toFixed(2)}/mo if All Cut
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-[12px]" style={{ borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
-                  <th className="text-left py-2 px-3 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Service</th>
-                  <th className="text-right py-2 px-3 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Monthly</th>
-                  <th className="text-left py-2 px-3 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Decision</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reviewSubs.map((s, i) => (
-                  <tr key={s.name} style={{ borderBottom: i < reviewSubs.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-                    <td className="py-2 px-3" style={{ color: 'var(--text-primary)' }}>{s.name}</td>
-                    <td className="py-2 px-3 text-right font-mono font-semibold" style={{ color: '#f59e0b' }}>${s.mo.toFixed(2)}</td>
-                    <td className="py-2 px-3 text-[11px]" style={{ color: 'var(--text-muted)' }}>{s.reason}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)' }}>
-                  <td className="py-3 px-3 font-bold" style={{ color: '#f59e0b' }}>TOTAL</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold" style={{ color: '#f59e0b' }}>${reviewTotal.toFixed(2)}/mo</td>
-                  <td className="py-3 px-3 font-bold" style={{ color: '#f59e0b' }}>${(reviewTotal * 12).toFixed(0)}/yr</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {/* Essential Bills */}
+      {/* Active subscriptions */}
       <div className="glass-card p-5">
-        <h3 className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
-          🏠 Essential Recurring Bills — ${essentialTotal.toFixed(2)}/mo (Shop Annually)
+        <h3 className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: '#f59e0b' }}>
+          💳 Active Subscriptions — ${recurring.subsMonthlyTotal.toFixed(2)}/mo
         </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-[12px]" style={{ borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
-                {['Bill', 'Category', 'Monthly ($)', 'Annual ($)', 'Optimization Note'].map(h => (
-                  <th key={h} className="text-left py-2 px-3 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {essentialBills.map((b, i) => (
-                <tr key={b.name} style={{ borderBottom: i < essentialBills.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-                  <td className="py-2 px-3" style={{ color: 'var(--text-primary)' }}>{b.name}</td>
-                  <td className="py-2 px-3" style={{ color: 'var(--text-muted)' }}>Bill</td>
-                  <td className="py-2 px-3 font-mono font-semibold" style={{ color: '#60a5fa' }}>${b.mo.toFixed(2)}</td>
-                  <td className="py-2 px-3 font-mono" style={{ color: '#60a5fa' }}>${b.yr.toFixed(0)}</td>
-                  <td className="py-2 px-3 text-[11px]" style={{ color: 'var(--text-muted)' }}>{b.note}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ChargeTable charges={subs} />
       </div>
 
-      {/* Donut + Action Plan */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="glass-card p-5">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
-            Subscription Spend Breakdown
-          </h3>
-          <SubscriptionDonut cancelTotal={cancelTotal} reviewTotal={reviewTotal} keepTotal={keepTotal} />
-        </div>
-
-        <div className="glass-card p-5">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
-            ⚡ Top 5 Fastest Actions This Week
-          </h3>
-          <div className="space-y-0">
-            {topActions.map((a, i) => (
-              <div
-                key={i}
-                className="flex items-start justify-between gap-3 py-2.5"
-                style={{ borderBottom: i < topActions.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}
-              >
-                <div className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-                  <span className="text-[15px]">{a.icon}</span> {a.text}
-                </div>
-                <span className="text-[12px] font-bold shrink-0" style={{ color: '#22c55e' }}>
-                  {a.save}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div
-            className="mt-4 p-3 rounded-lg text-[11px]"
-            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}
-          >
-            📄 Full audit + action checklist:{' '}
-            <strong style={{ color: '#60a5fa' }}>Module_2_Subscription_Audit.xlsx</strong> → 💡 Action Plan sheet
-          </div>
-        </div>
+      {/* Active bills */}
+      <div className="glass-card p-5">
+        <h3 className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: '#60a5fa' }}>
+          🏠 Bills & Fixed Obligations — ${recurring.billsMonthlyTotal.toFixed(2)}/mo
+        </h3>
+        <ChargeTable charges={bills} />
       </div>
+
+      {/* Stopped charging */}
+      {recurring.lapsed.length > 0 && (
+        <div className="glass-card p-5">
+          <h3 className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: '#22c55e' }}>
+            ✅ Stopped Charging — no longer detected
+          </h3>
+          <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
+            Cancelled services and paid-off obligations, newest first. Last-charged date shown in amber.
+          </p>
+          <ChargeTable charges={recurring.lapsed} showStatusDate />
+        </div>
+      )}
     </div>
   )
 }
