@@ -17,7 +17,7 @@ _Last updated: Jul 24, 2026_
 | Checking + 6 card CSVs (2yr) | done | `/import` or `scripts/ingest_txns.mjs` | ✅ 4,112 txns imported (Jun) |
 | Citi Diamond transactions | ⚙️ AUTO | Confirmed via Jun statement: $0 purchases/fees/interest this cycle — only txn is the autopay, already captured on the Chase Checking side | ✅ balance $11,879, limit $14,800, BT 0% thru 6/18/27 |
 | Citi Best Buy (4802) transactions | ⚙️ AUTO | Confirmed via Jul statement: $0 purchases this cycle — Promo 1 ($962.44) fully paid off, only Promo 2 remains | ✅ balance $860.40, limit $10,000, Promo 2 0% expires 12/27/26 ($342.12 deferred-interest risk — new action item added) |
-| Monthly CSV re-import (all 8 accounts) | 🔁 monthly | `/import` — dedup makes overlap safe | Last: mid-June |
+| Monthly CSV re-import (all 8 accounts) | 🔁 monthly | `/import` — dedup makes overlap safe. Self-enforcing since Jul 24: /financial header + dashboard show an amber "data N days old" pill once the newest txn is >21 days old | Last: mid-June (pill currently showing) |
 | Checking balance | 🔁 as-provided | Tell Claude or update settings `assets.cash` | ✅ $2,911.92 as of Jul 14 (Chase5332 CSV; 28 txns 6/23–7/14 imported) |
 | Wealthfront balance | 🔁 monthly | Settings `assets.savings` | ✅ $12,186.53 as of Jul 8 — down $8K from 3 draws to checking (6/24, 6/25, 7/8) |
 | **Exact HELOC draw amounts** (Best Buy + CFU payoffs) | 🔴 OWED | From Texas CU statement → true-up `debt_accounts` | Estimated at $962.44 + $8,453.66 |
