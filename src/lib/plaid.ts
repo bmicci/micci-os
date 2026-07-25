@@ -157,6 +157,28 @@ export async function syncPlaidItem(service: any, item: DbPlaidItem): Promise<Sy
       status: 'active',
     }).eq('id', item.id)
 
+    // Auto-update liquid cash: assets.cash previously had to be told to
+    // Claude by hand. If this item carries checking accounts, write their
+    // combined live balance into the assets setting — the runway
+    // projection reads it directly. (Best-effort: a balance hiccup must
+    // not fail a successful transaction sync.)
+    try {
+      const { data: bal } = await client.accountsBalanceGet({ access_token: item.access_token })
+      const checking = bal.accounts.filter(a => a.type === 'depository' && a.subtype === 'checking')
+      if (checking.length > 0) {
+        const cash = checking.reduce((s, a) => s + (a.balances.available ?? a.balances.current ?? 0), 0)
+        const { data: row } = await service.from('financial_settings').select('id, value').eq('key', 'assets').single()
+        if (row) {
+          await service.from('financial_settings').update({
+            value: { ...row.value, cash: Math.round(cash * 100) / 100 },
+            updated_at: new Date().toISOString(),
+          }).eq('id', row.id)
+        }
+      }
+    } catch (err) {
+      console.warn('[plaid] balance refresh failed (sync still ok):', err)
+    }
+
     return { institution, added, modified, removed }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)

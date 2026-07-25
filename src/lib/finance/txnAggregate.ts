@@ -101,6 +101,7 @@ export async function fetchAllTxns(supabase: any): Promise<TxnRow[]> {
     const { data, error } = await supabase
       .from('transactions')
       .select('transaction_date, amount, category, merchant')
+      .not('transaction_date', 'is', null)
       .order('transaction_date', { ascending: true })
       .range(from, from + PAGE - 1)
     if (error) {
@@ -111,7 +112,12 @@ export async function fetchAllTxns(supabase: any): Promise<TxnRow[]> {
     all.push(...rows)
     if (rows.length < PAGE) break
   }
-  return all
+  // A CSV row whose date failed to parse must never reach the aggregates:
+  // String(null) is "null", which sorts above every real date, so a single
+  // dateless row corrupts maxD in computeBurn into new Date(NaN) and the
+  // resulting RangeError took down the whole financial data service
+  // (silently serving the hardcoded fallback on every page).
+  return all.filter(r => /^\d{4}-\d{2}-\d{2}/.test(String(r.transaction_date)))
 }
 
 const num = (v: number | string) => (typeof v === 'number' ? v : parseFloat(v) || 0)
@@ -209,7 +215,8 @@ export const EMPTY_BURN: BurnAnalysis = {
 export function computeBurn(rows: TxnRow[], steadyMonthlyIncome: number, windowDays = 90): BurnAnalysis {
   if (rows.length === 0) return { ...EMPTY_BURN, monthlyIncome: steadyMonthlyIncome }
   const maxD = rows.reduce((m, r) => {
-    const d = String(r.transaction_date).slice(0, 10)
+    const d = String(r.transaction_date ?? '').slice(0, 10)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return m // dateless row can't define the window
     return d > m ? d : m
   }, '0000-00-00')
   if (maxD === '0000-00-00') return { ...EMPTY_BURN, monthlyIncome: steadyMonthlyIncome }
