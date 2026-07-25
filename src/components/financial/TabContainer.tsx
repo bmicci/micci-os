@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Hexagon, Waves, BarChart3, PiggyBank, TrendingUp, Landmark, CreditCard, Package } from 'lucide-react'
 import type { FinancialData } from '@/lib/financial-data'
+import { fmt } from '@/lib/financial-data'
 import OverviewTab from './OverviewTab'
 import CashFlowTab from './CashFlowTab'
 import HELOCPlanTab from './HELOCPlanTab'
@@ -11,6 +12,8 @@ import NetWorthTab from './NetWorthTab'
 import DebtPayoffTab from './DebtPayoffTab'
 import SubscriptionsTab from './SubscriptionsTab'
 import InvestmentsTab from './InvestmentsTab'
+import InvestmentsPortfolioTab from './InvestmentsPortfolioTab'
+import type { DbPortfolioPosition, DbPortfolioTarget } from '@/types/database'
 
 // Ordered to match how the money actually flows: status → cash movement →
 // where it goes → the debt plan → assets. Promo deadlines live inside
@@ -28,7 +31,15 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id']
 
-export default function TabContainer({ data }: { data: FinancialData }) {
+export default function TabContainer({ data, positions = [], targets = [] }: {
+  data: FinancialData
+  positions?: DbPortfolioPosition[]
+  targets?: DbPortfolioTarget[]
+}) {
+  const pTotalValue = positions.reduce((s, p) => s + Number(p.current_value ?? 0), 0)
+  const pTotalCost = positions.reduce((s, p) => s + Number(p.cost_basis ?? 0), 0)
+  const pTotalGL = pTotalValue - pTotalCost
+  const pTotalGLPct = pTotalCost > 0 ? (pTotalGL / pTotalCost) * 100 : 0
   const [activeTab, setActiveTab] = useState<TabId>('overview')
   const navRef = useRef<HTMLElement>(null)
   const [showScrollHint, setShowScrollHint] = useState(false)
@@ -101,29 +112,34 @@ export default function TabContainer({ data }: { data: FinancialData }) {
         )}
         {activeTab === 'investments' && (
           <div className="space-y-4">
-            {/* Banner linking to the live portfolio dashboard */}
-            <a
-              href="/finance/investments"
-              className="flex items-center justify-between p-4 rounded-2xl transition-all hover:opacity-90"
-              style={{
-                background: 'linear-gradient(135deg, rgba(0,212,255,0.15), rgba(30,144,255,0.1))',
-                border: '1px solid rgba(0,212,255,0.35)',
-                textDecoration: 'none',
-              }}
-            >
-              <div>
-                <p className="text-sm font-bold" style={{ color: '#00D4FF' }}>
-                  📈 Live Investment Portfolio Dashboard
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                  Real-time prices · allocation vs target · Chase CSV import · Supabase-backed
-                </p>
+            {/* Employer plan is real money in the net-worth number but has no
+                positions imported — say so explicitly rather than leaving it
+                as an unexplained delta. */}
+            {data.portfolio && data.portfolio.employerSupplement > 0 && (
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl"
+                style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.25)' }}>
+                <div>
+                  <p className="text-[12.5px] font-bold" style={{ color: '#a78bfa' }}>
+                    Empower 401(k) — rollover planned
+                  </p>
+                  <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    Counted in net worth &amp; retirement total, but positions aren&apos;t imported —
+                    balance is a manual figure until the rollover into the IRA completes.
+                  </p>
+                </div>
+                <span className="font-mono font-bold text-[15px] shrink-0" style={{ color: '#a78bfa' }}>
+                  {fmt(data.portfolio.employerSupplement)}
+                </span>
               </div>
-              <span className="text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0 ml-4"
-                style={{ background: 'rgba(0,212,255,0.2)', color: '#00D4FF', border: '1px solid rgba(0,212,255,0.4)' }}>
-                Open Full Portfolio →
-              </span>
-            </a>
+            )}
+            <InvestmentsPortfolioTab
+              positions={positions}
+              targets={targets}
+              totalValue={pTotalValue}
+              totalCost={pTotalCost}
+              totalGL={pTotalGL}
+              totalGLPct={pTotalGLPct}
+            />
             <InvestmentsTab investments={data.investments} />
           </div>
         )}
