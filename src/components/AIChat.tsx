@@ -55,6 +55,11 @@ export default function AIChat() {
 
     abortRef.current = new AbortController()
 
+    // Watchdog: if the server never produces a first byte (stalled RAG
+    // call, hung function), abort with a real error instead of an
+    // infinite "thinking..." spinner.
+    const watchdog = setTimeout(() => abortRef.current?.abort(), 30000)
+
     try {
       const history = [...messages, userMsg].map(({ role, content }) => ({ role, content }))
 
@@ -66,15 +71,20 @@ export default function AIChat() {
       })
 
       if (!response.ok) {
-        throw new Error(`Request failed: ${response.status}`)
+        throw new Error(response.status === 401 ? 'Session expired — refresh the page and log in again.' : `Request failed: ${response.status}`)
       }
 
       const reader = response.body!.getReader()
       const decoder = new TextDecoder()
+      let gotFirstByte = false
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
+        if (!gotFirstByte) {
+          gotFirstByte = true
+          clearTimeout(watchdog)
+        }
         const chunk = decoder.decode(value, { stream: true })
         setMessages((prev) =>
           prev.map((m) =>
@@ -82,12 +92,18 @@ export default function AIChat() {
           )
         )
       }
-    } catch (err) {
-      if ((err as Error).name !== 'AbortError') {
-        setError((err as Error).message || 'Something went wrong')
-        setMessages((prev) => prev.filter((m) => m.id !== assistantId))
+      if (!gotFirstByte) {
+        throw new Error('The server closed the stream without responding — check the deployment logs.')
       }
+    } catch (err) {
+      const aborted = (err as Error).name === 'AbortError'
+      const msg = aborted
+        ? 'The AI did not respond within 30 seconds — the server may be misconfigured. Check ANTHROPIC_API_KEY in Vercel.'
+        : (err as Error).message || 'Something went wrong'
+      setError(msg)
+      setMessages((prev) => prev.filter((m) => m.id !== assistantId))
     } finally {
+      clearTimeout(watchdog)
       setIsLoading(false)
     }
   }, [isLoading, messages, section])
