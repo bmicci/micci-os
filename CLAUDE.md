@@ -27,7 +27,7 @@ This is NOT a greenfield build. Every section below is built and live. Do not sc
 | `/job-search` | Pipeline, KPIs, outreach, recruiters — full CRUD | ✅ live |
 | `/tasks` | Unified Action Center (`action_items` table, all life areas) | ✅ live |
 | `/health` | Protocols, labs, fitness | ✅ live |
-| `/import` | CSV/document import with dedup (8 financial accounts) | ✅ live |
+| `/import` | CSV/document import with dedup (8 financial accounts) + Plaid bank auto-sync (daily cron + on-demand; needs PLAID_* env vars) | ✅ live |
 
 ## KEY ARCHITECTURE (do not violate)
 

@@ -1,5 +1,6 @@
 import { Upload } from 'lucide-react'
 import ImportCenter from '@/components/import/ImportCenter'
+import BankSyncCard from '@/components/import/BankSyncCard'
 
 export const metadata = {
   title: 'Import Center — micci-os',
@@ -32,6 +33,8 @@ export default function ImportPage() {
           will immediately reflect the imported numbers.
         </p>
       </div>
+
+      <BankSyncCard />
 
       <ImportCenter />
     </div>
