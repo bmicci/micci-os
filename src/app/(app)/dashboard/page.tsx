@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getFinancialData } from '@/lib/financial-data-service'
 import { getJobSearchData } from '@/lib/job-search-data-service'
 import { fmtK, HELOC_LIMIT } from '@/lib/financial-data'
+import UpNextRail from '@/components/financial/UpNextRail'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Command Center — Micci OS' }
@@ -44,7 +45,7 @@ export default async function DashboardPage() {
   // Cliff-aware: walks day by day so a confirmed income cutoff (e.g. TWC
   // benefits exhausting on a known date) actually moves the cash-out date,
   // instead of assuming today's burn rate holds forever.
-  const { burnAnalysis, runwayProjection, assets, portfolio, actionItems, monthlyFlows, promos, debts, recurring } = data
+  const { burnAnalysis, runwayProjection, assets, portfolio, actionItems, monthlyFlows, promos, debts, recurring, upcoming } = data
   const liquid = assets.cash + assets.savings
   const cashOut = runwayProjection.cashOutDate ? new Date(runwayProjection.cashOutDate + 'T00:00:00') : null
   const runwayMonths = cashOut ? Math.max(0, (cashOut.getTime() - Date.now()) / (30.44 * 86400000)) : Infinity
@@ -308,6 +309,11 @@ export default async function DashboardPage() {
             })}
           </div>
         </div>
+      </div>
+
+      {/* ── Up Next: bills, promo cliffs, due actions ── */}
+      <div className="glass-card p-5">
+        <UpNextRail items={upcoming} limit={8} compact />
       </div>
 
       {/* ── 4. Section pulses ── */}

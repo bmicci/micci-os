@@ -6,6 +6,7 @@ import {
   ResponsiveContainer, AreaChart, Area,
 } from 'recharts'
 import type { FinancialData, ActionItem } from '@/lib/financial-data'
+import UpNextRail from './UpNextRail'
 import { getDebtTotals, fmtK, HELOC_LIMIT } from '@/lib/financial-data'
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -192,7 +193,7 @@ export default function OverviewTab({ data, onNavigate }: {
   data: FinancialData
   onNavigate?: (tab: string) => void
 }) {
-  const { debts, actionItems, assets, burnAnalysis, runwayProjection, portfolio, monthlyFlows } = data
+  const { debts, actionItems, assets, burnAnalysis, runwayProjection, portfolio, monthlyFlows, upcoming } = data
   const totals = getDebtTotals(debts)
   const go = (tab: string) => onNavigate?.(tab)
 
@@ -303,7 +304,10 @@ export default function OverviewTab({ data, onNavigate }: {
 
         {/* Right stack: actions → portfolio */}
         <div className="flex flex-col gap-4">
-        <ActionCenter items={actionItems} />
+        <div className="flex flex-col gap-4">
+          <UpNextRail items={upcoming} limit={7} />
+          <ActionCenter items={actionItems} />
+        </div>
 
         {/* Portfolio — today's performance & movers */}
         <div className="glass-card p-5 flex-1 cursor-pointer transition-all hover:scale-[1.01]" onClick={() => go('investments')}>

@@ -284,6 +284,8 @@ export type { BurnAnalysis, RunwayProjection } from './finance/txnAggregate'
 import type { BurnAnalysis, RunwayProjection } from './finance/txnAggregate'
 import { EMPTY_BURN, computeRunwayProjection } from './finance/txnAggregate'
 export type { RecurringAnalysis, RecurringCharge } from './finance/recurring'
+export type { UpcomingItem } from './finance/upcoming'
+import type { UpcomingItem } from './finance/upcoming'
 import type { RecurringAnalysis } from './finance/recurring'
 import { EMPTY_RECURRING } from './finance/recurring'
 
@@ -316,6 +318,7 @@ export interface FinancialData {
   portfolio: PortfolioSnapshot | null
   monthlyFlows: MonthlyFlowPoint[]
   recurring: RecurringAnalysis
+  upcoming: UpcomingItem[]
 }
 
 // ── Data ───────────────────────────────────────────
@@ -946,5 +949,6 @@ export function getAllData(): FinancialData {
     portfolio: null,
     monthlyFlows: [],
     recurring: EMPTY_RECURRING,
+    upcoming: [],
   }
 }

@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { getFinancialData } from '@/lib/financial-data-service'
+import { createServiceClient } from '@/lib/supabase/service'
+import type { DbPortfolioPosition, DbPortfolioTarget } from '@/types/database'
 import type { RunwayProjection } from '@/lib/financial-data'
 import TabContainer from '@/components/financial/TabContainer'
 
@@ -67,8 +69,23 @@ function getBannerState(runway: RunwayProjection) {
 // stale month masquerade as current.
 const STALE_AFTER_DAYS = 21
 
+// Investments live INSIDE the Investments tab — the portfolio data is
+// fetched here and handed down, so there's no link-out to a separate page.
+async function fetchPortfolio() {
+  const supabase = createServiceClient()
+  if (!supabase) return { positions: [], targets: [] }
+  const [pos, tgt] = await Promise.all([
+    supabase.from('portfolio_positions').select('*').order('current_value', { ascending: false }),
+    supabase.from('portfolio_targets').select('*').order('target_pct', { ascending: false }),
+  ])
+  return {
+    positions: (pos.data ?? []) as DbPortfolioPosition[],
+    targets: (tgt.data ?? []) as DbPortfolioTarget[],
+  }
+}
+
 export default async function FinancialPage() {
-  const data = await getFinancialData()
+  const [data, portfolioData] = await Promise.all([getFinancialData(), fetchPortfolio()])
   const banner = getBannerState(data.runwayProjection)
   const newestTxn = data.burnAnalysis.hasData ? data.burnAnalysis.windowEnd : null
   const staleDays = newestTxn
@@ -118,7 +135,7 @@ export default async function FinancialPage() {
       </header>
 
       {/* Tabbed Dashboard */}
-      <TabContainer data={data} />
+      <TabContainer data={data} positions={portfolioData.positions} targets={portfolioData.targets} />
     </div>
   )
 }

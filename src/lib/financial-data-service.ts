@@ -6,6 +6,7 @@
 import { createServiceClient } from './supabase/service'
 import { liveSpendCategories, computeBurn, fetchAllTxns, monthlyFlows, computeRunwayProjection, type TxnRow } from './finance/txnAggregate'
 import { detectRecurring } from './finance/recurring'
+import { computeUpcoming } from './finance/upcoming'
 import type {
   DbDebtAccount,
   DbFinancialModule,
@@ -716,6 +717,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       portfolio,
       monthlyFlows: flows,
       recurring,
+      upcoming: computeUpcoming(recurring, promos, actionItems),
     }
   } catch (err) {
     console.error('[financial-data-service] Unexpected error, falling back:', err)
