@@ -125,17 +125,33 @@ export async function syncPlaidItem(service: any, item: DbPlaidItem): Promise<Sy
         count: 500,
       })
 
+      // Insert via RPC with ON CONFLICT DO NOTHING (no target): a row can
+      // collide on plaid_txn_id OR on transactions_dedup_idx (same-day
+      // identical charges, CSV-import overlap) — a plain upsert on one
+      // constraint aborts the whole batch when the other one fires.
       const addedRows = data.added.filter(t => !t.pending).map(t => toRow(item.user_id, t, item.account_map))
       if (addedRows.length > 0) {
-        const { error } = await service.from('transactions').upsert(addedRows, { onConflict: 'plaid_txn_id' })
+        const { data: inserted, error } = await service.rpc('plaid_insert_transactions', { rows: addedRows })
         if (error) throw new Error(`insert: ${error.message}`)
-        added += addedRows.length
+        added += inserted ?? addedRows.length
       }
 
       for (const t of data.modified.filter(t => !t.pending)) {
         const row = toRow(item.user_id, t, item.account_map)
-        const { error } = await service.from('transactions').upsert(row, { onConflict: 'plaid_txn_id' })
-        if (error) throw new Error(`modify: ${error.message}`)
+        const { data: upd, error } = await service.from('transactions')
+          .update(row).eq('plaid_txn_id', row.plaid_txn_id).select('id')
+        if (error) {
+          // e.g. the update makes it collide with an existing dedup-key row —
+          // one weird row must not kill the whole sync
+          console.warn(`[plaid] modify skipped for ${row.plaid_txn_id}:`, error.message)
+          continue
+        }
+        if (!upd || upd.length === 0) {
+          // Row was never inserted (skipped as a duplicate originally) — try
+          // insert-or-skip rather than failing.
+          const { error: insErr } = await service.rpc('plaid_insert_transactions', { rows: [row] })
+          if (insErr) console.warn(`[plaid] modify-insert skipped for ${row.plaid_txn_id}:`, insErr.message)
+        }
         modified++
       }
 
