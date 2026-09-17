@@ -6,7 +6,31 @@ data. Three categories:
 - 🔁 **ROUTINE** — recurring refresh, with cadence and method
 - ⚙️ **AUTO** — refreshes itself; listed so nobody re-builds it
 
-_Last updated: Jul 24, 2026_
+_Last updated: Sep 17, 2026_
+
+---
+
+## ⚡ Sep 17, 2026 — status addendum
+
+- **Plaid sync fix deployed Sep 7** (PR #18): both banks (Chase ×6 accounts,
+  Amex ×2) had been in `status='error'` since their first backfill Jul 25 —
+  a `transactions_dedup_idx` collision aborted every batch. Fixed via
+  `plaid_insert_transactions()` RPC (insert-or-skip on any unique index);
+  both items reset for a full re-backfill. Daily cron: 11:00 UTC.
+- 🔴 **VERIFY Plaid flowed** — run in the Supabase SQL editor:
+  `select max(date) as newest_txn, count(*) as total from transactions;`
+  `select institution_name, status, last_synced_at, last_error from plaid_items;`
+  Expect newest_txn within a day or two, both items `active`. If still
+  `error`, check Vercel logs for `/api/plaid/sync`.
+- 🔴 **Apply `supabase/migrations/20260917_security_hardening.sql`** in the
+  SQL editor (fixes both advisor ERRORs + 4 WARNs; safe, reasons inline),
+  and enable "Leaked password protection" in dashboard > Authentication.
+- Once Plaid is confirmed flowing: **stop CSV-importing Chase + Amex
+  accounts** (cross-source account names differ; dedup can't match them).
+- Aug 26 note: the gmail auth user's password was reset (goals-dashboard
+  session; that standalone dashboard is superseded by /goals here and its
+  repo should be archived). App sign-in (magic link + Google OAuth) is
+  unaffected.
 
 ---
 
