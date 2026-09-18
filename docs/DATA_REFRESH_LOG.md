@@ -6,7 +6,7 @@ data. Three categories:
 - 🔁 **ROUTINE** — recurring refresh, with cadence and method
 - ⚙️ **AUTO** — refreshes itself; listed so nobody re-builds it
 
-_Last updated: Sep 17, 2026_
+_Last updated: Sep 18, 2026_
 
 ---
 
@@ -17,11 +17,14 @@ _Last updated: Sep 17, 2026_
   a `transactions_dedup_idx` collision aborted every batch. Fixed via
   `plaid_insert_transactions()` RPC (insert-or-skip on any unique index);
   both items reset for a full re-backfill. Daily cron: 11:00 UTC.
-- 🔴 **VERIFY Plaid flowed** — run in the Supabase SQL editor:
-  `select max(date) as newest_txn, count(*) as total from transactions;`
-  `select institution_name, status, last_synced_at, last_error from plaid_items;`
-  Expect newest_txn within a day or two, both items `active`. If still
-  `error`, check Vercel logs for `/api/plaid/sync`.
+- ✅ **Sep 18: Plaid VERIFIED WORKING** — root cause of the frozen data was
+  that `CRON_SECRET` never existed in Vercel, so BOTH crons (plaid sync +
+  price refresh) had silently 401'd on every invocation since launch; all
+  apparent freshness had come from manual sessions. Fixed: `CRON_SECRET`
+  added (Production) + redeploy; manual sync then succeeded for both banks
+  (last_synced_at 2026-09-18 23:32 UTC, no errors). Cron self-run pending
+  first 11:00 UTC window; price cron (21:00 UTC weekdays) should also now
+  produce its first-ever automatic `portfolio_history` snapshots.
 - 🔴 **Apply `supabase/migrations/20260917_security_hardening.sql`** in the
   SQL editor (fixes both advisor ERRORs + 4 WARNs; safe, reasons inline),
   and enable "Leaked password protection" in dashboard > Authentication.
@@ -41,8 +44,8 @@ _Last updated: Sep 17, 2026_
 | Checking + 6 card CSVs (2yr) | done | `/import` or `scripts/ingest_txns.mjs` | ✅ 4,112 txns imported (Jun) |
 | Citi Diamond transactions | ⚙️ AUTO | Confirmed via Jun statement: $0 purchases/fees/interest this cycle — only txn is the autopay, already captured on the Chase Checking side | ✅ balance $11,879, limit $14,800, BT 0% thru 6/18/27 |
 | Citi Best Buy (4802) transactions | ⚙️ AUTO | Confirmed via Jul statement: $0 purchases this cycle — Promo 1 ($962.44) fully paid off, only Promo 2 remains | ✅ balance $860.40, limit $10,000, Promo 2 0% expires 12/27/26 ($342.12 deferred-interest risk — new action item added) |
-| Monthly CSV re-import (all 8 accounts) | 🔁 monthly | `/import` — dedup makes overlap safe. Self-enforcing since Jul 24: /financial header + dashboard show an amber "data N days old" pill once the newest txn is >21 days old | Last: mid-June (pill currently showing) |
-| **Plaid bank auto-sync** | 🔴 setup once → ⚙️ AUTO | Built Jul 24 (Phase 4): Import Center → Bank Auto-Sync → connect each bank via Plaid Link. Then transactions sync daily (11:00 UTC cron) + on demand — replaces CSV exports for connected accounts (stop CSV-importing those to avoid dupes). Needs `PLAID_CLIENT_ID`/`PLAID_SECRET`/`PLAID_ENV` in Vercel (dashboard.plaid.com) | ⏳ awaiting Plaid keys + first connections |
+| Monthly CSV re-import | 🔁 only if needed | Superseded for Chase + Amex by Plaid auto-sync (Sep 18). `/import` remains for the 2 Citi cards if their activity resumes and for any account Plaid drops. Amber "data N days old" pill still guards freshness | Plaid now keeps the pill green |
+| **Plaid bank auto-sync** | ⚙️ AUTO | Chase (×6 accts incl. checking + IRA) and Amex (×2) sync daily (11:00 UTC cron) + on demand from Import Center. Do NOT CSV-import these accounts anymore. Requires `PLAID_*` + `CRON_SECRET` env vars in Vercel (all present as of Sep 18) | ✅ working — verified Sep 18 |
 | Checking balance | 🔁 as-provided | Tell Claude or update settings `assets.cash` | ✅ $2,911.92 as of Jul 14 (Chase5332 CSV; 28 txns 6/23–7/14 imported) |
 | Wealthfront balance | 🔁 monthly | Settings `assets.savings` | ✅ $12,186.53 as of Jul 8 — down $8K from 3 draws to checking (6/24, 6/25, 7/8) |
 | **Exact HELOC draw amounts** (Best Buy + CFU payoffs) | 🔴 OWED | From Texas CU statement → true-up `debt_accounts` | Estimated at $962.44 + $8,453.66 |
