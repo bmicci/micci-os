@@ -191,6 +191,53 @@ export async function syncPlaidItem(service: any, item: DbPlaidItem): Promise<Sy
           }).eq('id', row.id)
         }
       }
+
+      // Daily per-account balance snapshots. One row per account per day
+      // (repeated syncs the same day update in place). Powers the
+      // balance_history view and a net-worth trend with zero manual entry.
+      // Accounts are registered by display name in the `accounts` table on
+      // first sight. Best-effort like the cash update above.
+      const today = new Date().toISOString().slice(0, 10)
+      for (const a of bal.accounts) {
+        const name = item.account_map[a.account_id] ?? `${institution} ${a.name ?? 'Account'}`
+        const balance = a.balances.current ?? a.balances.available
+        if (balance == null) continue
+
+        let accountId: string | null = null
+        const { data: existing } = await service.from('accounts')
+          .select('id').eq('name', name).limit(1)
+        if (existing && existing.length > 0) {
+          accountId = existing[0].id as string
+          await service.from('accounts').update({
+            balance,
+            institution: item.institution_name,
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          }).eq('id', accountId)
+        } else {
+          const { data: created } = await service.from('accounts').insert({
+            name,
+            type: a.subtype ?? a.type ?? 'other',
+            institution: item.institution_name,
+            balance,
+          }).select('id').single()
+          accountId = (created?.id as string) ?? null
+        }
+        if (!accountId) continue
+
+        const { data: snap } = await service.from('balance_snapshots')
+          .select('id').eq('account_id', accountId).eq('snapshot_date', today).limit(1)
+        if (snap && snap.length > 0) {
+          await service.from('balance_snapshots').update({ balance }).eq('id', snap[0].id)
+        } else {
+          await service.from('balance_snapshots').insert({
+            user_id: item.user_id,
+            account_id: accountId,
+            balance,
+            snapshot_date: today,
+          })
+        }
+      }
     } catch (err) {
       console.warn('[plaid] balance refresh failed (sync still ok):', err)
     }
