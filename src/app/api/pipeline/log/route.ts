@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireUser } from '@/lib/supabase/require-user'
 import { createServiceClient } from '@/lib/supabase/service'
 
 // Quick-log a touch. Friction is the failure mode for this kind of tool
 // (spec §3), so this accepts a minimal payload and infers the rest.
 export async function POST(request: NextRequest) {
+  if (!(await requireUser())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const service = createServiceClient()
   if (!service) return NextResponse.json({ error: 'No database' }, { status: 500 })
 
@@ -42,6 +46,9 @@ export async function POST(request: NextRequest) {
 
 // PATCH — update a company's status or a contact's next_touch inline.
 export async function PATCH(request: NextRequest) {
+  if (!(await requireUser())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const service = createServiceClient()
   if (!service) return NextResponse.json({ error: 'No database' }, { status: 500 })
 

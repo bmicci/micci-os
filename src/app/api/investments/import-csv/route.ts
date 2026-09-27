@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireUser } from '@/lib/supabase/require-user'
 import { createServiceClient } from '@/lib/supabase/service'
 
 // ── Chase Tax Lots CSV format (J.P. Morgan Self-Directed Investing) ──
@@ -137,6 +138,9 @@ function parseTaxLots(lines: string[]): { positions: ParsedPosition[]; warnings:
 // ── Route handler ────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  if (!(await requireUser())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const supabase = createServiceClient()
   if (!supabase) {
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
