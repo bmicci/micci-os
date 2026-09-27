@@ -114,13 +114,19 @@ export default async function FinancialPage() {
               className="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full mb-1.5 ml-2 hover:opacity-80 transition-opacity"
               style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b', textDecoration: 'none' }}
             >
-              ⚠ DATA {staleDays}D OLD — RE-IMPORT CSVs →
+              ⚠ DATA {staleDays}D OLD — SYNC BANKS →
             </Link>
           )}
           <h1 className="text-lg font-bold gradient-text">Financial Master Plan 2026</h1>
           <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
             Brandon Micci · 9-Module Strategy
           </p>
+          {data.burnAnalysis.hasData && (
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)', opacity: 0.8 }}>
+              Burn &amp; runway derived from {data.burnAnalysis.txnCount.toLocaleString()} transactions
+              · {data.burnAnalysis.windowStart} → {data.burnAnalysis.windowEnd}
+            </p>
+          )}
         </div>
         <div className="text-right">
           {banner.days !== null ? (

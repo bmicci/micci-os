@@ -193,6 +193,7 @@ export interface BurnAnalysis {
   windowStart: string
   windowEnd: string
   windowDays: number
+  txnCount: number         // rows inside the window — provenance for derived numbers
   monthlySpend: number     // real, from transactions over the recent window
   monthlyIncome: number    // steady-state recurring income (passed in, NOT tx-derived)
   monthlyNetBurn: number   // monthlySpend − monthlyIncome (positive = burning cash)
@@ -200,7 +201,7 @@ export interface BurnAnalysis {
 }
 
 export const EMPTY_BURN: BurnAnalysis = {
-  hasData: false, windowStart: '', windowEnd: '', windowDays: 0,
+  hasData: false, windowStart: '', windowEnd: '', windowDays: 0, txnCount: 0,
   monthlySpend: 0, monthlyIncome: 0, monthlyNetBurn: 0, byCategory: [],
 }
 
@@ -232,6 +233,10 @@ export function computeBurn(rows: TxnRow[], steadyMonthlyIncome: number, windowD
     windowStart: start,
     windowEnd: maxD,
     windowDays,
+    txnCount: rows.filter(r => {
+      const d = String(r.transaction_date ?? '').slice(0, 10)
+      return d >= start && d <= maxD
+    }).length,
     monthlySpend,
     monthlyIncome: Math.round(steadyMonthlyIncome),
     monthlyNetBurn: Math.round(monthlySpend - steadyMonthlyIncome),
