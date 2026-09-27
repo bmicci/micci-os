@@ -27,7 +27,7 @@ This is NOT a greenfield build. Every section below is built and live. Do not sc
 | `/job-search` | Pipeline, KPIs, outreach, recruiters — full CRUD | ✅ live |
 | `/tasks` | Unified Action Center (`action_items` table, all life areas) | ✅ live |
 | `/health` | Protocols, labs, fitness | ✅ live |
-| `/import` | CSV/document import with dedup (8 financial accounts) + Plaid bank auto-sync (daily cron + on-demand; needs PLAID_* env vars) | ✅ live |
+| `/import` | CSV/document import with dedup + Plaid bank auto-sync (Chase ×6 + Amex ×2, daily 11:00 UTC cron + on-demand) — live since Sep 18, 2026 | ✅ live |
 
 ## KEY ARCHITECTURE (do not violate)
 
@@ -57,7 +57,7 @@ Glass card: card-bg + card-border, 16px radius, `backdrop-filter: blur(20px)`; h
 
 ## MONTHLY DATA ROUTINE (Brandon's side)
 
-Export the 8 account CSVs → drop at `/import` (dedup makes overlap safe) → glance `/financial` Overview → act on red items. Investments: Chase CSV at `/finance/investments`. Everything else derives automatically.
+Chase + Amex transactions and checking balance sync automatically via Plaid (daily cron; do NOT also CSV-import those accounts — cross-source dedup can't match their differing account names). Remaining manual: the 2 Citi cards if activity resumes (both ~$0/mo), Chase investments CSV at `/finance/investments`, and a glance at `/financial` Overview for red items. Cron auth: `CRON_SECRET` env var in Vercel (added Sep 18, 2026 — without it both crons silently 401'd; that was why data froze at Jul 24).
 
 ## DOCS MAP
 

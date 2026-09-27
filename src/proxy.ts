@@ -30,8 +30,18 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  // Vercel cron endpoints: cron invocations carry no session cookie, so the
+  // session gate below would 307 them to /login before the handler ever ran —
+  // this is why the crons never fired (found Sep 27, 2026). Their GET
+  // handlers enforce CRON_SECRET themselves; POST (manual sync/refresh from
+  // the app) stays behind the session gate.
+  const isCronEndpoint =
+    request.method === 'GET' &&
+    (pathname === '/api/plaid/sync' || pathname === '/api/investments/refresh-prices')
+
   // Public paths that don't require auth
   const isPublic =
+    isCronEndpoint ||
     pathname === '/login' ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/auth') ||
