@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
+import { requireUser } from '@/lib/supabase/require-user'
 import { createServiceClient } from '@/lib/supabase/service'
 
 // GET /api/finance/subscriptions
 // Returns all active subscriptions ordered by amount descending
 export async function GET() {
+  if (!(await requireUser())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const supabase = createServiceClient()
 
   if (!supabase) {

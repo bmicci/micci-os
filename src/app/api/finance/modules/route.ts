@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
+import { requireUser } from '@/lib/supabase/require-user'
 import { createServiceClient } from '@/lib/supabase/service'
 
 // GET /api/finance/modules
 // Returns all financial modules ordered by module_number
 export async function GET() {
+  if (!(await requireUser())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const supabase = createServiceClient()
 
   if (!supabase) {
@@ -25,6 +29,9 @@ export async function GET() {
 // PATCH /api/finance/modules
 // Update module progress/status by id
 export async function PATCH(req: Request) {
+  if (!(await requireUser())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const supabase = createServiceClient()
   if (!supabase) {
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 })

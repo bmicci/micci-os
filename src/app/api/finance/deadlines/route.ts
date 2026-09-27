@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
+import { requireUser } from '@/lib/supabase/require-user'
 import { createServiceClient } from '@/lib/supabase/service'
 
 // GET /api/finance/deadlines
 // Returns all upcoming deadlines ordered by deadline_date ascending
 export async function GET() {
+  if (!(await requireUser())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const supabase = createServiceClient()
 
   if (!supabase) {
@@ -27,6 +31,9 @@ export async function GET() {
 
 // PATCH /api/finance/deadlines/:id — mark completed
 export async function PATCH(req: Request) {
+  if (!(await requireUser())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const supabase = createServiceClient()
   if (!supabase) {
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 })
