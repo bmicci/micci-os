@@ -72,7 +72,8 @@ looks cancelled already; confirm it is.
 |---|---|---|---|---|---|
 | Blue Cross Blue Shield | Oct 1 | 456.66 | Replace with employer plan on its start date | | |
 | TXU Energy | Oct 8 | ~444 (348–473) | Texas power market — check contract end date, shop on PowerToChoose.org; ask about usage/plan fit | | |
-| GEICO (auto) | Sep 18 | 228.73 | Re-quote yearly; bundle with home/renters; raise deductible; new-job commute change | | |
+| GEICO auto | Sep 18 | 228.73 | Re-quote yearly; raise deductible; new-job commute change; ask about a home+auto bundle discount | | |
+| GEICO homeowners (bills as "HOMEOWNERS INSURANCE", carrier Homesite/American Family) | Aug 14 | ~300 (~$606 every ~2 mo) | Irregular billing, so the detector misses it. Shop at renewal; check the bundle discount is applied. **Aug 14 shows two charges ($297.92 + $302.92) — split payment or double charge?** | | |
 | AT&T | Sep 22 | 106.32 (was 97.17) | Price went up ~9% — retention call; ask for current promo rate | | |
 | State Farm | Sep 18 | 69.25 | What policy is this? Compare bundle vs GEICO | | |
 | UT Southwestern Medical | Sep 21 | 80.37 | Medical payment plan — ask for a prompt-pay discount on the balance | | |
@@ -93,7 +94,7 @@ looks cancelled already; confirm it is.
 | CVS ExtraCare | Aug 31 | 5.00 | | | |
 | Google One | Sep 6 | 1.99 | | | |
 
-**Active total: ~$1,893/mo** (bills ~$1,385 + subscriptions ~$508).
+**Active total: ~$2,190/mo** (bills ~$1,685 incl. homeowners + subscriptions ~$508).
 Not included: mortgage, HELOC, and card payments.
 
 ### C. Not seen recently — confirm these are really cancelled
