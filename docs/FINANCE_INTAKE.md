@@ -127,3 +127,46 @@ into another charge. List any of these you pay (or think you pay):
 - Monthly savings target from this review → $
 - Bills you're willing to spend time on phone calls for → 
 - Anything that's off-limits (keep no matter what) → 
+
+---
+
+## Part 3 — Insurance consolidation (home + auto + jewelry, one carrier)
+
+**Today: ~$600/mo across 3 policies / 2 carriers**
+GEICO auto $229 · GEICO homeowners (Homesite) ~$300 · State Farm jewelry $69.
+
+### Gather before calling (quotes are only comparable with the same inputs)
+- Declarations pages for all three current policies (coverage limits + deductibles) → 
+- Renewal dates — auto → · home → · jewelry → 
+- Home: year built, sq ft, roof age + material, claims in the last 5 yrs → 
+- Auto: vehicles (year/make/model/VIN), annual miles (new commute?), drivers → 
+- Jewelry: latest appraisal(s), value, date of appraisal → 
+- Mortgagee clause for BofA (on the current home declarations page) → 
+
+### Who to quote (aim for 4–5)
+- **Independent agent** (one call, quotes many carriers at once) — strongest single move
+- **Chubb** — built for home + auto + scheduled jewelry under one roof; often competitive above ~$500K home value
+- **State Farm** — already has the jewelry policy; ask to add home + auto
+- **USAA** (only if eligible) · **Travelers** · **Allstate** · **Texas Farm Bureau**
+- **GEICO** — tell them you're shopping; ask what home + auto + jewelry rider costs as a bundle
+
+### Compare like-for-like (Texas traps)
+- **Wind/hail deductible** — often a % of the dwelling value (2% of $500K = $10K out of pocket), not a flat $. Compare the dollar amount.
+- **Roof coverage** — replacement cost vs. actual cash value (ACV pays a depreciated amount on older roofs).
+- **Dwelling replacement cost** — same number on every quote; extended replacement cost is worth having.
+- **Auto liability** — keep limits at least what you have now (an umbrella policy needs 250/500 or higher).
+- **Jewelry** — scheduled items with no deductible, worldwide, covers mysterious disappearance.
+
+### Switching rules
+1. Bind the new policies first, with start dates on (or just before) renewal — no gap in coverage.
+2. Send the new home declarations page to BofA (mortgagee clause) — homeowners is paid by card, not escrow, so nothing to unwind there.
+3. Cancel old policies effective the new start date; ask for prorated refunds.
+
+### Quote tracker
+| Carrier | Home $/yr | Auto $/yr | Jewelry $/yr | Bundle total $/yr | Wind/hail ded. | Roof (RC/ACV) | Notes |
+|---|---|---|---|---|---|---|---|
+| Current (GEICO + Homesite + State Farm) | ~3,600 | ~2,750 | ~830 | ~7,180 | | | |
+| | | | | | | | |
+| | | | | | | | |
+| | | | | | | | |
+| | | | | | | | |
