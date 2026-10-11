@@ -75,7 +75,7 @@ looks cancelled already; confirm it is.
 | GEICO auto | Sep 18 | 228.73 | Re-quote yearly; raise deductible; new-job commute change; ask about a home+auto bundle discount | | |
 | GEICO homeowners (bills as "HOMEOWNERS INSURANCE", carrier Homesite/American Family) | Aug 14 | ~300 (~$606 every ~2 mo) | Irregular billing, so the detector misses it. Shop at renewal; check the bundle discount is applied. **Aug 14 shows two charges ($297.92 + $302.92) — split payment or double charge?** | | |
 | AT&T | Sep 22 | 106.32 (was 97.17) | Price went up ~9% — retention call; ask for current promo rate | | |
-| State Farm | Sep 18 | 69.25 | What policy is this? Compare bundle vs GEICO | | |
+| State Farm (jewelry policy) | Sep 18 | 69.25 (was 65.66–65.69 until Jan 2026, +5.4%) | Get a current appraisal: if the item's value has changed, coverage can be adjusted. Compare a scheduled-jewelry add-on to the GEICO/Homesite home policy, or a specialist (e.g. Jewelers Mutual, BriteCo) | | |
 | UT Southwestern Medical | Sep 21 | 80.37 | Medical payment plan — ask for a prompt-pay discount on the balance | | |
 
 ### B. Active subscriptions (cancellable)
