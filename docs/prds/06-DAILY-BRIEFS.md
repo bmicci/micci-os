@@ -10,6 +10,7 @@
 > 5. **Holdings:** don't create a new `holdings` table. `portfolio_positions` (live, priced daily) and `portfolio_targets` (exists, unused) already cover ticker + target weight. Add `theme`, `thesis`, `trigger_notes` columns to `portfolio_targets` (or a thin `holding_theses` keyed by ticker); keep `thesis_notes` as specced.
 > 6. **RLS:** match the single-tenant pipeline pattern used for financial tables — RLS enabled, deny-all, accessed server-side via the service client with an in-route `getUser()` guard (see PR #20). No `user_id` columns needed.
 > 7. **Google access:** there is no Gmail/Calendar API integration yet (app login uses Supabase Google OAuth, which doesn't give a server-side refresh token). One-time setup: a Google Cloud OAuth client + refresh token for `gmail.readonly` + `calendar.readonly`. **Gotcha:** while the OAuth consent screen is in "Testing", refresh tokens expire after 7 days — set it to "In production" (unverified is fine for a single personal user) before minting the token.
+> 0. **The real prompts were recovered** (Oct 15) from claude.ai Routines — see `06-DAILY-BRIEFS-PROMPTS.md`. There are 7 live routines (not 5) writing into an existing hub artifact; they supersede §5.3–5.5 below.
 > 8. **Talking points / actions:** "create task in micci-os" should write to `action_items` (the unified Action Center table), not a new table.
 
 ---
