@@ -4,7 +4,16 @@ Companion to `06-DAILY-BRIEFS.md`. These are the live prompts, copied verbatim
 from the claude.ai **Routines** (cloud scheduled tasks) that run Micci Daily
 today. They supersede the spec's §5.3–5.5 drafts/placeholders.
 
-**Where things live today**
+> **Oct 15, 2026 — storage switched to Supabase.** All 7 routines were updated
+> to read inputs/tweaks from `brief_config` / `brief_tweaks` and save via
+> `select public.upsert_brief(tab, doc_key, $brief$…$brief$::jsonb)`; the
+> micci-os `/briefs` hub renders them. They still mirror each document to the
+> claude.ai hub artifact (transitional — drop that step once /briefs is the
+> daily habit). The prompts below are the **pre-switch originals**; the live
+> text differs only in those storage lines (read the current version with the
+> Claude Code Remote `get_trigger` tool).
+
+**Where things lived before the switch**
 - **Hub (the UI):** claude.ai artifact `https://claude.ai/artifact/Tn32wAmTvAqVRE3dmeYpVR`.
   Tabs: today · jobs · markets · money · health · home. Each brief writes a doc
   into the artifact's database (ArtifactData) collection named after its tab;

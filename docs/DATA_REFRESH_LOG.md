@@ -6,7 +6,7 @@ data. Three categories:
 - 🔁 **ROUTINE** — recurring refresh, with cadence and method
 - ⚙️ **AUTO** — refreshes itself; listed so nobody re-builds it
 
-_Last updated: Sep 18, 2026_
+_Last updated: Oct 15, 2026_
 
 ---
 
@@ -115,3 +115,14 @@ _Last updated: Sep 18, 2026_
 | Custom/edited blocks (This Week) | 🔁 as-desired | Edit mode → ✏/✕/add — persists to `schedule_blocks` (`week=0`) | Empty |
 | Battle Plan (Feb 27–Mar 31) | — | Archived read-only under Planner → Archive tab | 🔒 frozen, preserved |
 | Unified actions (all life areas) | 🔁 as-happens | /tasks Action Center — add/edit/check off; Financial Overview rail shows money-scoped view of the same list | ✅ merged Jul 14 (13 items, `action_items` + category) |
+
+---
+
+## Briefs (`/briefs`) — added Oct 15, 2026
+
+| Data | Category | How |
+|---|---|---|
+| Brief editions (`briefs`) | ⚙️ AUTO | 7 claude.ai Routines write via `upsert_brief()` (schedules in `docs/prds/06-DAILY-BRIEFS-PROMPTS.md`) |
+| Brief inputs (`brief_config`) — holdings + ADD/CUT rules, job targets, health check-in, home claims | 🔁 ROUTINE | Edit in `/briefs` → Inputs. Health: refresh the Sunday check-in weekly. Markets: update holdings after trades |
+| Feedback (`brief_tweaks`) | 🔁 ROUTINE | Note button on any brief section; the next run applies and marks it applied |
+| Money tab | 🔴 OWED | No routine writes it yet |
