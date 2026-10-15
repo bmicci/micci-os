@@ -75,6 +75,7 @@ Read the relevant PRD before building any module:
 | Phase 3B: Health & Wellness | Protocol tracker, lab results, fitness, skincare | `docs/prds/03-HEALTH-WELLNESS.md` |
 | Phase 3C: Career | Job Search KPIs, Networking CRM | `docs/prds/04-CAREER-MODULES.md` |
 | Phase 0B: Document Import System | Structured + AI-assisted data ingestion from uploaded documents | `docs/prds/05-DOCUMENT-IMPORT-SYSTEM.md` |
+| Daily Briefs (Micci Daily) | Briefs hub replacing Cowork scheduled briefs | `docs/prds/06-DAILY-BRIEFS.md` |
 | Implementation Plan | Phase dependencies, build order, timeline | `docs/IMPLEMENTATION_PLAN.md` |
 
 ## Supabase Connection
