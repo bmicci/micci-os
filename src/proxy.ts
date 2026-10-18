@@ -39,9 +39,14 @@ export async function proxy(request: NextRequest) {
     request.method === 'GET' &&
     (pathname === '/api/plaid/sync' || pathname === '/api/investments/refresh-prices')
 
+  // Remote MCP endpoint for Claude connectors: no session cookie either.
+  // The route 404s unless the path's secret matches MICCI_MCP_TOKEN.
+  const isMcpEndpoint = pathname.startsWith('/api/mcp/')
+
   // Public paths that don't require auth
   const isPublic =
     isCronEndpoint ||
+    isMcpEndpoint ||
     pathname === '/login' ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/auth') ||
