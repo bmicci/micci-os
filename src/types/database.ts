@@ -117,7 +117,9 @@ export interface DbPromoDeadline {
   deferred_interest: number | null
   account_name: string
   note: string | null
-  status: 'active' | 'paid' | 'expired'
+  status: 'active' | 'paid' | 'expired' | 'closed'
+  verified_at?: string | null
+  verified_source?: string | null
   created_at: string
   updated_at: string
 }

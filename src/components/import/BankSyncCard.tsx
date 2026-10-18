@@ -15,16 +15,19 @@ interface PlaidItem {
   last_synced_at: string | null
   last_error: string | null
   account_map: Record<string, string>
-  product_status?: { liabilities?: string; investments?: string }
+  product_status?: { liabilities?: string; investments?: string; statements?: string }
 }
 
 const PRODUCT_LABEL: Record<string, string> = {
   ok: '✓', not_consented: 'not granted', unsupported: 'n/a', pending: 'pending',
 }
 const productText = (s?: string) => (s ? PRODUCT_LABEL[s] ?? '⚠' : '—')
-// Liabilities/Investments a bank could provide but this Item hasn't granted
-const needsUpdate = (item: PlaidItem) =>
-  item.product_status?.liabilities === 'not_consented' || item.product_status?.investments === 'not_consented' || !item.product_status?.liabilities
+// Liabilities/Investments/Statements a bank could provide but this Item hasn't granted
+const needsUpdate = (item: PlaidItem) => {
+  const ps = item.product_status ?? {}
+  return !ps.liabilities || !ps.statements
+    || ps.liabilities === 'not_consented' || ps.investments === 'not_consented' || ps.statements === 'not_consented'
+}
 
 function timeAgo(iso: string | null): string {
   if (!iso) return 'never'
@@ -117,7 +120,7 @@ export default function BankSyncCard() {
 
   async function startConnect(itemId?: string) {
     setBusy('connect')
-    setNotice(itemId ? 'Opening Plaid to add card terms + holdings for this bank…' : null)
+    setNotice(itemId ? 'Opening Plaid to add card terms, holdings + statements for this bank…' : null)
     try {
       const res = await fetch('/api/plaid/create-link-token', {
         method: 'POST',
@@ -147,11 +150,11 @@ export default function BankSyncCard() {
       window.history.replaceState({}, '', window.location.pathname)
     }
     // Update mode: same Item, nothing to exchange — just re-sync to pull
-    // the newly granted Liabilities / Investments data.
+    // the newly granted Liabilities / Investments / Statements data.
     if (updateItemId) {
       localStorage.removeItem(LINK_MODE_KEY)
       setUpdateItemId(null)
-      await syncNow('Access updated — syncing card terms and holdings…')
+      await syncNow('Access updated — syncing card terms, holdings and statements (reading new statements can take a minute)…')
       return
     }
     setBusy('connect')
@@ -182,7 +185,11 @@ export default function BankSyncCard() {
       if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`)
       const totals = (data.results as { added: number; modified: number; error?: string }[])
         .reduce((s, r) => ({ added: s.added + r.added, errors: s.errors + (r.error ? 1 : 0) }), { added: 0, errors: 0 })
-      setNotice(`✅ Sync complete — ${totals.added} new transactions${totals.errors ? ` · ${totals.errors} institution(s) errored` : ''}`)
+      const parsed = (data.statements ?? []) as { findings: number; error?: string }[]
+      const findings = parsed.reduce((n, p) => n + p.findings, 0)
+      setNotice(`✅ Sync complete — ${totals.added} new transactions${totals.errors ? ` · ${totals.errors} institution(s) errored` : ''}`
+        + (parsed.length ? ` · ${parsed.length} statement(s) read, ${findings} finding(s) to review` : ''))
+      window.dispatchEvent(new Event('statements:updated'))
       await refresh()
     } catch (err) {
       setNotice(`⚠️ ${(err as Error).message}`)
@@ -269,7 +276,7 @@ export default function BankSyncCard() {
                       : `Last synced ${timeAgo(item.last_synced_at)}`}
                 </div>
                 <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                  Card/loan terms {productText(item.product_status?.liabilities)} · Holdings {productText(item.product_status?.investments)}
+                  Card/loan terms {productText(item.product_status?.liabilities)} · Holdings {productText(item.product_status?.investments)} · Statements {productText(item.product_status?.statements)}
                 </div>
               </div>
               {needsUpdate(item) && (
@@ -278,7 +285,7 @@ export default function BankSyncCard() {
                   disabled={busy !== null}
                   className="shrink-0 text-[10.5px] font-semibold px-2.5 py-1 rounded-lg"
                   style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--accent-cyan)', border: '1px solid rgba(0,212,255,0.3)', cursor: busy ? 'wait' : 'pointer' }}
-                  title="Grant Liabilities (APRs, minimums, due dates) and Investments (holdings) for this bank"
+                  title="Grant Liabilities (APRs, minimums, due dates), Investments (holdings) and Statements (PDFs with promo end dates) for this bank"
                 >
                   Add details
                 </button>

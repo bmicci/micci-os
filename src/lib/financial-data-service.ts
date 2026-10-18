@@ -479,7 +479,9 @@ export async function getFinancialData(): Promise<FinancialData> {
     // ── Promo deadlines ──────────────────────────────────────────
     const promos: PromoDeadline[] =
       promosRes.data && promosRes.data.length > 0
-        ? (promosRes.data as DbPromoDeadline[]).map(mapPromoDeadline)
+        // Paid/closed promos stay in the table as history (never deleted)
+        // but drop out of deadlines, totals and "next up".
+        ? (promosRes.data as DbPromoDeadline[]).filter(p => p.status !== 'paid' && p.status !== 'closed').map(mapPromoDeadline)
         : PROMOS
 
     // ── Tax snapshot (most recent year) ──────────────────────────

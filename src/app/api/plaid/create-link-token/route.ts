@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { CountryCode, Products } from 'plaid'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getPlaidClient, plaidConfigured } from '@/lib/plaid'
+import { statementsLinkRange } from '@/lib/statements'
 
 interface PlaidErrorBody { error_type?: string; error_code?: string; error_message?: string; display_message?: string | null }
 /** Plaid's real error lives in the Axios response body, not err.message. */
@@ -39,8 +40,8 @@ export async function POST(request: NextRequest) {
       redirect_uri: redirectUri,
     }
 
-    // Update mode: an existing Item grants Liabilities + Investments without
-    // disconnecting (same Item, same transaction history).
+    // Update mode: an existing Item grants Liabilities + Investments +
+    // Statements without disconnecting (same Item, same transaction history).
     if (body.item_id) {
       const service = await createServiceClient()
       const { data: item } = await service.from('plaid_items')
@@ -49,7 +50,12 @@ export async function POST(request: NextRequest) {
       // Plaid rejects the whole request if the bank doesn't support one of
       // the products (Amex has no investments; PayPal supports neither), so
       // try both, then each alone, and report what the bank can't provide.
+      const S = Products.Statements
       const attempts: Products[][] = [
+        [Products.Liabilities, Products.Investments, S],
+        [Products.Liabilities, S],
+        [Products.Investments, S],
+        [S],
         [Products.Liabilities, Products.Investments],
         [Products.Liabilities],
         [Products.Investments],
@@ -61,6 +67,7 @@ export async function POST(request: NextRequest) {
             ...base,
             access_token: item.access_token,
             additional_consented_products: products,
+            ...(products.includes(S) ? { statements: statementsLinkRange() } : {}),
           })
           return NextResponse.json({ link_token: data.link_token, mode: 'update', products })
         } catch (err) {
@@ -72,19 +79,21 @@ export async function POST(request: NextRequest) {
       console.error('[plaid/create-link-token] update mode failed', pErr ?? lastErr)
       return NextResponse.json({
         error: pErr?.error_code === 'INVALID_FIELD' || pErr?.error_type === 'INVALID_REQUEST'
-          ? `This bank does not offer card/loan terms or holdings through Plaid (${pErr.error_message ?? pErr.error_code}).`
+          ? `This bank does not offer card/loan terms, holdings or statements through Plaid (${pErr.error_message ?? pErr.error_code}).`
           : pErr?.error_message ?? 'Plaid error',
         code: pErr?.error_code ?? null,
       }, { status: 422 })
     }
 
     // New connection: transactions required; liabilities (card/mortgage
-    // terms) and investments (holdings) wherever the bank supports them.
+    // terms), investments (holdings) and statements (PDFs) wherever the bank
+    // supports them.
     const { data } = await client.linkTokenCreate({
       ...base,
       products: [Products.Transactions],
-      optional_products: [Products.Liabilities, Products.Investments],
+      optional_products: [Products.Liabilities, Products.Investments, Products.Statements],
       transactions: { days_requested: 730 },
+      statements: statementsLinkRange(),
     })
     return NextResponse.json({ link_token: data.link_token, mode: 'new' })
   } catch (err) {
