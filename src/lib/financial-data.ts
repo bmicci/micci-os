@@ -287,6 +287,8 @@ export type { RecurringAnalysis, RecurringCharge } from './finance/recurring'
 export type { UpcomingItem } from './finance/upcoming'
 import type { UpcomingItem } from './finance/upcoming'
 import type { RecurringAnalysis } from './finance/recurring'
+import type { OfferPaycheck } from './finance/jobIncome'
+export type { JobOffer, OfferPaycheck } from './finance/jobIncome'
 import { EMPTY_RECURRING } from './finance/recurring'
 
 export interface FinancialData {
@@ -315,6 +317,7 @@ export interface FinancialData {
   investments: InvestmentData
   burnAnalysis: BurnAnalysis
   runwayProjection: RunwayProjection
+  offers: OfferPaycheck[]
   portfolio: PortfolioSnapshot | null
   monthlyFlows: MonthlyFlowPoint[]
   recurring: RecurringAnalysis
@@ -946,6 +949,7 @@ export function getAllData(): FinancialData {
       INCOME_BRIDGE.consultingMonthlyNet,
       INCOME_BRIDGE.benefitsEndDate,
     ),
+    offers: [],
     portfolio: null,
     monthlyFlows: [],
     recurring: EMPTY_RECURRING,

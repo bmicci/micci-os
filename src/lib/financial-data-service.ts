@@ -7,6 +7,7 @@ import { createServiceClient } from './supabase/service'
 import { liveSpendCategories, computeBurn, fetchAllTxns, monthlyFlows, computeRunwayProjection, type TxnRow } from './finance/txnAggregate'
 import { detectRecurring } from './finance/recurring'
 import { computeUpcoming } from './finance/upcoming'
+import { activeOffer, offerPaycheck, parseOffers } from './finance/jobIncome'
 import type {
   DbDebtAccount,
   DbFinancialModule,
@@ -664,11 +665,24 @@ export async function getFinancialData(): Promise<FinancialData> {
     // ── Cliff-aware runway: walks forward day by day so a confirmed income
     // cutoff (e.g. TWC benefits exhausting) actually changes the cash-out
     // date, instead of assuming today's burn rate holds forever ──
+    // Job offers live in financial_settings.job_offers; an accepted one
+    // feeds real paychecks (net, first checks pre-SS-cap) into the walk.
+    const offers = parseOffers(getSetting(settings, 'job_offers')).map(offerPaycheck)
+    const accepted = activeOffer(offers.map(o => o.offer))
+    const acceptedPay = accepted ? offers.find(o => o.offer.id === accepted.id) ?? null : null
     const runwayProjection = computeRunwayProjection(
       assets.cash + assets.savings,
       burnAnalysis.hasData ? burnAnalysis.monthlySpend : incomeBridgeFinal.monthlyOutflow,
       steadyIncome,
       incomeBridgeFinal.benefitsEndDate,
+      new Date(),
+      acceptedPay ? {
+        employer: acceptedPay.offer.employer,
+        firstPayday: acceptedPay.offer.firstPayday,
+        periodDays: acceptedPay.periodDays,
+        netPerCheck: acceptedPay.netPerCheckEarly,
+        monthlyNet: acceptedPay.monthlyNetAvg,
+      } : null,
     )
 
     // ── Deadlines (already in Supabase — fetched via API route) ──
@@ -714,6 +728,7 @@ export async function getFinancialData(): Promise<FinancialData> {
       investments,
       burnAnalysis,
       runwayProjection,
+      offers,
       portfolio,
       monthlyFlows: flows,
       recurring,

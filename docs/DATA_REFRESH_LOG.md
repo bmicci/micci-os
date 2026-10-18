@@ -126,3 +126,9 @@ _Last updated: Oct 15, 2026_
 | Brief inputs (`brief_config`) — holdings + ADD/CUT rules, job targets, health check-in, home claims | 🔁 ROUTINE | Edit in `/briefs` → Inputs. Health: refresh the Sunday check-in weekly. Markets: update holdings after trades |
 | Feedback (`brief_tweaks`) | 🔁 ROUTINE | Note button on any brief section; the next run applies and marks it applied |
 | Money tab | 🔴 OWED | No routine writes it yet |
+
+## Job income (`financial_settings.job_offers`) — added Oct 18, 2026
+
+| Data | Category | How |
+|---|---|---|
+| Job offers (JSON array: employer, hourly/salary, rate, hours, pay frequency, start date, first payday, status) | 🔁 ROUTINE | Edit when an offer changes. `status: "accepted"` feeds real net paychecks (pre-SS-cap) into the runway walk on each payday; `offer`/`prospect` entries are kept for side-by-side comparison. Seeded: Southwest, W-2 contract via agency, $120/hr × 40, biweekly, start Nov 2, first check Nov 13 (to confirm) |
