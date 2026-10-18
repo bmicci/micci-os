@@ -11,7 +11,7 @@ export async function GET() {
   const service = await createServiceClient()
   const { data, error } = await service
     .from('plaid_items')
-    .select('id, institution_name, status, last_synced_at, last_error, account_map, created_at')
+    .select('id, institution_name, status, last_synced_at, last_error, account_map, product_status, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: true })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
