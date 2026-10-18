@@ -38,6 +38,34 @@ function getBannerState(runway: RunwayProjection) {
     }
   }
 
+  // Accepted job: the numbers that matter become the dip until the first
+  // check (low point) and the monthly surplus after it.
+  const emp = runway.employment
+  if (emp) {
+    const fmt$ = (n: number) => `$${Math.round(Math.abs(n)).toLocaleString('en-US')}`
+    const fmtDay = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const surplus = emp.monthlySurplus
+    const surplusTxt = `${surplus >= 0 ? '+' : '−'}${fmt$(surplus)}/mo after`
+    if (emp.daysUntilFirstCheck > 0) {
+      return {
+        badge: `${emp.employer.toUpperCase()} · FIRST CHECK ${fmtDay(emp.firstPayday).toUpperCase()}`,
+        badgeColor: 'rgba(34,197,94,0.2)',
+        badgeText: '#22c55e',
+        days: emp.daysUntilFirstCheck,
+        daysLabel: `days to first check (${fmt$(emp.netPerCheck)} net) · low point ≈ ${fmt$(emp.lowPointCash)} on ${fmtDay(emp.lowPointDate)} · ${surplusTxt}`,
+        daysColor: emp.lowPointCash < 2000 ? '#ef4444' : emp.lowPointCash < 5000 ? '#f59e0b' : '#22c55e',
+      }
+    }
+    return {
+      badge: `${emp.employer.toUpperCase()} · EMPLOYED`,
+      badgeColor: 'rgba(34,197,94,0.2)',
+      badgeText: '#22c55e',
+      days: null,
+      daysLabel: `${fmt$(emp.netPerCheck)} net every 2 weeks · ${surplus >= 0 ? 'surplus' : 'shortfall'} ${fmt$(surplus)}/mo vs real spend`,
+      daysColor: surplus >= 0 ? '#22c55e' : '#ef4444',
+    }
+  }
+
   // Stabilization mode: the number that matters from every tab is the cash
   // runway, so it lives in the header (not buried in the Cash Flow tab).
   if (runway.cashOutDate) {

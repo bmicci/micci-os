@@ -317,6 +317,27 @@ export interface RunwayProjection {
   postCliffMonthlyBurn: number     // monthlySpend − 0 (full spend once income stops)
   cashOutDate: string | null       // projected zero-cash date, or null if it never happens within 10y
   phase: 'pre-cliff' | 'post-cliff' | 'no-cliff'
+  employment: RunwayEmployment | null  // set when an accepted job's paychecks are modeled
+}
+
+/** Discrete paycheck schedule for an accepted job (see finance/jobIncome.ts). */
+export interface PaycheckSchedule {
+  employer: string
+  firstPayday: string              // YYYY-MM-DD
+  periodDays: number               // 14 = biweekly
+  netPerCheck: number
+  monthlyNet: number               // averaged, for the steady-state surplus
+}
+
+export interface RunwayEmployment {
+  employer: string
+  firstPayday: string
+  daysUntilFirstCheck: number
+  netPerCheck: number
+  monthlyNet: number
+  monthlySurplus: number           // monthlyNet − monthlySpend (negative = still burning)
+  lowPointCash: number             // lowest projected cash balance before paychecks catch up
+  lowPointDate: string
 }
 
 function parseLocalDate(dateStr: string): Date {
@@ -335,6 +356,10 @@ const DAYS_PER_MONTH = 365 / 12
  * and an optional confirmed date that income drops to $0 (an income cliff —
  * e.g. unemployment benefits exhausting). Walks forward day by day rather
  * than assuming a single flat burn rate forever.
+ *
+ * `paychecks` adds an accepted job: each net check lands on its real payday,
+ * so the projection shows the dip until the first check (lowPoint) and the
+ * steady-state monthly surplus after it.
  */
 export function computeRunwayProjection(
   liquidCash: number,
@@ -342,6 +367,7 @@ export function computeRunwayProjection(
   currentMonthlyIncome: number,
   cliffDateIso: string | null,
   today: Date = new Date(),
+  paychecks: PaycheckSchedule | null = null,
 ): RunwayProjection {
   const cursor = new Date(today)
   cursor.setHours(0, 0, 0, 0)
@@ -352,10 +378,11 @@ export function computeRunwayProjection(
   const daysUntilCliff = cliff ? Math.round((cliff.getTime() - cursor.getTime()) / 86400000) : null
 
   const phase: RunwayProjection['phase'] = !cliff ? 'no-cliff' : daysUntilCliff! > 0 ? 'pre-cliff' : 'post-cliff'
+  const base = { today: isoDate(cursor), cliffDate: cliffDateIso, daysUntilCliff, preCliffMonthlyBurn, postCliffMonthlyBurn, phase }
 
-  // Cash-flow positive with no cliff ahead → never runs out.
-  if (!cliff && preCliffMonthlyBurn <= 0) {
-    return { today: isoDate(cursor), cliffDate: cliffDateIso, daysUntilCliff, preCliffMonthlyBurn, postCliffMonthlyBurn, cashOutDate: null, phase }
+  // Cash-flow positive with no cliff and no job ahead → never runs out.
+  if (!cliff && !paychecks && preCliffMonthlyBurn <= 0) {
+    return { ...base, cashOutDate: null, employment: null }
   }
 
   const dailySpend = monthlySpend / DAYS_PER_MONTH
@@ -364,15 +391,46 @@ export function computeRunwayProjection(
   const walker = new Date(cursor)
   const MAX_DAYS = 3652 // 10-year cap
 
+  const firstPay = paychecks ? parseLocalDate(paychecks.firstPayday) : null
+  let nextPayMs = firstPay ? firstPay.getTime() : Infinity
+  // Track the trough through one full pay period after the first check.
+  const troughHorizonMs = firstPay ? firstPay.getTime() + paychecks!.periodDays * 86400000 : -Infinity
+  let lowCash = cash
+  let lowDate = isoDate(cursor)
+  const employment = (): RunwayEmployment | null => paychecks && firstPay ? {
+    employer: paychecks.employer,
+    firstPayday: paychecks.firstPayday,
+    daysUntilFirstCheck: Math.round((firstPay.getTime() - cursor.getTime()) / 86400000),
+    netPerCheck: paychecks.netPerCheck,
+    monthlyNet: paychecks.monthlyNet,
+    monthlySurplus: Math.round(paychecks.monthlyNet - monthlySpend),
+    lowPointCash: Math.round(lowCash),
+    lowPointDate: lowDate,
+  } : null
+
   for (let i = 0; i < MAX_DAYS; i++) {
     const pastCliff = cliff ? walker >= cliff : false
-    const dailyNet = pastCliff ? -dailySpend : dailyIncome - dailySpend
+    let dailyNet = pastCliff ? -dailySpend : dailyIncome - dailySpend
+    // Paychecks catch every payday up to and including today (handles a
+    // projection that starts after the first payday).
+    while (walker.getTime() >= nextPayMs) {
+      dailyNet += paychecks!.netPerCheck
+      nextPayMs += paychecks!.periodDays * 86400000
+    }
     if (dailyNet < 0 && cash + dailyNet <= 0) {
-      return { today: isoDate(cursor), cliffDate: cliffDateIso, daysUntilCliff, preCliffMonthlyBurn, postCliffMonthlyBurn, cashOutDate: isoDate(walker), phase }
+      return { ...base, cashOutDate: isoDate(walker), employment: employment() }
     }
     cash += dailyNet
+    if (walker.getTime() <= troughHorizonMs && cash < lowCash) {
+      lowCash = cash
+      lowDate = isoDate(walker)
+    }
+    // Employed and cash-flow positive past the trough window → it never runs out.
+    if (paychecks && walker.getTime() > troughHorizonMs && paychecks.monthlyNet >= monthlySpend) {
+      return { ...base, cashOutDate: null, employment: employment() }
+    }
     walker.setDate(walker.getDate() + 1)
   }
 
-  return { today: isoDate(cursor), cliffDate: cliffDateIso, daysUntilCliff, preCliffMonthlyBurn, postCliffMonthlyBurn, cashOutDate: null, phase }
+  return { ...base, cashOutDate: null, employment: employment() }
 }

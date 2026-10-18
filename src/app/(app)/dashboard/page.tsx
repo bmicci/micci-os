@@ -147,6 +147,42 @@ export default async function DashboardPage() {
           <div className="absolute inset-y-0 left-0 rounded-full"
             style={{ width: `${meterPct}%`, background: 'linear-gradient(90deg, #ef4444, #f59e0b)' }} />
         </div>
+        {runwayProjection.employment && (() => {
+          const emp = runwayProjection.employment
+          const day = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          return (
+            <>
+              {emp.daysUntilFirstCheck > 0 && (
+                <div>
+                  <div className="font-mono text-[22px] font-bold" style={{ color: '#22c55e' }}>
+                    {day(emp.firstPayday)}
+                  </div>
+                  <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+                    First {emp.employer} check · {fmtRound(emp.netPerCheck)} net
+                  </div>
+                </div>
+              )}
+              {emp.daysUntilFirstCheck > 0 && (
+                <div>
+                  <div className="font-mono text-[22px] font-bold" style={{ color: emp.lowPointCash < 5000 ? '#fbbf24' : 'var(--text-primary)' }}>
+                    {fmtRound(emp.lowPointCash)}
+                  </div>
+                  <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+                    Cash low point · {day(emp.lowPointDate)}
+                  </div>
+                </div>
+              )}
+              <div>
+                <div className="font-mono text-[22px] font-bold" style={{ color: emp.monthlySurplus >= 0 ? '#22c55e' : '#ef4444' }}>
+                  {emp.monthlySurplus >= 0 ? '+' : '−'}{fmtRound(Math.abs(emp.monthlySurplus))}
+                </div>
+                <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+                  Monthly {emp.monthlySurplus >= 0 ? 'surplus' : 'shortfall'} once paid
+                </div>
+              </div>
+            </>
+          )
+        })()}
         {cashOut && (
           <div>
             <div className="font-mono text-[22px] font-bold text-[var(--text-primary)]">

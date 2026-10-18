@@ -228,7 +228,11 @@ export default function OverviewTab({ data, onNavigate }: {
           note={portfolio ? `Live · ${portfolio.gl >= 0 ? '+' : ''}${portfolio.glPct}% unrealized` : 'Import positions'}
           accent="green" onClick={() => go('investments')} />
         <KpiCard label="Liquid Cash" value={fmtRound(derived.liquid)}
-          note={`≈ ${derived.runwayMonths === Infinity ? '∞' : derived.runwayMonths.toFixed(1)} months of runway`}
+          note={runwayProjection.employment && runwayProjection.employment.daysUntilFirstCheck > 0
+            ? `Low point ≈ ${fmtRound(runwayProjection.employment.lowPointCash)} before ${runwayProjection.employment.employer} pay`
+            : runwayProjection.employment
+              ? `${runwayProjection.employment.employer} pay · ${fmtRound(runwayProjection.employment.monthlySurplus)}/mo surplus`
+              : `≈ ${derived.runwayMonths === Infinity ? '∞' : derived.runwayMonths.toFixed(1)} months of runway`}
           accent="amber" onClick={() => go('cashflow')} />
         <KpiCard label="Net Burn / Mo" value={fmtRound(Math.max(derived.burn, 0))}
           note={burnAnalysis.hasData ? 'Real · last 90 days' : 'Estimated'}
