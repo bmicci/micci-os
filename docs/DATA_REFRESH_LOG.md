@@ -56,7 +56,7 @@ _Last updated: Oct 15, 2026_
 | Burn rate / spend categories | ⚙️ AUTO | Derives from imported transactions | — |
 | Action items | ⚙️ AUTO | Check off in Overview Action Center | — |
 | Subscriptions tab | ⚙️ AUTO | Detected live from imported transactions (cadence + stable amount → `lib/finance/recurring.ts`); zombie flags cross-check the 2025 audit cancel list. Refreshes on every CSV re-import | ✅ built Jul 24 — replaced the frozen 2025 audit list |
-| Promo schedule | 🔁 as-paid | Claude updates on each payoff | Next real deferred-interest deadline: Best Buy Promo 2, Dec 27 |
+| Promo schedule (`promo_deadlines`) | ⚙️ AUTO-PROPOSED (Oct 18, 2026) | Statement PDFs (Plaid Statements daily, or upload in /import) are read by Claude; balance / APR / promo-end-date changes appear as **Statement findings** in /import and only change `promo_deadlines` when confirmed. Paid promos are marked `paid` (hidden from deadlines, never deleted); confirmed rows get `verified_at` + `verified_source` | Next real deferred-interest deadline: Best Buy Promo 2, Dec 27 |
 
 ## 📈 Investments
 
@@ -132,3 +132,9 @@ _Last updated: Oct 15, 2026_
 | Data | Category | How |
 |---|---|---|
 | Job offers (JSON array: employer, hourly/salary, rate, hours, pay frequency, start date, first payday, status) | 🔁 ROUTINE | Edit when an offer changes. `status: "accepted"` feeds real net paychecks (pre-SS-cap) into the runway walk on each payday; `offer`/`prospect` entries are kept for side-by-side comparison. Seeded: Southwest, W-2 contract via agency, $120/hr × 40, biweekly, start Nov 2, first check Nov 13 (to confirm) |
+
+## Statements (`statements`, `statement_findings`) — added Oct 18, 2026
+- **Source:** Plaid Statements for connected banks (grant via "Add details" on each bank in /import), manual PDF upload for the rest (Citi, CUTX, etc.). PDFs live in the private `statements` storage bucket.
+- **Cadence:** daily cron (11:00 UTC) downloads new statements (first pass: last 6 months) and asks Plaid to refresh when the newest is >33 days old; then reads the newest unread statement per account (3 per cron run, 2 per manual "Sync now"). Older months can be read on demand from "Statements on file".
+- **Extraction:** Claude (claude-opus-5-5, structured output) reads the PDF directly: closing date, new balance, minimum due, due date, interest charged, and one segment per row of the interest-charge table (balance, APR, promo end date, deferred interest).
+- **Review:** `lib/finance/statementDiff.ts` matches segments to `promo_deadlines` on the card's last 4 digits and the promo end date (±20 days). Findings: update / new promo / mark paid / FYI. Nothing is written until confirmed; values are editable before confirming.

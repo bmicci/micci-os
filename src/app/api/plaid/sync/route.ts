@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { plaidConfigured, syncAllPlaidItems } from '@/lib/plaid'
+import { parsePendingStatements } from '@/lib/statements'
 
 export const maxDuration = 300
 
@@ -14,7 +15,9 @@ export async function POST() {
   try {
     const service = await createServiceClient()
     const results = await syncAllPlaidItems(service, user.id)
-    return NextResponse.json({ results })
+    // Newly downloaded statements → Claude extraction → pending findings
+    const statements = await parsePendingStatements(service, 2)
+    return NextResponse.json({ results, statements })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Sync failed'
     console.error('[plaid/sync]', err)
@@ -34,7 +37,8 @@ export async function GET(request: NextRequest) {
   try {
     const service = await createServiceClient()
     const results = await syncAllPlaidItems(service)
-    return NextResponse.json({ results })
+    const statements = await parsePendingStatements(service, 3)
+    return NextResponse.json({ results, statements })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Sync failed'
     console.error('[plaid/sync cron]', err)

@@ -20,6 +20,7 @@
 // ───────────────────────────────────────────────────────────────────────────
 
 import { Configuration, PlaidApi, PlaidEnvironments, type Transaction as PlaidTransaction } from 'plaid'
+import { syncStatements } from '@/lib/statements'
 
 export function plaidConfigured(): boolean {
   return Boolean(process.env.PLAID_CLIENT_ID && process.env.PLAID_SECRET)
@@ -78,6 +79,7 @@ export interface DbPlaidItem {
   status: string
   last_synced_at: string | null
   last_error: string | null
+  statements_refreshed_at?: string | null
 }
 
 export interface SyncResult {
@@ -336,13 +338,16 @@ export async function syncPlaidItem(service: any, item: DbPlaidItem): Promise<Sy
       console.warn('[plaid] balance refresh failed (sync still ok):', err)
     }
 
-    // Liabilities + Investments: best-effort mirrors for Items that consented
+    // Liabilities + Investments + Statements: best-effort mirrors for Items that consented
     // (new links request them as optional products; existing Items add them
     // via Link update mode). A product the bank doesn't support or the Item
     // hasn't consented to is recorded, not treated as a failure.
     const productStatus: Record<string, string> = {
       liabilities: await syncLiabilities(service, client, item),
       investments: await syncHoldings(service, client, item),
+      // Statement PDFs → private storage; parsed afterwards by the sync route
+      // (lib/statements.ts) into findings the user confirms.
+      statements: await syncStatements(service, client, item, productErrorStatus),
     }
     await service.from('plaid_items').update({ product_status: productStatus }).eq('id', item.id)
 
