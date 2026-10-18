@@ -89,6 +89,100 @@ export interface SyncResult {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+/** Classify a Plaid product error into a status we can show (not a failure). */
+function productErrorStatus(err: unknown): string {
+  const code: string | undefined = (err as any)?.response?.data?.error_code
+  if (!code) return 'error'
+  if (code === 'ADDITIONAL_CONSENT_REQUIRED' || code === 'PRODUCT_NOT_ENABLED' || code === 'INVALID_PRODUCT') return 'not_consented'
+  if (code === 'PRODUCTS_NOT_SUPPORTED' || code === 'NO_LIABILITY_ACCOUNTS' || code === 'NO_INVESTMENT_ACCOUNTS' || code === 'NO_INVESTMENT_AUTH_ACCOUNTS') return 'unsupported'
+  if (code === 'PRODUCT_NOT_READY') return 'pending'
+  return `error:${code}`
+}
+
+/** Mirror /liabilities/get into plaid_liabilities. Returns a product status. */
+async function syncLiabilities(service: any, client: PlaidApi, item: DbPlaidItem): Promise<string> {
+  try {
+    const { data } = await client.liabilitiesGet({ access_token: item.access_token })
+    const balances = new Map(data.accounts.map(a => [a.account_id, a.balances.current ?? null]))
+    const name = (id: string) => item.account_map[id] ?? null
+    const now = new Date().toISOString()
+    const rows: any[] = []
+    for (const c of data.liabilities.credit ?? []) {
+      if (!c.account_id) continue
+      rows.push({
+        plaid_account_id: c.account_id, item_id: item.item_id, institution: item.institution_name,
+        account_name: name(c.account_id), kind: 'credit',
+        current_balance: balances.get(c.account_id) ?? null,
+        last_statement_balance: c.last_statement_balance, last_statement_date: c.last_statement_issue_date,
+        minimum_payment: c.minimum_payment_amount, next_payment_due_date: c.next_payment_due_date,
+        last_payment_amount: c.last_payment_amount, last_payment_date: c.last_payment_date,
+        is_overdue: c.is_overdue, interest_rate: null, aprs: c.aprs ?? [], raw: c, updated_at: now,
+      })
+    }
+    for (const m of data.liabilities.mortgage ?? []) {
+      rows.push({
+        plaid_account_id: m.account_id, item_id: item.item_id, institution: item.institution_name,
+        account_name: name(m.account_id), kind: 'mortgage',
+        current_balance: balances.get(m.account_id) ?? null,
+        last_statement_balance: null, last_statement_date: null,
+        minimum_payment: m.next_monthly_payment, next_payment_due_date: m.next_payment_due_date,
+        last_payment_amount: m.last_payment_amount, last_payment_date: m.last_payment_date,
+        is_overdue: m.past_due_amount != null && m.past_due_amount > 0,
+        interest_rate: m.interest_rate?.percentage ?? null, aprs: [], raw: m, updated_at: now,
+      })
+    }
+    for (const st of data.liabilities.student ?? []) {
+      if (!st.account_id) continue
+      rows.push({
+        plaid_account_id: st.account_id, item_id: item.item_id, institution: item.institution_name,
+        account_name: name(st.account_id), kind: 'student',
+        current_balance: balances.get(st.account_id) ?? null,
+        last_statement_balance: st.last_statement_balance, last_statement_date: st.last_statement_issue_date,
+        minimum_payment: st.minimum_payment_amount, next_payment_due_date: st.next_payment_due_date,
+        last_payment_amount: st.last_payment_amount, last_payment_date: st.last_payment_date,
+        is_overdue: st.is_overdue, interest_rate: st.interest_rate_percentage, aprs: [], raw: st, updated_at: now,
+      })
+    }
+    if (rows.length) {
+      const { error } = await service.from('plaid_liabilities').upsert(rows, { onConflict: 'plaid_account_id' })
+      if (error) return `error:${error.message.slice(0, 60)}`
+    }
+    return rows.length ? 'ok' : 'unsupported'
+  } catch (err) {
+    return productErrorStatus(err)
+  }
+}
+
+/** Mirror /investments/holdings/get into plaid_holdings. Returns a product status. */
+async function syncHoldings(service: any, client: PlaidApi, item: DbPlaidItem): Promise<string> {
+  try {
+    const { data } = await client.investmentsHoldingsGet({ access_token: item.access_token })
+    const securities = new Map(data.securities.map(s => [s.security_id, s]))
+    const now = new Date().toISOString()
+    const rows = data.holdings.map(h => {
+      const sec = securities.get(h.security_id)
+      return {
+        plaid_account_id: h.account_id, security_id: h.security_id, item_id: item.item_id,
+        account_name: item.account_map[h.account_id] ?? null,
+        ticker: sec?.ticker_symbol ?? null, name: sec?.name ?? null, security_type: sec?.type ?? null,
+        quantity: h.quantity, price: h.institution_price, price_as_of: h.institution_price_as_of ?? null,
+        value: h.institution_value, cost_basis: h.cost_basis ?? null, updated_at: now,
+      }
+    })
+    if (rows.length) {
+      const { error } = await service.from('plaid_holdings').upsert(rows, { onConflict: 'plaid_account_id,security_id' })
+      if (error) return `error:${error.message.slice(0, 60)}`
+      // Positions sold since the last sync: the mirror tracks what the
+      // broker holds now (history stays in investment transactions/lots).
+      await service.from('plaid_holdings').delete().eq('item_id', item.item_id).lt('updated_at', now)
+    }
+    return rows.length ? 'ok' : 'unsupported'
+  } catch (err) {
+    return productErrorStatus(err)
+  }
+}
+
 function toRow(userId: string, txn: PlaidTransaction, accountMap: Record<string, string>) {
   const merchant = txn.merchant_name || txn.name || 'Unknown'
   const category = mapCategory(txn)
@@ -241,6 +335,16 @@ export async function syncPlaidItem(service: any, item: DbPlaidItem): Promise<Sy
     } catch (err) {
       console.warn('[plaid] balance refresh failed (sync still ok):', err)
     }
+
+    // Liabilities + Investments: best-effort mirrors for Items that consented
+    // (new links request them as optional products; existing Items add them
+    // via Link update mode). A product the bank doesn't support or the Item
+    // hasn't consented to is recorded, not treated as a failure.
+    const productStatus: Record<string, string> = {
+      liabilities: await syncLiabilities(service, client, item),
+      investments: await syncHoldings(service, client, item),
+    }
+    await service.from('plaid_items').update({ product_status: productStatus }).eq('id', item.id)
 
     return { institution, added, modified, removed }
   } catch (err) {

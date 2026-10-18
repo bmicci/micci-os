@@ -15,7 +15,16 @@ interface PlaidItem {
   last_synced_at: string | null
   last_error: string | null
   account_map: Record<string, string>
+  product_status?: { liabilities?: string; investments?: string }
 }
+
+const PRODUCT_LABEL: Record<string, string> = {
+  ok: '✓', not_consented: 'not granted', unsupported: 'n/a', pending: 'pending',
+}
+const productText = (s?: string) => (s ? PRODUCT_LABEL[s] ?? '⚠' : '—')
+// Liabilities/Investments a bank could provide but this Item hasn't granted
+const needsUpdate = (item: PlaidItem) =>
+  item.product_status?.liabilities === 'not_consented' || item.product_status?.investments === 'not_consented' || !item.product_status?.liabilities
 
 function timeAgo(iso: string | null): string {
   if (!iso) return 'never'
@@ -29,6 +38,8 @@ function timeAgo(iso: string | null): string {
 // Amex bounce the user to their own site and back to /import — the page
 // fully reloads, so the in-memory token is gone unless we stash it.
 const LINK_TOKEN_KEY = 'plaid_link_token'
+// Which Item an update-mode Link is for (also survives the OAuth redirect)
+const LINK_MODE_KEY = 'plaid_link_update_item'
 
 function PlaidLinkButton({ linkToken, receivedRedirectUri, onSuccess }: {
   linkToken: string
@@ -74,6 +85,7 @@ export default function BankSyncCard() {
   const [linkToken, setLinkToken] = useState<string | null>(null)
   const [oauthRedirectUri, setOauthRedirectUri] = useState<string | undefined>(undefined)
   const [busy, setBusy] = useState<string | null>(null) // 'connect' | 'sync' | item id
+  const [updateItemId, setUpdateItemId] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
   // Returning from a bank's OAuth page (Chase, Amex, …): the URL carries
@@ -84,6 +96,7 @@ export default function BankSyncCard() {
     if (!new URLSearchParams(window.location.search).has('oauth_state_id')) return
     const stored = localStorage.getItem(LINK_TOKEN_KEY)
     if (stored) {
+      setUpdateItemId(localStorage.getItem(LINK_MODE_KEY))
       setOauthRedirectUri(window.location.href)
       setLinkToken(stored)
       setNotice('Finishing bank connection…')
@@ -102,14 +115,21 @@ export default function BankSyncCard() {
 
   useEffect(() => { refresh() }, [refresh])
 
-  async function startConnect() {
+  async function startConnect(itemId?: string) {
     setBusy('connect')
-    setNotice(null)
+    setNotice(itemId ? 'Opening Plaid to add card terms + holdings for this bank…' : null)
     try {
-      const res = await fetch('/api/plaid/create-link-token', { method: 'POST' })
+      const res = await fetch('/api/plaid/create-link-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(itemId ? { item_id: itemId } : {}),
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`)
       localStorage.setItem(LINK_TOKEN_KEY, data.link_token) // survives OAuth redirect
+      if (itemId) localStorage.setItem(LINK_MODE_KEY, itemId)
+      else localStorage.removeItem(LINK_MODE_KEY)
+      setUpdateItemId(itemId ?? null)
       setLinkToken(data.link_token)
     } catch (err) {
       setNotice(`⚠️ ${(err as Error).message}`)
@@ -125,6 +145,14 @@ export default function BankSyncCard() {
     // Drop the oauth_state_id from the URL so a refresh doesn't re-trigger the resume flow
     if (typeof window !== 'undefined' && window.location.search.includes('oauth_state_id')) {
       window.history.replaceState({}, '', window.location.pathname)
+    }
+    // Update mode: same Item, nothing to exchange — just re-sync to pull
+    // the newly granted Liabilities / Investments data.
+    if (updateItemId) {
+      localStorage.removeItem(LINK_MODE_KEY)
+      setUpdateItemId(null)
+      await syncNow('Access updated — syncing card terms and holdings…')
+      return
     }
     setBusy('connect')
     setNotice('Connecting and running first sync — this can take a minute…')
@@ -145,9 +173,9 @@ export default function BankSyncCard() {
     }
   }
 
-  async function syncNow() {
+  async function syncNow(message = 'Syncing all connected banks…') {
     setBusy('sync')
-    setNotice('Syncing all connected banks…')
+    setNotice(message)
     try {
       const res = await fetch('/api/plaid/sync', { method: 'POST' })
       const data = await res.json()
@@ -191,7 +219,7 @@ export default function BankSyncCard() {
         </h3>
         {items.length > 0 && (
           <button
-            onClick={syncNow}
+            onClick={() => syncNow()}
             disabled={busy !== null}
             className="text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5"
             style={{
@@ -240,7 +268,21 @@ export default function BankSyncCard() {
                       ? `⚠️ ${item.last_error.slice(0, 80)}`
                       : `Last synced ${timeAgo(item.last_synced_at)}`}
                 </div>
+                <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  Card/loan terms {productText(item.product_status?.liabilities)} · Holdings {productText(item.product_status?.investments)}
+                </div>
               </div>
+              {needsUpdate(item) && (
+                <button
+                  onClick={() => startConnect(item.id)}
+                  disabled={busy !== null}
+                  className="shrink-0 text-[10.5px] font-semibold px-2.5 py-1 rounded-lg"
+                  style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--accent-cyan)', border: '1px solid rgba(0,212,255,0.3)', cursor: busy ? 'wait' : 'pointer' }}
+                  title="Grant Liabilities (APRs, minimums, due dates) and Investments (holdings) for this bank"
+                >
+                  Add details
+                </button>
+              )}
               <button
                 onClick={() => disconnect(item.id, item.institution_name)}
                 disabled={busy !== null}
@@ -259,7 +301,7 @@ export default function BankSyncCard() {
               <PlaidLinkButton linkToken={linkToken} receivedRedirectUri={oauthRedirectUri} onSuccess={completeConnect} />
             ) : (
               <button
-                onClick={startConnect}
+                onClick={() => startConnect()}
                 disabled={busy !== null}
                 className="text-[12px] font-semibold px-4 py-2 rounded-lg"
                 style={{

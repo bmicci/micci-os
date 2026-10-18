@@ -243,9 +243,34 @@ export function createMicciMcpServer(): McpServer {
   }, async () => {
     const d = await data()
     const debts = [...d.debts].sort((x, y) => y.rate - x.rate || y.balance - x.balance)
+    // Live bank-reported balances (Plaid) — authoritative where they exist;
+    // the manual table above can be weeks stale.
+    const since = new Date(Date.now() - 3 * 86400000).toISOString()
+    const [{ data: liveAccts }, { data: liabs }] = await Promise.all([
+      db().from('accounts').select('name, type, balance, updated_at')
+        .in('type', ['credit card', 'mortgage', 'student', 'loan', 'line of credit', 'home equity'])
+        .gte('updated_at', since).order('balance', { ascending: false }),
+      db().from('plaid_liabilities').select('*'),
+    ])
+    const liabByName = new Map((liabs ?? []).map(l => [l.account_name, l]))
+    const live = (liveAccts ?? []).map(a => {
+      const l = liabByName.get(a.name)
+      const purchaseApr = Array.isArray(l?.aprs) ? (l.aprs as { apr_type: string; apr_percentage: number }[]).find(x => x.apr_type === 'purchase_apr')?.apr_percentage : undefined
+      const promo = Array.isArray(l?.aprs) ? (l.aprs as { apr_type: string; apr_percentage: number; balance_subject_to_apr?: number }[]).filter(x => x.apr_type === 'balance_transfer_apr' || x.apr_type === 'special') : []
+      return `| ${a.name} | ${usd(Number(a.balance), true)} | ${l ? `${usd(l.last_statement_balance, true)} (${l.last_statement_date ?? '—'})` : '—'} | ${l?.minimum_payment != null ? usd(l.minimum_payment, true) : '—'} | ${l?.next_payment_due_date ?? '—'} | ${l?.interest_rate ?? purchaseApr ?? '—'}${promo.length ? `; promo ${promo.map(x => `${x.apr_percentage}% on ${usd(x.balance_subject_to_apr ?? null)}`).join(', ')}` : ''} | ${String(a.updated_at).slice(0, 10)} |`
+    })
     const monthlyInterest = debts.reduce((s, x) => s + x.balance * x.rate / 100 / 12, 0)
     const lines = [
-      `# Debts — total ${usd(d.debts.reduce((s, x) => s + x.balance, 0))} (≈ ${usd(monthlyInterest)}/mo interest at stated APRs)`,
+      ...(live.length ? [
+        '# Live from the banks (Plaid, synced daily) — use these over the manual table',
+        '| Account | Current balance | Last statement | Min due | Due date | APR | Synced |',
+        '|---|---|---|---|---|---|---|',
+        ...live,
+        '',
+        'Card current balance includes this cycle\'s purchases; cards paid in full monthly will show a balance until the statement is paid.',
+        '',
+      ] : []),
+      `# Manual debt table (source: hand-entered, may be stale) — total ${usd(d.debts.reduce((s, x) => s + x.balance, 0))} (≈ ${usd(monthlyInterest)}/mo interest at stated APRs)`,
       '',
       '| Account | Type | Balance | APR | Min/mo | Plan |',
       '|---|---|---|---|---|---|',
