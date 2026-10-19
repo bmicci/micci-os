@@ -3,6 +3,7 @@ import { CountryCode, Products } from 'plaid'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getPlaidClient, plaidConfigured } from '@/lib/plaid'
 import { statementsLinkRange } from '@/lib/statements'
+import { verifiedOwner } from '@/lib/supabase/require-user'
 
 interface PlaidErrorBody { error_type?: string; error_code?: string; error_message?: string; display_message?: string | null }
 /** Plaid's real error lives in the Axios response body, not err.message. */
@@ -13,7 +14,7 @@ function plaidErrorBody(err: unknown): PlaidErrorBody | null {
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await verifiedOwner(supabase)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   if (!plaidConfigured()) {

@@ -3,6 +3,7 @@ import { streamText } from 'ai'
 import { NextRequest } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { retrieveRelevantChunks, getStructuredContext, type Section } from '@/lib/ai/retrieval'
+import { verifiedOwner } from '@/lib/supabase/require-user'
 
 export const maxDuration = 60
 
@@ -18,7 +19,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await verifiedOwner(supabase)
 
   if (!user) {
     return new Response('Unauthorized', { status: 401 })

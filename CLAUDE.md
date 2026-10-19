@@ -65,13 +65,14 @@ Chase + Amex transactions and checking balance sync automatically via Plaid (dai
 |---|---|
 | `docs/CLAUDE.md` | Full project context, structure, architectural rules |
 | `docs/DATA_REFRESH_LOG.md` | Living log: what data is owed / routine / auto, per section |
+| `docs/SECURITY.md` | Access policy (SSO + MFA), machine endpoints, headers |
 | `docs/IMPLEMENTATION_PLAN.md` | Phase plan (mostly complete; Plaid + polish phases remain) |
 | `docs/WEEKEND_PLAN.md` | Jul 2026 finalization plan (Phases 3–4 completed Jul 24) |
 | `docs/prds/*` | Per-module PRDs |
 
 ## WHAT NOT TO CHANGE
 
-- Auth (magic link + Google OAuth) — working
+- Auth — Google SSO (allowlisted owner) + TOTP second factor, enforced in `src/proxy.ts` and every API route; see `docs/SECURITY.md`. Don't loosen it
 - AI Chat (`AIChat.tsx` + `/api/chat/`) — working
 - Document upload/import pipeline — working; extend, don't replace
 - `AnimatedBackground.tsx` — keep as-is

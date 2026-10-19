@@ -5,13 +5,16 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  useEffect(() => {
+    if (searchParams.get('error') === 'not_authorized') {
+      setError('That account is not authorized for this app.')
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const code = searchParams.get('code')
@@ -36,6 +39,9 @@ export default function LoginPage() {
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
+        // Steer Google to the Workspace account (the server enforces the
+        // allowlist; this just skips the account picker detour).
+        queryParams: { hd: 'brandonmicci.com', prompt: 'select_account' },
       },
     })
     if (error) {
@@ -43,27 +49,6 @@ export default function LoginPage() {
       setGoogleLoading(false)
     }
     // On success, browser redirects — no need to reset loading
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-
-    if (error) {
-      setError(error.message)
-    } else {
-      setSent(true)
-    }
-    setLoading(false)
   }
 
   return (
@@ -105,43 +90,7 @@ export default function LoginPage() {
           </span>
         </div>
 
-        {sent ? (
-          <div className="text-center">
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: '50%',
-                background: 'rgba(0,212,255,0.1)',
-                border: '1px solid rgba(0,212,255,0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 24,
-                margin: '0 auto 20px',
-              }}
-            >
-              ✉️
-            </div>
-            <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-              Check your email
-            </h2>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              We sent a magic link to{' '}
-              <span style={{ color: 'var(--accent-cyan)' }}>{email}</span>.
-              <br />
-              Click the link to sign in.
-            </p>
-            <button
-              onClick={() => { setSent(false); setEmail('') }}
-              className="mt-6 text-sm"
-              style={{ color: 'var(--text-muted)', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}
-            >
-              Use a different email
-            </button>
-          </div>
-        ) : (
-          <>
+        <>
             <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
               Welcome back
             </h1>
@@ -184,74 +133,17 @@ export default function LoginPage() {
               {googleLoading ? 'Redirecting...' : 'Continue with Google'}
             </button>
 
-            {/* Divider */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
-              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>or</span>
-              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
-            </div>
+            {error && (
+              <p className="text-xs mb-3" style={{ color: '#ff6b6b' }}>
+                {error}
+              </p>
+            )}
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="email"
-                  className="text-xs font-medium"
-                  style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-geist-mono)', textTransform: 'uppercase', letterSpacing: '0.08em' }}
-                >
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="brandon@example.com"
-                  required
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(0,212,255,0.2)',
-                    borderRadius: 8,
-                    padding: '10px 14px',
-                    color: 'var(--text-primary)',
-                    fontSize: 14,
-                    outline: 'none',
-                    width: '100%',
-                    transition: 'border-color 0.15s',
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = 'rgba(0,212,255,0.6)')}
-                  onBlur={(e) => (e.target.style.borderColor = 'rgba(0,212,255,0.2)')}
-                />
-              </div>
-
-              {error && (
-                <p className="text-xs" style={{ color: '#ff6b6b' }}>
-                  {error}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  background: loading
-                    ? 'rgba(0,212,255,0.2)'
-                    : 'linear-gradient(135deg,#00d4ff,#1e90ff)',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '11px 20px',
-                  color: loading ? 'var(--text-muted)' : '#050505',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.15s',
-                  marginTop: 4,
-                }}
-              >
-                {loading ? 'Sending...' : 'Send magic link →'}
-              </button>
-            </form>
-          </>
-        )}
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              Single sign-on with the owner&apos;s Google Workspace account, then a code from your
+              authenticator app.
+            </p>
+        </>
       </div>
     </div>
   )

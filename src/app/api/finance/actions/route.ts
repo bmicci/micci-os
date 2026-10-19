@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { verifiedOwner } from '@/lib/supabase/require-user'
 
 /**
  * /api/finance/actions — CRUD for the unified action list (action_items).
@@ -17,7 +18,7 @@ const CATEGORIES = ['finance', 'heloc', 'tax', 'legal', 'job_search', 'health', 
 
 async function requireAuth() {
   const authClient = await createClient()
-  const { data: { user } } = await authClient.auth.getUser()
+  const { data: { user } } = await verifiedOwner(authClient)
   return user
 }
 
