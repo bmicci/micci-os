@@ -38,8 +38,15 @@ tokens stay in `plaid_items` (deny-all RLS), never sent to the browser.
 Statement PDFs in the private `statements` bucket, served only via 5-minute
 signed URLs to the owner.
 
-## Custom domain
-Planned: owner subdomain of brandonmicci.com (DNS already on Vercel). When
-attached, also add `https://<subdomain>/auth/callback` to Supabase Auth →
-URL Configuration (redirect URLs) and `https://<subdomain>/import` to Plaid →
-Allowed redirect URIs.
+## Custom domain — os.brandonmicci.com
+brandonmicci.com DNS is on Vercel (same team), so the subdomain is attached
+to the micci-os project in Vercel → Domains (CNAME + TLS automatic). Attach
+it only once SSO + MFA are live in production. Then:
+- Supabase → Authentication → URL Configuration: Site URL
+  `https://os.brandonmicci.com`; add redirect URL
+  `https://os.brandonmicci.com/auth/callback` (keep the vercel.app one until
+  the switch is done).
+- Plaid → API → Allowed redirect URIs: add `https://os.brandonmicci.com/import`.
+- Google OAuth needs no change (it returns to Supabase, not the app).
+- Claude connector: optionally re-add with the new host; the old
+  micci-os.vercel.app URL keeps working.
