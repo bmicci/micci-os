@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { plaidConfigured, syncAllPlaidItems } from '@/lib/plaid'
 import { parsePendingStatements } from '@/lib/statements'
+import { verifiedOwner } from '@/lib/supabase/require-user'
 
 export const maxDuration = 300
 
 // POST — manual "Sync now" from the Import Center (user-authenticated).
 export async function POST() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await verifiedOwner(supabase)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!plaidConfigured()) return NextResponse.json({ error: 'Plaid not configured' }, { status: 501 })
 

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getPlaidClient, plaidConfigured, syncPlaidItem, type DbPlaidItem } from '@/lib/plaid'
+import { verifiedOwner } from '@/lib/supabase/require-user'
 
 // Completes a Plaid Link flow: exchanges the public_token for a permanent
 // access_token, stores the item with an account-id → display-name map,
 // and runs the first sync immediately so the dashboard updates right away.
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await verifiedOwner(supabase)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!plaidConfigured()) return NextResponse.json({ error: 'Plaid not configured' }, { status: 501 })
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { verifiedOwner } from '@/lib/supabase/require-user'
 
 // ── Column header patterns for each data type ──────────────────────────────
 
@@ -814,7 +815,7 @@ async function handleCommit(request: NextRequest): Promise<NextResponse> {
   const supabase = await createClient()
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await verifiedOwner(supabase)
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

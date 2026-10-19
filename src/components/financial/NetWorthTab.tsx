@@ -18,6 +18,7 @@ import {
 import type { DebtAccount, HelocKPIs, Assets } from '@/lib/financial-data'
 import { fmt, fmtK } from '@/lib/financial-data'
 import KPICard from './KPICard'
+import DebtSourceTag from './DebtSourceTag'
 
 // ── Props ────────────────────────────────────────────
 interface NetWorthTabProps {
@@ -259,8 +260,9 @@ export default function NetWorthTab({ debts, helocKPIs, assets }: NetWorthTabPro
                       {debt.name}
                     </div>
                     <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                      {debt.category} · {debt.rate}%
+                      {debt.category} · {debt.rateUnknown ? 'rate n/a' : `${debt.rate}%`}
                     </div>
+                    <DebtSourceTag debt={debt} />
                   </div>
                 </div>
                 <span className="text-[12px] font-mono font-semibold" style={{ color: '#ef4444' }}>

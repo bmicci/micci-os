@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { verifiedOwner } from '@/lib/supabase/require-user'
 
 const ALLOWED_TYPES: Record<string, string> = {
   'application/pdf': 'pdf',
@@ -12,7 +13,7 @@ const ALLOWED_TYPES: Record<string, string> = {
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await verifiedOwner(supabase)
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

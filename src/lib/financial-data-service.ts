@@ -8,6 +8,7 @@ import { liveSpendCategories, computeBurn, fetchAllTxns, monthlyFlows, computeRu
 import { detectRecurring } from './finance/recurring'
 import { computeUpcoming } from './finance/upcoming'
 import { activeOffer, offerPaycheck, parseOffers } from './finance/jobIncome'
+import { overlayLiveDebts, LIVE_MAX_AGE_DAYS, type LiveAccountRow, type LiveLiabilityRow } from './finance/liveDebts'
 import type {
   DbDebtAccount,
   DbFinancialModule,
@@ -396,6 +397,8 @@ export async function getFinancialData(): Promise<FinancialData> {
       portfolioRes,
       actionRowsRes,
       historyRes,
+      liveAcctRes,
+      liveLiabRes,
     ] = await Promise.all([
       supabase
         .from('debt_accounts')
@@ -418,14 +421,28 @@ export async function getFinancialData(): Promise<FinancialData> {
       supabase.from('portfolio_positions').select('ticker, shares, current_value, cost_basis, day_change, day_change_pct, updated_at'),
       supabase.from('action_items').select('*').order('due_date', { ascending: true, nullsFirst: false }),
       supabase.from('portfolio_history').select('snapshot_date, total_value').order('snapshot_date', { ascending: true }).limit(60),
+      // Bank-synced balances (Plaid, daily) + card/loan terms for the live debt overlay
+      supabase.from('accounts').select('name, type, institution, balance, updated_at')
+        .gte('updated_at', new Date(Date.now() - LIVE_MAX_AGE_DAYS * 86_400_000).toISOString()),
+      supabase.from('plaid_liabilities').select('account_name, minimum_payment, interest_rate, aprs'),
     ])
 
     const fallback = getAllData()
 
     // ── Debt accounts ────────────────────────────────────────────
+    // Live where the bank reports it (Plaid), manual otherwise — with the
+    // manual balance kept alongside when they disagree (no silent overwrite).
+    const manualDebts = (debtsRes.data ?? []) as DbDebtAccount[]
+    const liveAccounts = (liveAcctRes.data ?? []) as LiveAccountRow[]
     const debts: DebtAccount[] =
-      debtsRes.data && debtsRes.data.length > 0
-        ? debtsRes.data.map(mapDebtAccount)
+      manualDebts.length > 0 || liveAccounts.length > 0
+        ? overlayLiveDebts(
+            manualDebts.map(r => ({ debt: mapDebtAccount(r), updatedAt: r.updated_at })),
+            liveAccounts,
+            (liveLiabRes.data ?? []) as LiveLiabilityRow[],
+            ((promosRes.data ?? []) as DbPromoDeadline[]).filter(p => p.status === 'active'),
+            mapDecision,
+          )
         : fallback.debts
 
     // ── Modules (sorted M1–M9) ───────────────────────────────────

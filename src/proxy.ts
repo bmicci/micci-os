@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isOwner } from '@/lib/auth/owner'
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -48,23 +49,63 @@ export async function proxy(request: NextRequest) {
     isCronEndpoint ||
     isMcpEndpoint ||
     pathname === '/login' ||
+    pathname === '/auth/callback' || // OAuth return: exchanges ?code= itself
+    pathname === '/robots.txt' ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/auth') ||
     pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|css|js)$/)
 
-  if (!user && !isPublic) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    url.searchParams.set('redirectTo', pathname)
-    return NextResponse.redirect(url)
+  // Access policy (lib/auth/owner.ts): owner via Google SSO + second factor.
+  const owner = user != null && isOwner(user)
+  let mfaPassed = false
+  if (owner) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    mfaPassed = aal?.currentLevel === 'aal2'
+  }
+  const isMfaPage = pathname === '/mfa'
+  const withCookies = (res: NextResponse) => {
+    supabaseResponse.cookies.getAll().forEach(c => res.cookies.set(c))
+    return res
+  }
+  const toLogin = (search: string) =>
+    NextResponse.redirect(Object.assign(request.nextUrl.clone(), { pathname: '/login', search }))
+  const backTo = () => {
+    const target = request.nextUrl.searchParams.get('redirectTo') || '/financial'
+    // Same-origin paths only
+    const safe = target.startsWith('/') && !target.startsWith('//') ? target : '/financial'
+    return NextResponse.redirect(new URL(safe, request.nextUrl.origin))
   }
 
-  if (user && pathname === '/login') {
-    const redirectTo = request.nextUrl.searchParams.get('redirectTo') || '/financial'
-    const url = request.nextUrl.clone()
-    url.pathname = redirectTo
-    url.searchParams.delete('redirectTo')
-    return NextResponse.redirect(url)
+  // Signed in, but not the owner (wrong account, or not via Google SSO):
+  // end that session. Every data route trusts "signed in", so this is the gate.
+  if (user && !owner && !isPublic) {
+    await supabase.auth.signOut()
+    return withCookies(pathname.startsWith('/api/')
+      ? NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      : toLogin('?error=not_authorized'))
+  }
+
+  if (!user && !isPublic) {
+    return pathname.startsWith('/api/')
+      ? NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      : toLogin(`?redirectTo=${encodeURIComponent(pathname)}`)
+  }
+
+  // Owner who hasn't passed the second factor this session: only /mfa.
+  if (owner && !mfaPassed && !isPublic && !isMfaPage) {
+    return withCookies(pathname.startsWith('/api/')
+      ? NextResponse.json({ error: 'mfa_required' }, { status: 401 })
+      : NextResponse.redirect(Object.assign(request.nextUrl.clone(), {
+          pathname: '/mfa', search: `?redirectTo=${encodeURIComponent(pathname)}`,
+        })))
+  }
+
+  if (owner && !mfaPassed && pathname === '/login') {
+    return withCookies(NextResponse.redirect(new URL('/mfa', request.nextUrl.origin)))
+  }
+
+  if (owner && mfaPassed && (pathname === '/login' || isMfaPage)) {
+    return withCookies(backTo())
   }
 
   return supabaseResponse

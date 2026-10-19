@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { verifiedOwner } from '@/lib/supabase/require-user'
 
 /**
  * POST /api/life-plan/foundation — replace a foundation document.
@@ -9,7 +10,7 @@ import { createServiceClient } from '@/lib/supabase/service'
  */
 export async function POST(request: NextRequest) {
   const authClient = await createClient()
-  const { data: { user } } = await authClient.auth.getUser()
+  const { data: { user } } = await verifiedOwner(authClient)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { key, data } = (await request.json()) as { key?: string; data?: unknown }

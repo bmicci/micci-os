@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { chunkText, generateEmbeddings } from '@/lib/ai/embeddings'
+import { verifiedOwner } from '@/lib/supabase/require-user'
 
 async function extractText(buffer: Buffer, fileType: string): Promise<string> {
   switch (fileType) {
@@ -43,7 +44,7 @@ async function extractText(buffer: Buffer, fileType: string): Promise<string> {
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await verifiedOwner(supabase)
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

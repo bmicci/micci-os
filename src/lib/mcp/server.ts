@@ -110,8 +110,9 @@ export function createMicciMcpServer(): McpServer {
       '## Balance sheet',
       `- Net worth: **${usd(netWorth)}** (home ${usd(d.assets.home)}, retirement ${usd(d.assets.retirement)})`,
       `- Portfolio: ${usd(portfolio)}${d.portfolio ? ` (${d.portfolio.glPct >= 0 ? '+' : ''}${d.portfolio.glPct}% unrealized)` : ''}`,
-      `- Debt excl. mortgage: **${usd(debtTotal)}** across ${nonMortgage.length} accounts`,
-      heloc ? `- HELOC: ${usd(heloc.balance)} drawn @ ${heloc.rate}%, headroom ${usd(d.helocKPIs.limit - heloc.balance)}` : '- HELOC: —',
+      `- Debt excl. mortgage: **${usd(debtTotal)}** across ${nonMortgage.length} accounts (${nonMortgage.filter(x => x.source === 'live').length} live from banks)`,
+      heloc ? `- HELOC: ${usd(heloc.balance)} drawn @ ${heloc.rate}%, headroom ${usd(d.helocKPIs.limit - heloc.balance)}${heloc.stale ? ` — **manual figure from ${heloc.asOf}, stale**` : ''}` : '- HELOC: —',
+      ...(d.debts.some(x => x.stale) ? [`- ⚠ Stale manual balances (14+ days): ${d.debts.filter(x => x.stale).map(x => `${x.name} (${x.asOf})`).join(', ')}`] : []),
       mortgage ? `- Mortgage: ${usd(mortgage.balance)} @ ${mortgage.rate}%` : '',
       '',
       '## Next up',
@@ -243,8 +244,8 @@ export function createMicciMcpServer(): McpServer {
   }, async () => {
     const d = await data()
     const debts = [...d.debts].sort((x, y) => y.rate - x.rate || y.balance - x.balance)
-    // Live bank-reported balances (Plaid) — authoritative where they exist;
-    // the manual table above can be weeks stale.
+    // Raw bank detail (statement balance, due dates, APR buckets) for the
+    // linked accounts; the merged table below already uses live balances.
     const since = new Date(Date.now() - 3 * 86400000).toISOString()
     const [{ data: liveAccts }, { data: liabs }] = await Promise.all([
       db().from('accounts').select('name, type, balance, updated_at')
@@ -262,7 +263,7 @@ export function createMicciMcpServer(): McpServer {
     const monthlyInterest = debts.reduce((s, x) => s + x.balance * x.rate / 100 / 12, 0)
     const lines = [
       ...(live.length ? [
-        '# Live from the banks (Plaid, synced daily) — use these over the manual table',
+        '# Bank detail (Plaid, synced daily)',
         '| Account | Current balance | Last statement | Min due | Due date | APR | Synced |',
         '|---|---|---|---|---|---|---|',
         ...live,
@@ -270,11 +271,13 @@ export function createMicciMcpServer(): McpServer {
         'Card current balance includes this cycle\'s purchases; cards paid in full monthly will show a balance until the statement is paid.',
         '',
       ] : []),
-      `# Manual debt table (source: hand-entered, may be stale) — total ${usd(d.debts.reduce((s, x) => s + x.balance, 0))} (≈ ${usd(monthlyInterest)}/mo interest at stated APRs)`,
+      `# All debts — live bank balance where linked, manual otherwise — total ${usd(d.debts.reduce((s, x) => s + x.balance, 0))} (≈ ${usd(monthlyInterest)}/mo interest at stated APRs)`,
       '',
-      '| Account | Type | Balance | APR | Min/mo | Plan |',
-      '|---|---|---|---|---|---|',
-      ...debts.map(x => `| ${x.name} | ${x.category} | ${usd(x.balance, true)} | ${x.rate}% | ${usd(x.min)} | ${x.decision} |`),
+      '| Account | Type | Balance | Source | APR | Min/mo | Plan |',
+      '|---|---|---|---|---|---|---|',
+      ...debts.map(x => `| ${x.name} | ${x.category} | ${usd(x.balance, true)} | ${x.source === 'live' ? `live ${x.asOf ?? ''}` : `manual ${x.asOf ?? ''}${x.stale ? ' **STALE**' : ''}`}${x.manualBalance != null ? ` (manual says ${usd(x.manualBalance, true)})` : ''} | ${x.rateUnknown ? '?' : `${x.rate}%`} | ${usd(x.min)} | ${x.decision} |`),
+      '',
+      'STALE = hand-entered balance not updated in 14+ days; ask Brandon for a current number before relying on it.',
       '',
       '## 0% promo balances',
       ...(d.promos.length

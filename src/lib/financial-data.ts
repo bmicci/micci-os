@@ -12,6 +12,18 @@ export interface DebtAccount {
   min: number | null
   decision: 'roll' | 'keep' | 'promo'
   category: 'Personal Loan' | 'Credit Card' | 'Mortgage' | 'HELOC'
+  /** 'live' = balance from the bank (Plaid) today; 'manual' = debt_accounts row */
+  source?: 'live' | 'manual'
+  /** Date the balance is as of (YYYY-MM-DD) */
+  asOf?: string
+  /** Manual balance not updated in 14+ days */
+  stale?: boolean
+  /** Hand-entered balance, when it disagrees with the bank's */
+  manualBalance?: number
+  /** Account name as the bank reports it */
+  liveName?: string
+  /** Bank didn't report an APR (rate shown as 0 is a placeholder) */
+  rateUnknown?: boolean
 }
 
 export interface FinancialModule {

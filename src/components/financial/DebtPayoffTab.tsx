@@ -13,6 +13,7 @@ import {
 import type { DebtAccount, PromoDeadline, HelocKPIs } from '@/lib/financial-data'
 import { getDebtTotals, fmt, fmtK, HELOC_RATE, HELOC_LIMIT } from '@/lib/financial-data'
 import KPICard from './KPICard'
+import DebtSourceTag, { debtSourceSummary } from './DebtSourceTag'
 
 type SortKey = 'name' | 'balance' | 'rate' | 'min'
 
@@ -490,9 +491,12 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
 
       {/* All Accounts Table */}
       <div className="glass-card p-5">
-        <h3 className="text-[13px] font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-[13px] font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
           All Debt Accounts — Sortable
         </h3>
+        <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
+          {debtSourceSummary(debts) ?? 'Manual balances'}
+        </p>
         <div className="overflow-x-auto">
           <table className="w-full text-[13px]" style={{ borderCollapse: 'collapse' }}>
             <thead>
@@ -529,13 +533,16 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
                   style={{ borderBottom: i < sorted.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}
                 >
                   <td className="py-2 px-3 text-[12px]" style={{ color: 'var(--text-primary)' }}>
-                    {d.name}
+                    <div>{d.name}</div>
+                    <DebtSourceTag debt={d} />
                   </td>
                   <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>
                     {fmt(d.balance)}
                   </td>
                   <td className="py-2 px-3 text-[12px] font-mono">
-                    {d.rate === 0 ? (
+                    {d.rateUnknown ? (
+                      <span style={{ color: 'var(--text-muted)' }} title="The bank did not report an APR">—</span>
+                    ) : d.rate === 0 ? (
                       <span style={{ color: '#22c55e' }}>0% promo</span>
                     ) : (
                       <span style={{ color: 'var(--text-secondary)' }}>{d.rate}%</span>
