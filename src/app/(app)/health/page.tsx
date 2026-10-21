@@ -3,6 +3,8 @@ import { createServiceClient } from '@/lib/supabase/service'
 import HealthTabContainer from '@/components/health/HealthTabContainer'
 import type { HealthData } from '@/components/health/types'
 import type { ScheduleBlock } from '@/lib/supabase/types'
+import { computeHealthOverview, type HealthDailyRow, type BodyMetricRow } from '@/lib/health/overview'
+import { chicagoToday, shiftDay } from '@/lib/health/dates'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Health — Micci OS' }
@@ -56,13 +58,38 @@ export default async function HealthPage() {
     }
   }
 
+  // Overview: health_daily (check-ins + WHOOP), body trend, latest Health brief.
+  // These tables are service-role only (deny-all RLS).
+  const today = chicagoToday()
+  let daily: HealthDailyRow[] = []
+  let body: BodyMetricRow[] = []
+  let brief: { headline: string | null; brief_date: string } | null = null
+  if (service) {
+    try {
+      const [dailyRes, bodyRes, briefRes] = await Promise.all([
+        service.from('health_daily').select('*').order('day', { ascending: true }),
+        service.from('body_metrics')
+          .select('metric_date, source, weight_lbs, skeletal_muscle_lbs, body_fat_pct, body_fat_percent')
+          .gte('metric_date', shiftDay(today, -365)).order('metric_date', { ascending: true }),
+        service.from('briefs').select('headline, brief_date').eq('tab', 'health')
+          .order('brief_date', { ascending: false }).limit(1).maybeSingle(),
+      ])
+      daily = (dailyRes.data ?? []) as HealthDailyRow[]
+      body = (bodyRes.data ?? []) as BodyMetricRow[]
+      brief = briefRes.data
+    } catch {
+      // Overview renders its empty states
+    }
+  }
+  const overview = computeHealthOverview(daily, body, today)
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-6 md:px-10 pt-8 pb-4 shrink-0">
         <h1 className="text-3xl font-bold gradient-text mb-1">Health & Wellness</h1>
         <p className="text-[var(--text-secondary)] text-sm">
-          Today · Protocols · Lab Results · Fitness · Skincare
+          Overview · Today · Protocols · Lab Results · Fitness · Skincare
         </p>
       </div>
 
@@ -71,6 +98,9 @@ export default async function HealthPage() {
         data={data}
         scheduleBlocks={scheduleBlocks}
         scheduleCompletions={scheduleCompletions}
+        overview={overview}
+        briefHeadline={brief?.headline ?? null}
+        briefDate={brief?.brief_date ?? null}
       />
     </div>
   )

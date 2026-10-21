@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import HealthDocumentsCard from './HealthDocumentsCard'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
@@ -250,6 +252,8 @@ export default function FitnessTab({
 }) {
   const [workouts, setWorkouts] = useState<Workout[]>(initialWorkouts)
   const [metrics, setMetrics] = useState<BodyMetric[]>(initialMetrics)
+  const router = useRouter()
+  useEffect(() => { setMetrics(initialMetrics) }, [initialMetrics])
 
   const streak = calcWorkoutStreak(workouts)
   const thisWeek = getWeekDates()
@@ -278,6 +282,7 @@ export default function FitnessTab({
 
   return (
     <div className="space-y-8 max-w-[900px] mx-auto">
+      <HealthDocumentsCard kind="inbody" onSaved={() => router.refresh()} />
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[

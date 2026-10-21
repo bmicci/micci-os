@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import HealthDocumentsCard from './HealthDocumentsCard'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine,
   ResponsiveContainer, CartesianGrid,
@@ -262,6 +264,9 @@ function AddLabForm({ onAdded }: { onAdded: (m: LabMarker) => void }) {
 export default function LabsTab({ labMarkers: initialMarkers }: { labMarkers: LabMarker[] }) {
   const [markers, setMarkers] = useState<LabMarker[]>(initialMarkers)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const router = useRouter()
+  // Saved uploads refresh the server data; keep local state in step with it
+  useEffect(() => { setMarkers(initialMarkers) }, [initialMarkers])
 
   // Group by marker name
   const grouped: Record<string, LabMarker[]> = {}
@@ -283,6 +288,7 @@ export default function LabsTab({ labMarkers: initialMarkers }: { labMarkers: La
 
   return (
     <div className="space-y-6 max-w-[900px] mx-auto">
+      <HealthDocumentsCard kind="lab" onSaved={() => router.refresh()} />
       {/* Header row */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>

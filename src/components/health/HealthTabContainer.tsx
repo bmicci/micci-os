@@ -1,17 +1,20 @@
 'use client'
 
-import { CalendarCheck, FlaskConical, Microscope, Dumbbell, Sparkles } from 'lucide-react'
+import { Activity, CalendarCheck, FlaskConical, Microscope, Dumbbell, Sparkles } from 'lucide-react'
 
 import { useState, useRef, useEffect } from 'react'
 import type { HealthData } from './types'
 import type { ScheduleBlock } from '@/lib/supabase/types'
 import TodayTab from './TodayTab'
+import OverviewTab from './OverviewTab'
+import type { HealthOverview } from '@/lib/health/overview'
 import ProtocolsTab from './ProtocolsTab'
 import LabsTab from './LabsTab'
 import FitnessTab from './FitnessTab'
 import SkincareTab from './SkincareTab'
 
 const TABS = [
+  { id: 'overview',  label: 'Overview',    icon: Activity },
   { id: 'today',     label: 'Today',       icon: CalendarCheck },
   { id: 'protocols', label: 'Protocols',  icon: FlaskConical },
   { id: 'labs',      label: 'Lab Results', icon: Microscope },
@@ -25,12 +28,18 @@ export default function HealthTabContainer({
   data,
   scheduleBlocks,
   scheduleCompletions,
+  overview,
+  briefHeadline,
+  briefDate,
 }: {
   data: HealthData
   scheduleBlocks: ScheduleBlock[]
   scheduleCompletions: string[]
+  overview: HealthOverview
+  briefHeadline: string | null
+  briefDate: string | null
 }) {
-  const [activeTab, setActiveTab] = useState<TabId>('today')
+  const [activeTab, setActiveTab] = useState<TabId>('overview')
   const navRef = useRef<HTMLElement>(null)
   const [showScrollHint, setShowScrollHint] = useState(false)
 
@@ -83,6 +92,9 @@ export default function HealthTabContainer({
 
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        {activeTab === 'overview' && (
+          <OverviewTab overview={overview} briefHeadline={briefHeadline} briefDate={briefDate} />
+        )}
         {activeTab === 'today' && (
           <TodayTab
             protocols={data.protocols}

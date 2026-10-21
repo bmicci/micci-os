@@ -95,8 +95,11 @@ _Last updated: Oct 15, 2026_
 | Item | Type | How | Status |
 |---|---|---|---|
 | Protocol compliance (daily checkboxes) | 🔁 daily | Protocols tab checklist | Unused (streak 0) |
-| **Lab results** | 🔴 timely | Labs tab + Add Result — optimal draw window was Jul 12–13 (trough) | 8 markers on file |
-| Workouts / body metrics | 🔁 as-done | Fitness tab forms | Sparse |
+| **Daily check-in** (`health_checkins`) — added Oct 21, 2026 | 🔁 daily | `/health/checkin` (one screen, one tap). Weigh-ins also write `body_metrics` (source `manual`) | Feeds Health → Overview + the Health brief via `health_daily` |
+| **Lab results** | 🔴 timely | Labs tab → **Upload lab results** (Quest/Labcorp PDF → Claude → review → `lab_markers`), or Add Result by hand | 8 markers on file (Jan–Mar 2026, look like seed values — verify against a real report) |
+| **InBody scans** | 🔁 per scan | Fitness tab → **Upload InBody scan** (PDF or photo → Claude → review → `body_metrics` source `inbody`) | Jun 2026 + Sep 13, 2026 scans entered from the health build spec |
+| Workouts / body metrics | 🔁 as-done | Fitness tab forms | Sparse. The 5 manual weigh-ins from Feb 24–Mar 8 (198→195 lb) look like seed values |
+| WHOOP / Withings | ⚙️ AUTO (planned) | Phase 2 of `docs/prds/07-HEALTH-DATA.md` | Not connected |
 
 ## 🎯 Goals + Vision
 
