@@ -23,7 +23,8 @@ export default async function HealthPage() {
   ] = await Promise.all([
     supabase.from('supplements').select('*').order('category').order('name'),
     supabase.from('hormone_protocols').select('*').order('name'),
-    supabase.from('lab_markers').select('*').order('test_date', { ascending: false }),
+    // Placeholder rows from the original seed are tagged source='seed' and hidden
+    supabase.from('lab_markers').select('*').or('source.is.null,source.neq.seed').order('test_date', { ascending: false }),
     supabase.from('workouts').select('*').order('workout_date', { ascending: false }).limit(60),
     supabase.from('body_metrics').select('*').order('metric_date', { ascending: false }).limit(30),
     supabase.from('protocol_compliance').select('*').order('completed_date', { ascending: false }).limit(90),

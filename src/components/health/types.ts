@@ -30,6 +30,9 @@ export interface LabMarker {
   reference_high: number | null
   is_optimal: boolean | null
   notes: string | null
+  flag?: string | null
+  source?: string | null
+  panel?: string | null
 }
 
 export interface Workout {
