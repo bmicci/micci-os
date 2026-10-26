@@ -1,6 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import HealthDocumentsCard from './HealthDocumentsCard'
+import { KEY_MARKERS, LAB_CATEGORIES, labCategory, labDate, markerFlag, reportedValue } from '@/lib/health/labs'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine,
   ResponsiveContainer, CartesianGrid,
@@ -15,17 +18,6 @@ const KEY_LABS = [
   'Vitamin D', 'B12', 'Ferritin', 'TSH',
 ]
 
-function getFlag(value: number, low: number | null, high: number | null) {
-  if (!low && !high) return 'unknown'
-  if (low && value < low) return 'low'
-  if (high && value > high) return 'high'
-  // borderline: within 10% of boundary
-  const borderLow = low ? value < low * 1.1 : false
-  const borderHigh = high ? value > high * 0.9 : false
-  if (borderLow || borderHigh) return 'borderline'
-  return 'normal'
-}
-
 const FLAG_STYLE: Record<string, { label: string; color: string; bg: string }> = {
   normal:     { label: 'Normal',     color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
   borderline: { label: 'Borderline', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
@@ -34,11 +26,10 @@ const FLAG_STYLE: Record<string, { label: string; color: string; bg: string }> =
   unknown:    { label: '—',          color: 'var(--text-muted)', bg: 'transparent' },
 }
 
-function RangeBar({ value, low, high }: { value: number; low: number | null; high: number | null }) {
-  if (!low || !high) return null
+function RangeBar({ value, low, high, flag }: { value: number; low: number | null; high: number | null; flag: string }) {
+  if (low == null || high == null || high <= low) return null
   const pct = Math.min(100, Math.max(0, ((value - low) / (high - low)) * 100))
-  const flag = getFlag(value, low, high)
-  const color = flag === 'normal' ? '#22c55e' : flag === 'borderline' ? '#f59e0b' : '#ef4444'
+  const color = flag === 'normal' ? '#22c55e' : '#ef4444'
 
   return (
     <div className="mt-3">
@@ -72,12 +63,13 @@ function LabCard({ markerName, entries, isExpanded, onToggle }: LabCardProps) {
   const latest = sorted[sorted.length - 1]
   if (!latest) return null
 
-  const flag = getFlag(latest.value, latest.reference_low, latest.reference_high)
+  const latestValue = Number(latest.value)
+  const flag = markerFlag(latestValue, latest.reference_low, latest.reference_high, latest.flag, latest.notes)
   const { label: flagLabel, color: flagColor, bg: flagBg } = FLAG_STYLE[flag]
 
   const chartData = sorted.map(e => ({
-    date: new Date(e.test_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    value: e.value,
+    date: labDate(e.test_date),
+    value: Number(e.value),
   }))
 
   return (
@@ -91,11 +83,12 @@ function LabCard({ markerName, entries, isExpanded, onToggle }: LabCardProps) {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-[var(--text-primary)]">{markerName}</p>
             <p className="text-2xl font-bold mt-1" style={{ color: flagColor }}>
-              {latest.value}
+              {reportedValue(latestValue, latest.notes)}
               <span className="text-sm font-normal text-[var(--text-muted)] ml-1">{latest.unit}</span>
             </p>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              {new Date(latest.test_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              {labDate(latest.test_date)}
+              {latest.source && <span className="ml-1">· {latest.source}</span>}
               {entries.length > 1 && <span className="ml-2">· {entries.length} readings</span>}
             </p>
           </div>
@@ -105,7 +98,7 @@ function LabCard({ markerName, entries, isExpanded, onToggle }: LabCardProps) {
           </span>
         </div>
 
-        <RangeBar value={latest.value} low={latest.reference_low} high={latest.reference_high} />
+        <RangeBar value={latestValue} low={latest.reference_low} high={latest.reference_high} flag={flag} />
       </div>
 
       {/* Expanded chart */}
@@ -122,10 +115,10 @@ function LabCard({ markerName, entries, isExpanded, onToggle }: LabCardProps) {
                   labelStyle={{ color: 'var(--text-muted)' }}
                   itemStyle={{ color: '#00d4ff' }}
                 />
-                {latest.reference_low && (
+                {latest.reference_low != null && latest.reference_low > 0 && (
                   <ReferenceLine y={latest.reference_low} stroke="rgba(239,68,68,0.4)" strokeDasharray="4 4" />
                 )}
-                {latest.reference_high && (
+                {latest.reference_high != null && (
                   <ReferenceLine y={latest.reference_high} stroke="rgba(239,68,68,0.4)" strokeDasharray="4 4" />
                 )}
                 <Line
@@ -262,35 +255,63 @@ function AddLabForm({ onAdded }: { onAdded: (m: LabMarker) => void }) {
 export default function LabsTab({ labMarkers: initialMarkers }: { labMarkers: LabMarker[] }) {
   const [markers, setMarkers] = useState<LabMarker[]>(initialMarkers)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const router = useRouter()
+  // Saved uploads refresh the server data; keep local state in step with it
+  useEffect(() => { setMarkers(initialMarkers) }, [initialMarkers])
+
+  const [query, setQuery] = useState('')
+  const [onlyFlagged, setOnlyFlagged] = useState(false)
 
   // Group by marker name
   const grouped: Record<string, LabMarker[]> = {}
   for (const m of markers) {
     grouped[m.marker_name] = [...(grouped[m.marker_name] ?? []), m]
   }
+  const latestOf = (name: string) => [...grouped[name]].sort((a, b) => b.test_date.localeCompare(a.test_date))[0]
+  const isFlagged = (name: string) => {
+    const l = latestOf(name)
+    const f = markerFlag(Number(l.value), l.reference_low, l.reference_high, l.flag, l.notes)
+    return f === 'high' || f === 'low'
+  }
 
-  // Sort by most recent test date
-  const markerNames = Object.keys(grouped).sort((a, b) => {
-    const latA = grouped[a].reduce((acc, m) => m.test_date > acc ? m.test_date : acc, '')
-    const latB = grouped[b].reduce((acc, m) => m.test_date > acc ? m.test_date : acc, '')
-    return latB.localeCompare(latA)
-  })
+  const markerNames = Object.keys(grouped)
+  const outOfRange = markerNames.filter(isFlagged)
+  const q = query.trim().toLowerCase()
+  const visible = markerNames.filter(n => (!q || n.toLowerCase().includes(q)) && (!onlyFlagged || isFlagged(n)))
+  const keyVisible = KEY_MARKERS.filter(n => visible.includes(n))
+  const sections = [...LAB_CATEGORIES.map(c => ({ id: c.id, label: c.label })), { id: 'other', label: 'Other' }]
+    .map(sec => ({
+      ...sec,
+      names: visible.filter(n => labCategory(n) === sec.id && !(keyVisible.includes(n) && !q && !onlyFlagged)).sort(),
+    }))
+    .filter(sec => sec.names.length > 0)
+  const draws = new Set(markers.map(m => m.test_date)).size
 
-  const outOfRange = markerNames.filter(name => {
-    const latest = grouped[name].sort((a, b) => b.test_date.localeCompare(a.test_date))[0]
-    return latest && getFlag(latest.value, latest.reference_low, latest.reference_high) !== 'normal'
-  })
+  const renderCards = (names: string[]) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {names.map(name => (
+        <LabCard
+          key={name}
+          markerName={name}
+          entries={grouped[name]}
+          isExpanded={expanded === name}
+          onToggle={() => setExpanded(prev => prev === name ? null : name)}
+        />
+      ))}
+    </div>
+  )
 
   return (
     <div className="space-y-6 max-w-[900px] mx-auto">
+      <HealthDocumentsCard kind="lab" onSaved={() => router.refresh()} />
       {/* Header row */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Lab Results</h2>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            {markerNames.length} markers tracked
+            {markerNames.length} markers · {draws} draws
             {outOfRange.length > 0 && (
-              <span className="ml-2 text-red-400">· {outOfRange.length} out of range</span>
+              <span className="ml-2 text-red-400">· {outOfRange.length} out of range on the latest draw</span>
             )}
           </p>
         </div>
@@ -316,17 +337,35 @@ export default function LabsTab({ labMarkers: initialMarkers }: { labMarkers: La
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {markerNames.map(name => (
-            <LabCard
-              key={name}
-              markerName={name}
-              entries={grouped[name]}
-              isExpanded={expanded === name}
-              onToggle={() => setExpanded(prev => prev === name ? null : name)}
-            />
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search markers (e.g. testosterone, LDL)"
+              aria-label="Search markers" className="flex-1 min-w-[200px] rounded-lg px-3 py-2 text-[13px] outline-none"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(0,212,255,0.2)', color: 'var(--text-primary)' }} />
+            <button onClick={() => setOnlyFlagged(v => !v)} aria-pressed={onlyFlagged}
+              className="text-[12px] px-3 py-2 rounded-lg"
+              style={{
+                background: onlyFlagged ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.04)',
+                color: onlyFlagged ? '#ef4444' : 'var(--text-secondary)',
+                border: `1px solid ${onlyFlagged ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.1)'}`,
+              }}>
+              Out of range only
+            </button>
+          </div>
+          {keyVisible.length > 0 && !q && !onlyFlagged && (
+            <section className="space-y-3">
+              <h3 className="text-[12px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Key markers</h3>
+              {renderCards(keyVisible)}
+            </section>
+          )}
+          {sections.map(sec => (
+            <section key={sec.id} className="space-y-3">
+              <h3 className="text-[12px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{sec.label} · {sec.names.length}</h3>
+              {renderCards(sec.names)}
+            </section>
           ))}
-        </div>
+          {visible.length === 0 && <p className="text-sm text-[var(--text-muted)]">No markers match.</p>}
+        </>
       )}
     </div>
   )
