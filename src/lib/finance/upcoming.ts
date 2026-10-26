@@ -78,17 +78,24 @@ export function computeUpcoming(
   }
 
   // ── 2. Promo / HELOC expirations ──
+  // A promo still `active` after its expiry stays on the list (red, overdue)
+  // until it's marked paid — dropping it would hide an unresolved cliff.
   for (const p of promos) {
     if (!p.expires || p.balance <= 0) continue
     const d = parseLocal(p.expires)
     const daysAway = Math.ceil((d.getTime() - t0.getTime()) / DAY)
-    if (daysAway < 0 || daysAway > horizonDays) continue
+    if (daysAway > horizonDays) continue
+    const past = daysAway < 0
     items.push({
       kind: 'promo',
-      label: `${p.name} — 0% expires`,
-      detail: p.risk
-        ? `⚠ ${p.acct} · deferred interest at risk`
-        : `${p.acct} · pay from HELOC before this date`,
+      label: past ? `${p.name} — 0% expired, confirm paid` : `${p.name} — 0% expires`,
+      detail: past
+        ? p.likelyPaid
+          ? `${p.acct} · card balance says paid — mark paid in Debt Payoff`
+          : `${p.acct} · not confirmed paid — deferred interest may post`
+        : p.risk
+          ? `⚠ ${p.acct} · deferred interest at risk`
+          : `${p.acct} · pay from HELOC before this date`,
       date: p.expires,
       daysAway,
       amount: p.balance,

@@ -5,6 +5,7 @@ import { getFinancialData } from '@/lib/financial-data-service'
 import { getJobSearchData } from '@/lib/job-search-data-service'
 import { fmtK, HELOC_LIMIT } from '@/lib/financial-data'
 import UpNextRail from '@/components/financial/UpNextRail'
+import { daysUntil, dueLabel } from '@/lib/finance/due'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Command Center — Micci OS' }
@@ -20,11 +21,6 @@ export const metadata = { title: 'Command Center — Micci OS' }
 
 function fmtRound(n: number): string {
   return '$' + Math.round(n).toLocaleString('en-US')
-}
-
-function daysUntil(dateStr: string): number {
-  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr + 'T00:00:00' : dateStr)
-  return Math.ceil((d.getTime() - Date.now()) / 86400000)
 }
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -100,6 +96,7 @@ export default async function DashboardPage() {
   // ── Derived: money mini-chart ──
   const flows = monthlyFlows.slice(-6)
   const maxFlow = Math.max(...flows.flatMap(f => [f.income, f.spend]), 1)
+  const pastExpiryPromos = promos.filter(p => p.balance > 0 && daysUntil(p.expires) < 0)
   const upcomingPromos = [...promos]
     .filter(p => p.balance > 0 && daysUntil(p.expires) >= 0)
     .sort((a, b) => a.expires.localeCompare(b.expires))
@@ -231,8 +228,9 @@ export default async function DashboardPage() {
                 style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                 {dot(item.priority === 'red' ? '#ef4444' : item.priority === 'amber' ? '#f59e0b' : '#00d4ff')}
                 <span className="flex-1 text-[var(--text-primary)] truncate">{item.title}</span>
-                <span className="font-mono text-[11px] text-[var(--text-muted)] shrink-0">
-                  {item.amount ? fmtRound(item.amount) + ' · ' : ''}{item.dueDate ? `${daysUntil(item.dueDate)}d` : 'open'}
+                <span className="font-mono text-[11px] shrink-0"
+                  style={{ color: item.dueDate && daysUntil(item.dueDate) < 0 ? '#ef4444' : 'var(--text-muted)' }}>
+                  {item.amount ? fmtRound(item.amount) + ' · ' : ''}{item.dueDate ? dueLabel(daysUntil(item.dueDate)) : 'open'}
                 </span>
               </Link>
             ))}
@@ -326,6 +324,13 @@ export default async function DashboardPage() {
                 className="text-[10.5px] px-2.5 py-1 rounded-full font-semibold"
                 style={{ border: '1px solid rgba(239,68,68,0.45)', color: '#f87171', background: 'rgba(239,68,68,0.08)' }}>
                 🧟 {zombies.length} zombie sub{zombies.length > 1 ? 's' : ''} · {fmtRound(zombieMonthly)}/mo
+              </Link>
+            )}
+            {pastExpiryPromos.length > 0 && (
+              <Link href="/financial"
+                className="text-[10.5px] px-2.5 py-1 rounded-full font-semibold"
+                style={{ border: '1px solid rgba(239,68,68,0.45)', color: '#f87171', background: 'rgba(239,68,68,0.08)' }}>
+                ⚠ {pastExpiryPromos.length} promo{pastExpiryPromos.length > 1 ? 's' : ''} past expiry · confirm paid
               </Link>
             )}
             {upcomingPromos.map(p => {

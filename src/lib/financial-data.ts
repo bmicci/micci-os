@@ -92,6 +92,14 @@ export interface PromoDeadline {
   risk: number | null
   acct: string
   note: string
+  // Present when backed by promo_deadlines (so it can be marked paid)
+  id?: string
+  // Expiry has passed but the row is still active: paid, or interest is coming
+  pastExpiry?: boolean
+  // Live (Plaid) balance of the card carrying the promo, when linked
+  cardBalance?: number | null
+  // Past expiry and the card now owes less than this promo did
+  likelyPaid?: boolean
 }
 
 export interface Bill {

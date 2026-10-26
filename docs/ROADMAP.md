@@ -31,6 +31,7 @@ Last updated: Oct 26, 2026 · Live at https://os.brandonmicci.com
 | Create **Postmark** account (inbound server) | #33 |
 | Supabase SQL editor: delete the test brief `delete from briefs where doc_key = '2000-01-01-test';` | Clean briefs history |
 | claude.ai Routines: enable auto-approve for the Health Daily Plan routine | Health brief runs unattended |
+| After PR #46 merges: `/financial` → Debt Payoff → **✓ Mark paid** on the 5 promos past expiry (Chase Prime Jul 22, Freedom BT1 Aug 12, Freedom Unlim BT2 Sep 9, Freedom BT2 Sep 12, Freedom Unlim BT3 Oct 9). Live card balances say they're paid. Also close or reschedule the 3 overdue action items in `/tasks` | #44 close-out |
 | Confirm whether the 5 manual weigh-ins (Feb 24–Mar 8, 198→195 lb) are real | Weight trend accuracy |
 
 ## 2 · Testing (live verification)
@@ -43,7 +44,7 @@ Suggested order — top first.
 
 | # | Item | Area | Blocked on |
 |---|---|---|---|
-| #44 | Overdue items render overdue; close paid promos | finance | — |
+| #44 | Overdue items render overdue; close paid promos | finance | **PR #46 in review** |
 | #39 | Recategorize CUTX HELOC draws as Transfer | finance | BofA $13K answer (partial) |
 | #33 | Email lab import (Postmark) + auto-save uploads with undo | health | Postmark account |
 | #41 | Claude connector: health + labs tools | platform | — |
