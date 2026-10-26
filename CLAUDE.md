@@ -1,6 +1,6 @@
 # MICCI OS — MASTER CONTEXT FOR CLAUDE CODE
 
-Read this first. For deeper context read `docs/CLAUDE.md`, then the PRDs in `docs/prds/`.
+Read this first, then **`docs/ROADMAP.md`** (what's next + open issues). For deeper context read `docs/CLAUDE.md`, then the PRDs in `docs/prds/`.
 
 ---
 
@@ -63,6 +63,7 @@ Chase + Amex transactions and checking balance sync automatically via Plaid (dai
 
 | File | Purpose |
 |---|---|
+| `docs/ROADMAP.md` | **Start here each session** — waiting-on-Brandon, testing, build queue (GitHub issues) |
 | `docs/CLAUDE.md` | Full project context, structure, architectural rules |
 | `docs/DATA_REFRESH_LOG.md` | Living log: what data is owed / routine / auto, per section |
 | `docs/SECURITY.md` | Access policy (SSO + MFA), machine endpoints, headers |
