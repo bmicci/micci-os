@@ -8,6 +8,7 @@ import { liveSpendCategories, computeBurn, fetchAllTxns, monthlyFlows, computeRu
 import { detectRecurring } from './finance/recurring'
 import { computeUpcoming } from './finance/upcoming'
 import { activeOffer, offerPaycheck, parseOffers } from './finance/jobIncome'
+import { reviewPromoExpiry } from './finance/due'
 import { overlayLiveDebts, LIVE_MAX_AGE_DAYS, type LiveAccountRow, type LiveLiabilityRow } from './finance/liveDebts'
 import type {
   DbDebtAccount,
@@ -184,6 +185,7 @@ function mapBurnRateItem(row: DbBurnRateItem): BurnRateItem {
 
 function mapPromoDeadline(row: DbPromoDeadline): PromoDeadline {
   return {
+    id: row.id,
     name: row.name,
     balance: Number(row.balance),
     expires: row.expires,
@@ -498,7 +500,11 @@ export async function getFinancialData(): Promise<FinancialData> {
       promosRes.data && promosRes.data.length > 0
         // Paid/closed promos stay in the table as history (never deleted)
         // but drop out of deadlines, totals and "next up".
-        ? (promosRes.data as DbPromoDeadline[]).filter(p => p.status !== 'paid' && p.status !== 'closed').map(mapPromoDeadline)
+        ? (promosRes.data as DbPromoDeadline[]).filter(p => p.status !== 'paid' && p.status !== 'closed')
+            .map(mapPromoDeadline)
+            // Past expiry + still active = unresolved: surface it red with
+            // the live card balance as evidence, never auto-close.
+            .map(p => ({ ...p, ...reviewPromoExpiry(p, liveAccounts) }))
         : PROMOS
 
     // ── Tax snapshot (most recent year) ──────────────────────────

@@ -56,7 +56,7 @@ _Last updated: Oct 15, 2026_
 | Burn rate / spend categories | ⚙️ AUTO | Derives from imported transactions | — |
 | Action items | ⚙️ AUTO | Check off in Overview Action Center | — |
 | Subscriptions tab | ⚙️ AUTO | Detected live from imported transactions (cadence + stable amount → `lib/finance/recurring.ts`); zombie flags cross-check the 2025 audit cancel list. Refreshes on every CSV re-import | ✅ built Jul 24 — replaced the frozen 2025 audit list |
-| Promo schedule (`promo_deadlines`) | ⚙️ AUTO-PROPOSED (Oct 18, 2026) | Statement PDFs (Plaid Statements daily, or upload in /import) are read by Claude; balance / APR / promo-end-date changes appear as **Statement findings** in /import and only change `promo_deadlines` when confirmed. Paid promos are marked `paid` (hidden from deadlines, never deleted); confirmed rows get `verified_at` + `verified_source` | Next real deferred-interest deadline: Best Buy Promo 2, Dec 27 |
+| Promo schedule (`promo_deadlines`) | ⚙️ AUTO-PROPOSED (Oct 18, 2026) | Statement PDFs (Plaid Statements daily, or upload in /import) are read by Claude; balance / APR / promo-end-date changes appear as **Statement findings** in /import and only change `promo_deadlines` when confirmed. Paid promos are marked `paid` (hidden from deadlines, never deleted); confirmed rows get `verified_at` + `verified_source`. **Manual path (Oct 26, 2026, #44):** an `active` promo past its expiry shows red *PAST EXPIRY* everywhere (Debt Payoff, Up Next, dashboard, MCP) with the live card balance as evidence; **✓ Mark paid** on the Debt Payoff card sets `paid` + `verified_source = 'manual'` (Undo available) | Next real deferred-interest deadline: Best Buy Promo 2, Dec 27 |
 
 ## 📈 Investments
 

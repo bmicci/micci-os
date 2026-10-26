@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   AreaChart,
   Area,
@@ -14,6 +15,7 @@ import type { DebtAccount, PromoDeadline, HelocKPIs } from '@/lib/financial-data
 import { getDebtTotals, fmt, fmtK, HELOC_RATE, HELOC_LIMIT } from '@/lib/financial-data'
 import KPICard from './KPICard'
 import DebtSourceTag, { debtSourceSummary } from './DebtSourceTag'
+import { daysUntil } from '@/lib/finance/due'
 
 type SortKey = 'name' | 'balance' | 'rate' | 'min'
 
@@ -207,12 +209,6 @@ const decisionBadge = (d: string) => {
 /**
  * Days until promo expires
  */
-function daysUntil(dateStr: string): number {
-  // Date-only strings parse as UTC midnight — anchor to local midnight instead
-  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr + 'T00:00:00' : dateStr)
-  return Math.ceil((d.getTime() - Date.now()) / 86400000)
-}
-
 function formatPromoDate(dateStr: string): string {
   const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr + 'T00:00:00' : dateStr)
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -232,6 +228,30 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
   const [sortKey, setSortKey] = useState<SortKey>('balance')
   const [sortDir, setSortDir] = useState<1 | -1>(-1)
   const [extraMonthly, setExtraMonthly] = useState(2000)
+  const router = useRouter()
+  const [promoBusy, setPromoBusy] = useState<string | null>(null)
+  const [promoError, setPromoError] = useState<string | null>(null)
+  // Last promo marked paid, for one-click undo (it drops off the list on refresh)
+  const [justPaid, setJustPaid] = useState<{ id: string; name: string } | null>(null)
+
+  async function setPromoStatus(id: string, name: string, status: 'paid' | 'active') {
+    setPromoBusy(id)
+    setPromoError(null)
+    try {
+      const res = await fetch('/api/finance/promos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? res.statusText)
+      setJustPaid(status === 'paid' ? { id, name } : null)
+      router.refresh()
+    } catch (e) {
+      setPromoError(`Couldn't update ${name}: ${e instanceof Error ? e.message : 'request failed'}`)
+    } finally {
+      setPromoBusy(null)
+    }
+  }
 
   const totals = useMemo(() => getDebtTotals(debts), [debts])
   const nonMortgage = useMemo(() => debts.filter(d => d.category !== 'Mortgage'), [debts])
@@ -287,6 +307,7 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
     [promos],
   )
   const totalPromo = useMemo(() => promos.reduce((s, p) => s + p.balance, 0), [promos])
+  const pastExpiryCount = sortedPromos.filter(p => daysUntil(p.expires) < 0).length
 
   return (
     <div className="space-y-5">
@@ -593,18 +614,39 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
               All 0% promo balances are safe as long as they&apos;re paid from HELOC BEFORE expiry.
               Total promo balance: <strong style={{ color: 'var(--text-primary)' }}>{fmt(totalPromo)}</strong> across {sortedPromos.length} accounts.
               HELOC has <strong style={{ color: 'var(--text-primary)' }}>{fmt(helocKPIs.finalBuffer)}</strong> available after initial roll — {helocKPIs.finalBuffer >= totalPromo ? 'more than enough to cover all promos' : 'may need additional funds for full coverage'}.
+              {pastExpiryCount > 0 && (
+                <> <strong style={{ color: '#ef4444' }}>{pastExpiryCount} past expiry</strong> and not confirmed paid — still counted until you mark them.</>
+              )}
             </span>
           </div>
+          {(justPaid || promoError) && (
+            <div className="rounded-lg px-4 py-2.5 text-[12px] flex items-center gap-3 flex-wrap"
+              style={promoError
+                ? { background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.35)', color: '#f87171' }
+                : { background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.35)', color: 'var(--text-secondary)' }}>
+              <span className="flex-1">{promoError ?? <>✅ <b>{justPaid!.name}</b> marked paid — kept as history, no longer counted.</>}</span>
+              {justPaid && !promoError && (
+                <button type="button" disabled={promoBusy === justPaid.id}
+                  onClick={() => setPromoStatus(justPaid.id, justPaid.name, 'active')}
+                  className="text-[11.5px] font-semibold underline disabled:opacity-50"
+                  style={{ color: 'var(--accent-cyan)' }}>
+                  Undo
+                </button>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {sortedPromos.map(p => {
               const days = daysUntil(p.expires)
+              // Past expiry while still active is unresolved, not safe:
+              // either it was paid (mark it) or deferred interest is landing.
               const isExpired = days < 0
-              const urgencyColor = isExpired ? '#22c55e' : days <= 90 ? '#ef4444' : days <= 180 ? '#f59e0b' : '#22c55e'
-              const daysLabel = isExpired ? '✅ EXPIRED/PAID' : days === 0 ? 'DUE TODAY' : days === 1 ? 'TOMORROW' : `${days} days`
+              const urgencyColor = isExpired ? '#ef4444' : days <= 90 ? '#ef4444' : days <= 180 ? '#f59e0b' : '#22c55e'
+              const daysLabel = isExpired ? 'PAST EXPIRY' : days === 0 ? 'DUE TODAY' : days === 1 ? 'TOMORROW' : `${days} days`
 
               return (
                 <div
-                  key={p.name}
+                  key={p.id ?? p.name}
                   className="glass-card p-4"
                   style={{ borderTop: `3px solid ${urgencyColor}` }}
                 >
@@ -618,9 +660,31 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
                     {daysLabel}
                   </div>
                   <div className="text-[12px] mb-1" style={{ color: 'var(--text-secondary)' }}>
-                    {fmt(p.balance)} at 0% → expires{' '}
+                    {fmt(p.balance)} at 0% → {isExpired ? 'expired' : 'expires'}{' '}
                     <strong style={{ color: 'var(--text-primary)' }}>{formatPromoDate(p.expires)}</strong>
+                    {isExpired ? ` (${-days}d ago)` : ''}
                   </div>
+                  {isExpired && (
+                    <div className="text-[12px] mb-2" style={{ color: p.likelyPaid ? '#4ade80' : '#f59e0b' }}>
+                      {p.likelyPaid
+                        ? `Card now owes ${fmt(p.cardBalance ?? 0)} — less than this promo, so it looks paid.`
+                        : p.cardBalance != null
+                          ? `Card still owes ${fmt(p.cardBalance)} — confirm this was paid before expiry.`
+                          : 'Not confirmed paid — check the card, then mark it paid.'}
+                    </div>
+                  )}
+                  {isExpired && p.id && (
+                    <button type="button" disabled={promoBusy === p.id}
+                      onClick={() => {
+                        if (window.confirm(`Mark "${p.name}" (${fmt(p.balance)}) as paid? It stays in the table as history.`)) {
+                          setPromoStatus(p.id!, p.name, 'paid')
+                        }
+                      }}
+                      className="text-[11.5px] font-semibold px-3 py-1.5 rounded-lg mb-2 disabled:opacity-50"
+                      style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.4)', color: '#4ade80' }}>
+                      {promoBusy === p.id ? 'Saving…' : '✓ Mark paid'}
+                    </button>
+                  )}
                   {p.risk ? (
                     <div className="text-[12px] mb-1" style={{ color: '#ef4444' }}>
                       ⚠ Deferred interest at risk: {fmt(p.risk)}
