@@ -38,6 +38,12 @@ Tracked in **#32 — Post-deploy verification checklist**: statements pipeline,
 live debt overlay, SSO + MFA, os.brandonmicci.com bank linking, daily
 check-in, Health Overview, lab + InBody uploads, Labs tab.
 
+Automated coverage: `npm test` (Vitest, `tests/`) runs on every PR via
+GitHub Actions. It covers the logic behind #32 (debt overlay tags,
+statement → promo findings, SSO/MFA gate, check-in upsert, Overview,
+lab grouping + dates). What still needs a live click-through is listed
+in #32.
+
 ## 3 · Build queue
 Suggested order — top first.
 
