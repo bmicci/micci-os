@@ -26,7 +26,7 @@ const fmtShares = (n: number) =>
   n < 1 ? n.toFixed(6) : n < 100 ? n.toFixed(4) : n.toFixed(2)
 
 const COLORS = [
-  '#00d4ff', '#1e90ff', '#00e5a0', '#ff6b6b', '#ffd93d',
+  '#5ee6ff', '#1e90ff', '#00e5a0', '#ff6b6b', '#ffd93d',
   '#c084fc', '#fb923c', '#67e8f9', '#a78bfa', '#34d399',
   '#f472b6', '#facc15', '#38bdf8', '#818cf8', '#4ade80',
 ]
@@ -167,7 +167,7 @@ export default function InvestmentsTab({ investments }: { investments: Investmen
             onClick={() => setSubView(sv.id)}
             style={{
               padding: '8px 16px',
-              background: subView === sv.id ? 'rgba(0,212,255,0.08)' : 'transparent',
+              background: subView === sv.id ? 'rgba(var(--accent-rgb), 0.08)' : 'transparent',
               border: 'none',
               borderBottom: subView === sv.id ? '2px solid var(--accent-cyan)' : '2px solid transparent',
               color: subView === sv.id ? 'var(--text-primary)' : 'var(--text-muted)',
@@ -231,7 +231,7 @@ function KPICard({
         border: '1px solid var(--card-border)',
         borderRadius: 12,
         padding: '16px 14px',
-        backdropFilter: 'blur(20px)',
+        backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
       }}
     >
       <div style={{ color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
@@ -267,7 +267,7 @@ function OverviewView({
           border: '1px solid var(--card-border)',
           borderRadius: 16,
           padding: 20,
-          backdropFilter: 'blur(20px)',
+          backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
         }}
       >
         <h4 style={{ color: 'var(--text-primary)', margin: '0 0 16px', fontSize: 14, fontWeight: 600 }}>
@@ -321,7 +321,7 @@ function OverviewView({
           border: '1px solid var(--card-border)',
           borderRadius: 16,
           padding: 20,
-          backdropFilter: 'blur(20px)',
+          backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
         }}
       >
         <h4 style={{ color: 'var(--text-primary)', margin: '0 0 16px', fontSize: 14, fontWeight: 600 }}>
@@ -356,7 +356,7 @@ function OverviewView({
           border: '1px solid var(--card-border)',
           borderRadius: 16,
           padding: 20,
-          backdropFilter: 'blur(20px)',
+          backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
           gridColumn: '1 / -1',
         }}
       >
@@ -400,7 +400,7 @@ function PositionsView({ positions, totalValue }: { positions: PositionGroup[]; 
         border: '1px solid var(--card-border)',
         borderRadius: 16,
         padding: 20,
-        backdropFilter: 'blur(20px)',
+        backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
         overflowX: 'auto',
       }}
     >
@@ -502,7 +502,7 @@ function TaxLotsView({ lots }: { lots: TaxLot[] }) {
         border: '1px solid var(--card-border)',
         borderRadius: 16,
         padding: 20,
-        backdropFilter: 'blur(20px)',
+        backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
         overflowX: 'auto',
       }}
     >
@@ -517,7 +517,7 @@ function TaxLotsView({ lots }: { lots: TaxLot[] }) {
               onClick={() => setSortBy(s)}
               style={{
                 padding: '4px 10px',
-                background: sortBy === s ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.04)',
+                background: sortBy === s ? 'rgba(var(--accent-rgb), 0.15)' : 'rgba(255,255,255,0.04)',
                 border: '1px solid',
                 borderColor: sortBy === s ? 'var(--accent-cyan)' : 'transparent',
                 borderRadius: 6,
@@ -610,7 +610,7 @@ function TaxLotsView({ lots }: { lots: TaxLot[] }) {
 
 function HistoryView({ transactions }: { transactions: InvestmentData['transactions'] }) {
   const typeColors: Record<string, string> = {
-    Buy: '#00d4ff',
+    Buy: '#5ee6ff',
     Sell: '#ff6b6b',
     Dividend: '#00e5a0',
     'STK SPLT': '#c084fc',
@@ -626,7 +626,7 @@ function HistoryView({ transactions }: { transactions: InvestmentData['transacti
         border: '1px solid var(--card-border)',
         borderRadius: 16,
         padding: 20,
-        backdropFilter: 'blur(20px)',
+        backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
         overflowX: 'auto',
       }}
     >

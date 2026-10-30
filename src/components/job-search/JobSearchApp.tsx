@@ -35,7 +35,7 @@ export default function JobSearchApp({ initialData }: Props) {
         className="flex overflow-x-auto shrink-0"
         style={{
           background: 'var(--bg-elevated)',
-          borderBottom: '1px solid rgba(0,212,255,0.1)',
+          borderBottom: '1px solid var(--glass-line)',
         }}
       >
         {TABS.map((tab) => (

@@ -18,7 +18,7 @@ const YEAR_END_TARGET = 189053
 const CURRENT_YEAR_START_VALUE = 143000 // approximate Jan 1 value for YTD calc
 
 const THEME_COLORS: Record<string, string> = {
-  'Tech/Growth':     '#00D4FF',
+  'Tech/Growth':     '#5ee6ff',
   'Broad Market':    '#1e90ff',
   'Semis':           '#c084fc',
   'Gold':            '#ffd93d',
@@ -59,7 +59,7 @@ function KPI({ label, value, sub, color }: { label: string; value: string; sub?:
     <div
       style={{
         background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(0,212,255,0.15)',
+        border: '1px solid var(--glass-line)',
         borderRadius: 12,
         padding: '14px 18px',
         minWidth: 140,
@@ -79,13 +79,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     <div
       style={{
         background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(0,212,255,0.12)',
+        border: '1px solid var(--glass-line)',
         borderRadius: 16,
         padding: 20,
         marginBottom: 20,
       }}
     >
-      <h2 style={{ color: '#00D4FF', fontSize: 13, fontWeight: 600, marginBottom: 16, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+      <h2 style={{ color: '#5ee6ff', fontSize: 13, fontWeight: 600, marginBottom: 16, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
         {title}
       </h2>
       {children}
@@ -101,7 +101,7 @@ function ActionBadge({ action }: { action: string | null }) {
     HOLD:   { bg: 'rgba(148,163,184,0.15)', color: '#94a3b8' },
     ADD:    { bg: 'rgba(34,197,94,0.15)',   color: '#22c55e' },
     TRIM:   { bg: 'rgba(239,68,68,0.15)',   color: '#ef4444' },
-    NEW:    { bg: 'rgba(0,212,255,0.15)',   color: '#00D4FF' },
+    NEW:    { bg: 'rgba(var(--accent-rgb), 0.15)',   color: '#5ee6ff' },
     DEPLOY: { bg: 'rgba(251,191,36,0.15)',  color: '#f59e0b' },
   }
   const c = colors[action] ?? { bg: 'rgba(255,255,255,0.1)', color: '#fff' }
@@ -335,7 +335,7 @@ export default function InvestmentsPortfolioTab({
 
   const card: React.CSSProperties = {
     background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(0,212,255,0.15)',
+    border: '1px solid var(--glass-line)',
     borderRadius: 12,
     padding: 20,
   }
@@ -380,7 +380,7 @@ export default function InvestmentsPortfolioTab({
         <div
           style={{
             background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(0,212,255,0.15)',
+            border: '1px solid var(--glass-line)',
             borderRadius: 12,
             padding: '14px 18px',
             minWidth: 220,
@@ -395,7 +395,7 @@ export default function InvestmentsPortfolioTab({
               style={{
                 height: '100%',
                 width: `${progressToTarget}%`,
-                background: progressToTarget >= 100 ? '#22c55e' : '#00D4FF',
+                background: progressToTarget >= 100 ? '#22c55e' : '#5ee6ff',
                 borderRadius: 3,
                 transition: 'width 0.5s ease',
               }}
@@ -417,7 +417,7 @@ export default function InvestmentsPortfolioTab({
           marginBottom: 20,
           padding: '12px 16px',
           background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(0,212,255,0.1)',
+          border: '1px solid var(--glass-line)',
           borderRadius: 12,
         }}
       >
@@ -429,10 +429,10 @@ export default function InvestmentsPortfolioTab({
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            background: refreshing ? 'rgba(0,212,255,0.06)' : 'rgba(0,212,255,0.12)',
-            border: '1px solid rgba(0,212,255,0.3)',
+            background: refreshing ? 'rgba(var(--accent-rgb), 0.06)' : 'rgba(var(--accent-rgb), 0.12)',
+            border: '1px solid rgba(var(--accent-rgb), 0.3)',
             borderRadius: 8,
-            color: '#00D4FF',
+            color: '#5ee6ff',
             fontSize: 12,
             fontWeight: 600,
             padding: '7px 14px',
@@ -522,7 +522,7 @@ export default function InvestmentsPortfolioTab({
 
                 return (
                   <tr key={p.id} style={{ opacity: hasPurchased ? 1 : 0.5 }}>
-                    <td style={{ ...tdStyle, fontWeight: 700, color: '#00D4FF' }}>{p.ticker}</td>
+                    <td style={{ ...tdStyle, fontWeight: 700, color: '#5ee6ff' }}>{p.ticker}</td>
                     <td style={{ ...tdStyle, color: 'var(--text-secondary)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {p.name}
                     </td>
@@ -605,7 +605,7 @@ export default function InvestmentsPortfolioTab({
                 </Pie>
                 <Tooltip
                   formatter={(value: unknown) => [fmt(Number(value ?? 0)), 'Value']}
-                  contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(0,212,255,0.3)', borderRadius: 8, fontSize: 12 }}
+                  contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(var(--accent-rgb), 0.3)', borderRadius: 8, fontSize: 12 }}
                 />
                 <Legend
                   formatter={(value: string) => <span style={{ fontSize: 11, color: '#94a3b8' }}>{value}</span>}
@@ -634,7 +634,7 @@ export default function InvestmentsPortfolioTab({
                 </Pie>
                 <Tooltip
                   formatter={(value: unknown) => [`${Number(value ?? 0).toFixed(1)}%`, 'Target']}
-                  contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(0,212,255,0.3)', borderRadius: 8, fontSize: 12 }}
+                  contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(var(--accent-rgb), 0.3)', borderRadius: 8, fontSize: 12 }}
                 />
                 <Legend
                   formatter={(value: string) => <span style={{ fontSize: 11, color: '#94a3b8' }}>{value}</span>}
@@ -673,7 +673,7 @@ export default function InvestmentsPortfolioTab({
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'right' }}>{currentAmt > 0 ? fmt(currentAmt) : '—'}</td>
                     <td style={{ ...tdStyle, textAlign: 'right' }}>{currentAmt > 0 ? fmtP(currentPct) : '—'}</td>
-                    <td style={{ ...tdStyle, textAlign: 'right', color: '#00D4FF' }}>{targetPct > 0 ? fmtP(targetPct) : '—'}</td>
+                    <td style={{ ...tdStyle, textAlign: 'right', color: '#5ee6ff' }}>{targetPct > 0 ? fmtP(targetPct) : '—'}</td>
                     <td style={{ ...tdStyle, textAlign: 'right', color: driftColor, fontWeight: 700 }}>
                       {drift >= 0 ? '+' : ''}{fmtP(drift)}
                     </td>
@@ -693,7 +693,7 @@ export default function InvestmentsPortfolioTab({
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
           {([
             { label: 'Conservative', pct: 5.4,  emoji: '🐻', color: '#94a3b8' },
-            { label: 'Base',         pct: 13.9, emoji: '📊', color: '#00D4FF' },
+            { label: 'Base',         pct: 13.9, emoji: '📊', color: '#5ee6ff' },
             { label: 'Bull',         pct: 23.8, emoji: '🚀', color: '#22c55e' },
           ] as const).map(sc => {
             const projected   = effectiveTotalValue * (1 + sc.pct / 100)
@@ -732,7 +732,7 @@ export default function InvestmentsPortfolioTab({
             <div style={{
               height: '100%',
               width: `${progressToTarget}%`,
-              background: 'linear-gradient(90deg, #00D4FF, #22c55e)',
+              background: 'linear-gradient(90deg, #5ee6ff, #22c55e)',
               borderRadius: 6,
             }} />
           </div>
@@ -755,7 +755,7 @@ export default function InvestmentsPortfolioTab({
               onChange={e => setUpdatingTicker(e.target.value)}
               style={{
                 background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(0,212,255,0.2)',
+                border: '1px solid var(--glass-line)',
                 borderRadius: 8,
                 color: '#fff',
                 padding: '8px 12px',
@@ -787,7 +787,7 @@ export default function InvestmentsPortfolioTab({
               placeholder="e.g. 625.50"
               style={{
                 background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(0,212,255,0.2)',
+                border: '1px solid var(--glass-line)',
                 borderRadius: 8,
                 color: '#fff',
                 padding: '8px 12px',
@@ -800,10 +800,10 @@ export default function InvestmentsPortfolioTab({
             type="submit"
             disabled={isPending || !updatingTicker || !updatePrice}
             style={{
-              background: isPending ? 'rgba(0,212,255,0.1)' : 'rgba(0,212,255,0.2)',
-              border: '1px solid rgba(0,212,255,0.4)',
+              background: isPending ? 'rgba(var(--accent-rgb), 0.1)' : 'rgba(var(--accent-rgb), 0.2)',
+              border: '1px solid rgba(var(--accent-rgb), 0.4)',
               borderRadius: 8,
-              color: '#00D4FF',
+              color: '#5ee6ff',
               fontWeight: 600,
               fontSize: 13,
               padding: '8px 20px',

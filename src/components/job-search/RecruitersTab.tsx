@@ -53,7 +53,7 @@ export default function RecruitersTab({ data, setData }: Props) {
 
   const selectStyle: React.CSSProperties = {
     background: 'rgba(0,0,0,0.3)',
-    border: '1px solid rgba(0,212,255,0.15)',
+    border: '1px solid var(--glass-line)',
     borderRadius: 6,
     padding: '3px 8px',
     fontSize: 10,
@@ -76,7 +76,7 @@ export default function RecruitersTab({ data, setData }: Props) {
                   className="text-left px-3 py-2 text-[10px] font-semibold tracking-widest uppercase"
                   style={{
                     color: 'var(--text-muted)',
-                    borderBottom: '1px solid rgba(0,212,255,0.1)',
+                    borderBottom: '1px solid var(--glass-line)',
                   }}
                 >
                   {h}
@@ -91,7 +91,7 @@ export default function RecruitersTab({ data, setData }: Props) {
                   className="px-3 py-2.5 font-bold"
                   style={{
                     color: 'var(--text-primary)',
-                    borderBottom: '1px solid rgba(0,212,255,0.05)',
+                    borderBottom: '1px solid var(--glass-line)',
                   }}
                 >
                   {r.name}
@@ -100,14 +100,14 @@ export default function RecruitersTab({ data, setData }: Props) {
                   className="px-3 py-2.5 text-[11px]"
                   style={{
                     color: 'var(--text-muted)',
-                    borderBottom: '1px solid rgba(0,212,255,0.05)',
+                    borderBottom: '1px solid var(--glass-line)',
                   }}
                 >
                   {r.practice || '—'}
                 </td>
                 <td
                   className="px-3 py-2.5"
-                  style={{ borderBottom: '1px solid rgba(0,212,255,0.05)' }}
+                  style={{ borderBottom: '1px solid var(--glass-line)' }}
                 >
                   <select
                     style={{
@@ -127,7 +127,7 @@ export default function RecruitersTab({ data, setData }: Props) {
                   className="px-3 py-2.5 text-[11px]"
                   style={{
                     color: 'var(--text-muted)',
-                    borderBottom: '1px solid rgba(0,212,255,0.05)',
+                    borderBottom: '1px solid var(--glass-line)',
                   }}
                 >
                   {r.last_contact || '—'}
@@ -136,7 +136,7 @@ export default function RecruitersTab({ data, setData }: Props) {
                   className="px-3 py-2.5 text-[11px]"
                   style={{
                     color: 'var(--text-muted)',
-                    borderBottom: '1px solid rgba(0,212,255,0.05)',
+                    borderBottom: '1px solid var(--glass-line)',
                   }}
                 >
                   {r.notes || '—'}

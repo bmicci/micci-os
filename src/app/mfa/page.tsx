@@ -108,14 +108,14 @@ export default function MfaPage() {
               onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder="123456"
               style={{
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,212,255,0.3)', borderRadius: 8,
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(var(--accent-rgb), 0.3)', borderRadius: 8,
                 padding: '12px 14px', color: 'var(--text-primary)', fontSize: 22, letterSpacing: '0.4em',
                 textAlign: 'center', fontFamily: 'var(--font-geist-mono)', outline: 'none', width: '100%',
               }}
             />
             <button type="submit" disabled={busy || code.length !== 6}
               style={{
-                background: busy || code.length !== 6 ? 'rgba(0,212,255,0.2)' : 'linear-gradient(135deg,#00d4ff,#1e90ff)',
+                background: busy || code.length !== 6 ? 'rgba(var(--accent-rgb), 0.2)' : 'var(--accent-gradient)',
                 border: 'none', borderRadius: 8, padding: '11px 20px', fontSize: 14, fontWeight: 600,
                 color: busy || code.length !== 6 ? 'var(--text-muted)' : '#050505',
                 cursor: busy || code.length !== 6 ? 'not-allowed' : 'pointer',

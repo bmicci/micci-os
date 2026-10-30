@@ -108,7 +108,7 @@ function LogWorkoutForm({ onAdded }: { onAdded: (w: Workout) => void }) {
     return (
       <button onClick={() => setOpen(true)}
         className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
-        style={{ background: 'rgba(0,212,255,0.15)', color: 'var(--accent-cyan)', border: '1px solid rgba(0,212,255,0.3)' }}>
+        style={{ background: 'rgba(var(--accent-rgb), 0.15)', color: 'var(--accent-cyan)', border: '1px solid rgba(var(--accent-rgb), 0.3)' }}>
         + Log Workout
       </button>
     )
@@ -117,7 +117,7 @@ function LogWorkoutForm({ onAdded }: { onAdded: (w: Workout) => void }) {
   return (
     <form onSubmit={handleSubmit}
       className="rounded-xl p-5 space-y-4"
-      style={{ background: 'var(--card-bg)', border: '1px solid rgba(0,212,255,0.25)' }}>
+      style={{ background: 'var(--card-bg)', border: '1px solid var(--glass-line)' }}>
       <p className="text-sm font-semibold text-[var(--text-primary)]">Log Workout</p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
@@ -210,7 +210,7 @@ function LogMetricForm({ onAdded }: { onAdded: (m: BodyMetric) => void }) {
   return (
     <form onSubmit={handleSubmit}
       className="rounded-xl p-5 space-y-4"
-      style={{ background: 'var(--card-bg)', border: '1px solid rgba(0,212,255,0.25)' }}>
+      style={{ background: 'var(--card-bg)', border: '1px solid var(--glass-line)' }}>
       <p className="text-sm font-semibold text-[var(--text-primary)]">Log Body Metrics</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div>
@@ -315,8 +315,8 @@ export default function FitnessTab({
               <div key={iso}
                 className="rounded-xl p-3 text-center transition-all"
                 style={{
-                  background: done ? 'rgba(0,212,255,0.1)' : isToday ? 'rgba(255,255,255,0.06)' : 'var(--card-bg)',
-                  border: `1px solid ${done ? 'rgba(0,212,255,0.35)' : isToday ? 'rgba(255,255,255,0.15)' : 'var(--card-border)'}`,
+                  background: done ? 'rgba(var(--accent-rgb), 0.1)' : isToday ? 'rgba(255,255,255,0.06)' : 'var(--card-bg)',
+                  border: `1px solid ${done ? 'rgba(var(--accent-rgb), 0.35)' : isToday ? 'rgba(255,255,255,0.15)' : 'var(--card-border)'}`,
                 }}>
                 <p className="text-[10px] text-[var(--text-muted)] mb-1">{DAYS[i + 1 > 6 ? 0 : i + 1] || label}</p>
                 <p className="text-xs font-semibold mb-2"
@@ -326,7 +326,7 @@ export default function FitnessTab({
                 {done ? (
                   <div>
                     <div className="w-5 h-5 rounded-full flex items-center justify-center mx-auto mb-1"
-                      style={{ background: 'rgba(0,212,255,0.2)' }}>
+                      style={{ background: 'rgba(var(--accent-rgb), 0.2)' }}>
                       <span className="text-[10px] text-[var(--accent-cyan)]">✓</span>
                     </div>
                     <p className="text-[9px] text-[var(--text-muted)] leading-tight">
@@ -361,11 +361,11 @@ export default function FitnessTab({
                 <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
                 <Tooltip
-                  contentStyle={{ background: '#0a0e27', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 8, fontSize: 12 }}
+                  contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-line)', borderRadius: 8, fontSize: 12 }}
                   labelStyle={{ color: 'var(--text-muted)' }}
                 />
-                <Line type="monotone" dataKey="weight" name="Weight (lbs)" stroke="#00d4ff" strokeWidth={2}
-                  dot={{ fill: '#00d4ff', r: 3 }} connectNulls />
+                <Line type="monotone" dataKey="weight" name="Weight (lbs)" stroke="#5ee6ff" strokeWidth={2}
+                  dot={{ fill: '#5ee6ff', r: 3 }} connectNulls />
                 <Line type="monotone" dataKey="bf" name="Body Fat %" stroke="#1e90ff" strokeWidth={2}
                   dot={{ fill: '#1e90ff', r: 3 }} connectNulls />
               </LineChart>
@@ -392,7 +392,7 @@ export default function FitnessTab({
                 <div key={w.id} className="flex items-center gap-4 px-4 py-3 rounded-xl"
                   style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}>
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ background: 'rgba(0,212,255,0.12)' }}>
+                    style={{ background: 'rgba(var(--accent-rgb), 0.12)' }}>
                     <span className="text-sm">
                       {getWorkoutType(w) === 'Strength' ? '🏋️' :
                        getWorkoutType(w) === 'Cardio' ? '🏃' :

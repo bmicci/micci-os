@@ -15,7 +15,7 @@ export type Category =
 
 const CATEGORY_CONFIG: Record<Category, { label: string; color: string }> = {
   finance:    { label: 'Finance',    color: '#fbbf24' },
-  heloc:      { label: 'HELOC',      color: '#00d4ff' },
+  heloc:      { label: 'HELOC',      color: '#5ee6ff' },
   tax:        { label: 'Tax',        color: '#4ade80' },
   legal:      { label: 'Legal',      color: '#f87171' },
   job_search: { label: 'Job Search', color: '#60a5fa' },
@@ -324,7 +324,7 @@ export default function ActionHub({ initialItems }: { initialItems: ActionItem[]
       {/* Legacy import banner */}
       {legacy.length > 0 && (
         <div className="rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap"
-          style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.3)' }}>
+          style={{ background: 'rgba(var(--accent-rgb), 0.08)', border: '1px solid rgba(var(--accent-rgb), 0.3)' }}>
           <span className="text-[12px] flex-1 min-w-[200px]" style={{ color: 'var(--text-secondary)' }}>
             Found <b>{legacy.length}</b> task{legacy.length === 1 ? '' : 's'} from the old Tasks page (saved in this
             browser). Import them into the unified list?
@@ -363,7 +363,7 @@ export default function ActionHub({ initialItems }: { initialItems: ActionItem[]
 
       {/* Category filter pills */}
       <div className="flex flex-wrap gap-2">
-        <FilterPill label="All" active={filter === 'all'} color="#00d4ff" onClick={() => setFilter('all')} />
+        <FilterPill label="All" active={filter === 'all'} color="#5ee6ff" onClick={() => setFilter('all')} />
         {CATEGORY_KEYS.map(c => (
           <FilterPill key={c} label={CATEGORY_CONFIG[c].label} active={filter === c}
             color={CATEGORY_CONFIG[c].color} onClick={() => setFilter(c)} />
@@ -399,7 +399,7 @@ export default function ActionHub({ initialItems }: { initialItems: ActionItem[]
               className="rounded-lg px-2 py-2 text-xs outline-none"
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-primary)' }}>
               {CATEGORY_KEYS.map(c => (
-                <option key={c} value={c} style={{ background: '#0a0e27' }}>{CATEGORY_CONFIG[c].label}</option>
+                <option key={c} value={c} style={{ background: 'var(--bg-elevated)' }}>{CATEGORY_CONFIG[c].label}</option>
               ))}
             </select>
             <select value={draft.priority}
@@ -407,7 +407,7 @@ export default function ActionHub({ initialItems }: { initialItems: ActionItem[]
               className="rounded-lg px-2 py-2 text-xs outline-none"
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-primary)' }}>
               {(Object.keys(PRIORITY_CONFIG) as Priority[]).map(p => (
-                <option key={p} value={p} style={{ background: '#0a0e27' }}>{PRIORITY_CONFIG[p].label}</option>
+                <option key={p} value={p} style={{ background: 'var(--bg-elevated)' }}>{PRIORITY_CONFIG[p].label}</option>
               ))}
             </select>
             <input

@@ -69,7 +69,7 @@ export function ListItems({ items }: { items: Extract<BriefBlock, { type: 'list'
   return (
     <ul className="space-y-3">
       {items.map((it, i) => (
-        <li key={i} className="pl-3" style={{ borderLeft: `2px solid ${toneColor(it.tone) ?? 'rgba(0,212,255,0.25)'}` }}>
+        <li key={i} className="pl-3" style={{ borderLeft: `2px solid ${toneColor(it.tone) ?? 'rgba(var(--accent-rgb), 0.25)'}` }}>
           <div className="text-[14px] font-medium text-[var(--text-primary)] leading-snug">
             <Linkish href={it.link}>{it.title}</Linkish>
           </div>
@@ -96,7 +96,7 @@ export function Table({ columns, rows }: { columns: string[]; rows: string[][] }
           <tr>
             {columns.map(c => (
               <th key={c} className="text-left font-medium text-[var(--text-muted)] px-2 py-1.5 whitespace-nowrap"
-                  style={{ borderBottom: '1px solid rgba(0,212,255,0.15)' }}>
+                  style={{ borderBottom: '1px solid var(--glass-line)' }}>
                 {c}
               </th>
             ))}
@@ -142,7 +142,7 @@ function CopyButton({ text }: { text: string }) {
         }).catch(() => {})
       }}
       className="inline-flex items-center gap-1 text-[12px] px-2 py-1 rounded-md transition-colors"
-      style={{ background: 'rgba(0,212,255,0.08)', color: 'var(--accent-cyan)' }}
+      style={{ background: 'rgba(var(--accent-rgb), 0.08)', color: 'var(--accent-cyan)' }}
     >
       {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? 'Copied' : 'Copy'}
     </button>

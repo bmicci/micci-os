@@ -143,7 +143,7 @@ export default function ScenarioEngine() {
             onChange={e => setNewName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && saveScenario()}
             className="flex-1 px-3 py-2 rounded-lg text-sm"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(0,212,255,0.2)', color: 'var(--text-primary)', outline: 'none' }}
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-line)', color: 'var(--text-primary)', outline: 'none' }}
           />
           <button
             onClick={saveScenario}
@@ -194,8 +194,8 @@ function ScenarioList({
             key={s.id}
             className="p-4 rounded-xl transition-all"
             style={{
-              background: isSelected ? 'rgba(0,212,255,0.06)' : 'var(--card-bg)',
-              border: `1px solid ${isSelected ? 'rgba(0,212,255,0.4)' : 'var(--card-border)'}`,
+              background: isSelected ? 'rgba(var(--accent-rgb), 0.06)' : 'var(--card-bg)',
+              border: `1px solid ${isSelected ? 'rgba(var(--accent-rgb), 0.4)' : 'var(--card-border)'}`,
             }}
           >
             <div className="flex items-start justify-between gap-4">
@@ -213,7 +213,7 @@ function ScenarioList({
                     </span>
                     {s.isBaseline && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                        style={{ background: 'rgba(0,212,255,0.15)', color: 'var(--accent-cyan)' }}>
+                        style={{ background: 'rgba(var(--accent-rgb), 0.15)', color: 'var(--accent-cyan)' }}>
                         Baseline
                       </span>
                     )}
@@ -237,7 +237,7 @@ function ScenarioList({
                   <button
                     onClick={() => onSetBaseline(s.id)}
                     className="text-[10px] px-2 py-1 rounded"
-                    style={{ background: 'rgba(0,212,255,0.08)', color: 'var(--accent-cyan)', border: '1px solid rgba(0,212,255,0.2)' }}
+                    style={{ background: 'rgba(var(--accent-rgb), 0.08)', color: 'var(--accent-cyan)', border: '1px solid var(--glass-line)' }}
                   >
                     Set Baseline
                   </button>

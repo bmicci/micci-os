@@ -43,7 +43,7 @@ export default function ContentTab({ data, setData }: Props) {
       {/* Strategy card */}
       <div
         className="glass-card p-5 mb-5"
-        style={{ background: 'rgba(0,212,255,0.04)' }}
+        style={{ background: 'rgba(var(--accent-rgb), 0.04)' }}
       >
         <div
           className="text-[13px] font-bold tracking-widest uppercase mb-2"
@@ -115,7 +115,7 @@ export default function ContentTab({ data, setData }: Props) {
                     className="text-[10px] font-semibold rounded"
                     style={{
                       background: 'rgba(0,0,0,0.3)',
-                      border: '1px solid rgba(0,212,255,0.15)',
+                      border: '1px solid var(--glass-line)',
                       color: STATUS_COLORS[c.status] || 'var(--text-muted)',
                       padding: '3px 8px',
                       cursor: 'pointer',

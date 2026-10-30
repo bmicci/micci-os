@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Companies — Micci OS' }
 
 const STATUS_COLORS: Record<string, string> = {
-  interviewing: '#22c55e', offer: '#00d4ff', active: '#f59e0b', submitted: '#3b82f6',
+  interviewing: '#22c55e', offer: '#5ee6ff', active: '#f59e0b', submitted: '#3b82f6',
   researching: '#a78bfa', not_started: '#64748b', dormant: '#475569', closed: '#334155',
 }
 

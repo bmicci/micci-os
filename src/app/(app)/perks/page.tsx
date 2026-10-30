@@ -90,13 +90,13 @@ export default async function PerksPage() {
         className="shrink-0 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
         style={{
           background: 'var(--bg-elevated)',
-          borderBottom: '1px solid rgba(0,212,255,0.1)',
+          borderBottom: '1px solid var(--glass-line)',
         }}
       >
         <div>
           <div
             className="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full mb-1.5"
-            style={{ background: 'rgba(0,212,255,0.15)', color: 'var(--accent-cyan)' }}
+            style={{ background: 'rgba(var(--accent-rgb), 0.15)', color: 'var(--accent-cyan)' }}
           >
             AMEX PLATINUM ($895/yr) + GOLD ($325/yr) · $3,500+ ANNUAL VALUE
           </div>

@@ -6,13 +6,13 @@ import QueryProvider from '@/components/providers/QueryProvider'
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <QueryProvider>
+      <div className="ambient-glow" aria-hidden="true"><span /></div>
       <AnimatedBackground />
       <div className="relative z-10 flex h-screen">
         <Sidebar />
-        <main
-          className="flex-1 overflow-y-auto pb-20 md:pb-0"
-          style={{ background: 'var(--bg-body)' }}
-        >
+        {/* Transparent so the ambient glow shows through and the glass
+            cards have something to blur */}
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           {children}
         </main>
       </div>

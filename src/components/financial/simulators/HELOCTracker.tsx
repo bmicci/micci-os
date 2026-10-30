@@ -290,7 +290,7 @@ export default function HELOCTracker({ initialAccounts }: { initialAccounts?: HE
 function KpiCard({ label, value, accent, positive }: { label: string; value: string; accent?: boolean; positive?: boolean }) {
   return (
     <div className="flex flex-col gap-1 p-4 rounded-xl"
-      style={{ background: accent ? 'rgba(0,212,255,0.08)' : 'var(--card-bg)', border: '1px solid var(--card-border)' }}>
+      style={{ background: accent ? 'rgba(var(--accent-rgb), 0.08)' : 'var(--card-bg)', border: '1px solid var(--card-border)' }}>
       <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</span>
       <span className="text-lg font-bold font-mono" style={{ color: accent ? 'var(--accent-cyan)' : positive ? '#22c55e' : 'var(--text-primary)' }}>
         {value}
@@ -372,7 +372,7 @@ function AccountTable({
                             onBlur={() => onEditSave(acct.id)}
                             onKeyDown={e => e.key === 'Enter' && onEditSave(acct.id)}
                             className="w-28 px-2 py-1 rounded text-xs font-mono"
-                            style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid var(--accent-cyan)', color: 'var(--text-primary)', outline: 'none' }}
+                            style={{ background: 'rgba(var(--accent-rgb), 0.1)', border: '1px solid var(--accent-cyan)', color: 'var(--text-primary)', outline: 'none' }}
                             autoFocus
                           />
                         ) : (
@@ -443,19 +443,19 @@ function BalanceTimeline({ data, limit }: { data: { label: string; balance: numb
         <AreaChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="helocGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#00d4ff" stopOpacity={0} />
+              <stop offset="5%" stopColor="#5ee6ff" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#5ee6ff" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-          <XAxis dataKey="label" tick={{ fill: 'rgba(240,246,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} />
-          <YAxis tickFormatter={fmtK} tick={{ fill: 'rgba(240,246,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} width={52} />
+          <XAxis dataKey="label" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
+          <YAxis tickFormatter={fmtK} tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} width={52} />
           <Tooltip
             formatter={(v: unknown) => [fmt(Number(v)), 'Balance']}
-            contentStyle={{ background: 'rgba(10,14,39,0.95)', border: '1px solid rgba(0,212,255,0.3)', borderRadius: 8, fontSize: 12 }}
+            contentStyle={{ background: 'rgba(10,14,39,0.95)', border: '1px solid rgba(var(--accent-rgb), 0.3)', borderRadius: 8, fontSize: 12 }}
           />
           <ReferenceLine y={limit} stroke="#ef4444" strokeDasharray="4 2" label={{ value: '$190K Limit', fill: '#ef4444', fontSize: 10 }} />
-          <Area type="monotone" dataKey="balance" stroke="#00d4ff" fill="url(#helocGrad)" strokeWidth={2} dot={false} />
+          <Area type="monotone" dataKey="balance" stroke="#5ee6ff" fill="url(#helocGrad)" strokeWidth={2} dot={false} />
         </AreaChart>
       </ResponsiveContainer>
       <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
@@ -476,7 +476,7 @@ function DeadlineDashboard({ deferred, promoHold }: { deferred: HELOCDebtAccount
       {allDeadlines.map(d => {
         const days = daysUntil(d.date)
         const urgency = days !== null ? (days < 30 ? 'critical' : days < 90 ? 'high' : 'medium') : 'low'
-        const borderColor = urgency === 'critical' ? '#ef4444' : urgency === 'high' ? '#f59e0b' : 'rgba(0,212,255,0.3)'
+        const borderColor = urgency === 'critical' ? '#ef4444' : urgency === 'high' ? '#f59e0b' : 'rgba(var(--accent-rgb), 0.3)'
         const isDeferred = d.type === 'deferred'
         const penalty = isDeferred ? d.balance * (d.apr / 100) * (days ?? 0) / 365 : null
 
