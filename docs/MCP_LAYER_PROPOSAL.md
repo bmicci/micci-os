@@ -1,6 +1,6 @@
 # Proposal — Should Micci OS put an MCP layer between its data feeds?
 
-**Status:** proposal for review · Oct 26, 2026
+**Status:** accepted Oct 30, 2026 (PR #46) · step 1 in progress
 **Related:** #40 (data sources + connector pattern), #41 (health + labs connector tools), #42 (connector OAuth), `docs/MCP_CONNECTOR.md`, `docs/DATA_REFRESH_LOG.md`
 
 ## TL;DR
