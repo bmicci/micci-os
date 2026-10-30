@@ -68,6 +68,6 @@ Suggested order — top first.
 
 ## Key docs
 `CLAUDE.md` (rules) · `docs/CLAUDE.md` (structure) · `docs/SECURITY.md` ·
-`docs/DATA_REFRESH_LOG.md` · `docs/MCP_CONNECTOR.md` ·
+`docs/DATA_REFRESH_LOG.md` · `docs/MCP_CONNECTOR.md` · `docs/MCP_LAYER_PROPOSAL.md` ·
 `docs/prds/07-HEALTH-DATA.md` · `docs/TRUEUP_PHASE1_AUDIT.md` ·
 `docs/FINANCE_INTAKE.md`
