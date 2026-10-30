@@ -42,7 +42,7 @@ interface Statement {
 }
 
 const KIND_LABEL: Record<Finding['kind'], { label: string; color: string }> = {
-  update_promo: { label: 'Update', color: '#00d4ff' },
+  update_promo: { label: 'Update', color: '#5ee6ff' },
   new_promo: { label: 'New promo', color: '#a78bfa' },
   promo_paid: { label: 'Mark paid', color: '#10b981' },
   info: { label: 'FYI', color: '#f59e0b' },
@@ -51,7 +51,7 @@ const money = (n?: number | null) => (n == null ? '—' : `$${n.toLocaleString('
 const period = (s: Statement) => (s.period_year ? `${s.period_year}-${String(s.period_month).padStart(2, '0')}` : 'unknown period')
 
 const inputStyle = {
-  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(0,212,255,0.25)',
+  background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-line)',
   color: 'var(--text-primary)', borderRadius: 6, padding: '3px 6px', fontSize: 11.5, width: '100%',
 } as const
 
@@ -207,7 +207,7 @@ export default function StatementFindingsCard() {
           Statement Findings
           {pending.length > 0 && (
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
-              style={{ background: 'rgba(0,212,255,0.15)', color: 'var(--accent-cyan)' }}>
+              style={{ background: 'rgba(var(--accent-rgb), 0.15)', color: 'var(--accent-cyan)' }}>
               {pending.length} to review
             </span>
           )}
@@ -216,7 +216,7 @@ export default function StatementFindingsCard() {
           onClick={() => fileRef.current?.click()}
           disabled={busy !== null}
           className="text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5"
-          style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--accent-cyan)', border: '1px solid rgba(0,212,255,0.3)', cursor: busy ? 'wait' : 'pointer' }}
+          style={{ background: 'rgba(var(--accent-rgb), 0.1)', color: 'var(--accent-cyan)', border: '1px solid rgba(var(--accent-rgb), 0.3)', cursor: busy ? 'wait' : 'pointer' }}
         >
           <Upload size={12} className={busy === 'upload' ? 'animate-pulse' : ''} /> Upload PDF
         </button>

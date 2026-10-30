@@ -70,7 +70,7 @@ export default function CurrencyInput({
         className="w-full px-3 py-2 rounded-lg text-sm font-mono text-right transition-all"
         style={{
           background: 'rgba(255,255,255,0.06)',
-          border: `1px solid ${focused ? 'var(--accent-cyan)' : 'rgba(0,212,255,0.2)'}`,
+          border: `1px solid ${focused ? 'var(--accent-cyan)' : 'rgba(var(--accent-rgb), 0.2)'}`,
           color: 'var(--text-primary)',
           outline: 'none',
           opacity: disabled ? 0.5 : 1,

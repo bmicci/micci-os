@@ -92,7 +92,7 @@ export default function NetWorthTab({ debts, helocKPIs, assets }: NetWorthTabPro
 
   // Colors
   const categoryColors = ['#ef4444', '#f59e0b', '#22c55e']
-  const assetColors = ['#00d4ff', '#8b5cf6', '#14b8a6', '#3b82f6', '#06b6d4']
+  const assetColors = ['#5ee6ff', '#8b5cf6', '#14b8a6', '#3b82f6', '#06b6d4']
 
   return (
     <div className="space-y-5">
@@ -156,18 +156,18 @@ export default function NetWorthTab({ debts, helocKPIs, assets }: NetWorthTabPro
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
               <XAxis
                 dataKey="month"
-                tick={{ fill: 'rgba(240,246,255,0.5)', fontSize: 11 }}
+                tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                 axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
               />
               <YAxis
-                tick={{ fill: 'rgba(240,246,255,0.5)', fontSize: 11 }}
+                tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                 axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
                 tickFormatter={(v: number) => fmtK(v)}
               />
               <Tooltip
                 contentStyle={{
-                  background: '#0a0e27',
-                  border: '1px solid rgba(0,212,255,0.3)',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid rgba(var(--accent-rgb), 0.3)',
                   borderRadius: 8,
                   fontSize: 12,
                 }}
@@ -206,7 +206,7 @@ export default function NetWorthTab({ debts, helocKPIs, assets }: NetWorthTabPro
           </h3>
           <div className="space-y-0">
             {[
-              { name: 'Home (2214 N Carroll)', value: assets.home, color: '#00d4ff' },
+              { name: 'Home (2214 N Carroll)', value: assets.home, color: '#5ee6ff' },
               { name: '401(k) / Retirement', value: assets.retirement, color: '#8b5cf6' },
               { name: 'Brokerage Account', value: assets.brokerage, color: '#14b8a6' },
               { name: 'Checking (Chase)', value: assets.cash, color: '#3b82f6' },
@@ -302,8 +302,8 @@ export default function NetWorthTab({ debts, helocKPIs, assets }: NetWorthTabPro
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    background: '#0a0e27',
-                    border: '1px solid rgba(0,212,255,0.3)',
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid rgba(var(--accent-rgb), 0.3)',
                     borderRadius: 8,
                     fontSize: 12,
                   }}

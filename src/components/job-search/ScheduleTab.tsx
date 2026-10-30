@@ -100,7 +100,7 @@ export default function ScheduleTab() {
       {/* Operating rhythm intro */}
       <div
         className="glass-card p-5 mb-5"
-        style={{ background: 'rgba(0,212,255,0.04)' }}
+        style={{ background: 'rgba(var(--accent-rgb), 0.04)' }}
       >
         <div
           className="text-[13px] font-bold tracking-widest uppercase mb-2"

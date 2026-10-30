@@ -124,15 +124,15 @@ export default function AIChat() {
           height: 52,
           borderRadius: '50%',
           background: open
-            ? 'rgba(0,212,255,0.2)'
-            : 'linear-gradient(135deg,#00d4ff,#1e90ff)',
-          border: open ? '1px solid rgba(0,212,255,0.5)' : 'none',
+            ? 'rgba(var(--accent-rgb), 0.2)'
+            : 'var(--accent-gradient)',
+          border: open ? '1px solid rgba(var(--accent-rgb), 0.5)' : 'none',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
           zIndex: 100,
-          boxShadow: '0 4px 24px rgba(0,212,255,0.35)',
+          boxShadow: '0 4px 24px rgba(var(--accent-rgb), 0.35)',
           transition: 'all 0.2s',
           fontSize: 22,
           color: open ? 'var(--accent-cyan)' : '#050505',
@@ -154,19 +154,19 @@ export default function AIChat() {
             display: 'flex',
             flexDirection: 'column',
             background: 'rgba(10,10,10,0.96)',
-            border: '1px solid rgba(0,212,255,0.2)',
+            border: '1px solid var(--glass-line)',
             borderRadius: 24,
             backdropFilter: 'blur(24px)',
             WebkitBackdropFilter: 'blur(24px)',
             zIndex: 99,
-            boxShadow: '0 8px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,212,255,0.06)',
+            boxShadow: '0 8px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(var(--accent-rgb), 0.06)',
             overflow: 'hidden',
           }}
         >
           {/* Header */}
           <div
             className="flex items-center justify-between px-5 py-4"
-            style={{ borderBottom: '1px solid rgba(0,212,255,0.1)', flexShrink: 0 }}
+            style={{ borderBottom: '1px solid var(--glass-line)', flexShrink: 0 }}
           >
             <div className="flex items-center gap-2">
               <span style={{ fontSize: 18 }}>{sectionInfo.icon}</span>
@@ -220,8 +220,8 @@ export default function AIChat() {
                       onClick={() => handleSubmit(q)}
                       className="text-xs px-3 py-2 rounded-lg text-left"
                       style={{
-                        background: 'rgba(0,212,255,0.06)',
-                        border: '1px solid rgba(0,212,255,0.15)',
+                        background: 'rgba(var(--accent-rgb), 0.06)',
+                        border: '1px solid var(--glass-line)',
                         color: 'var(--text-secondary)',
                         cursor: 'pointer',
                         transition: 'all 0.15s',
@@ -251,7 +251,7 @@ export default function AIChat() {
                     borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
                     background:
                       m.role === 'user'
-                        ? 'linear-gradient(135deg,#00d4ff,#1e90ff)'
+                        ? 'var(--accent-gradient)'
                         : 'rgba(255,255,255,0.06)',
                     border:
                       m.role === 'assistant' ? '1px solid rgba(255,255,255,0.08)' : 'none',
@@ -303,7 +303,7 @@ export default function AIChat() {
           <form
             onSubmit={(e) => { e.preventDefault(); handleSubmit(input) }}
             className="flex items-center gap-2 px-4 py-3"
-            style={{ borderTop: '1px solid rgba(0,212,255,0.1)', flexShrink: 0 }}
+            style={{ borderTop: '1px solid var(--glass-line)', flexShrink: 0 }}
           >
             <input
               value={input}
@@ -319,15 +319,15 @@ export default function AIChat() {
               style={{
                 flex: 1,
                 background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(0,212,255,0.2)',
+                border: '1px solid var(--glass-line)',
                 borderRadius: 10,
                 padding: '8px 12px',
                 color: 'var(--text-primary)',
                 fontSize: 13,
                 outline: 'none',
               }}
-              onFocus={(e) => (e.target.style.borderColor = 'rgba(0,212,255,0.5)')}
-              onBlur={(e) => (e.target.style.borderColor = 'rgba(0,212,255,0.2)')}
+              onFocus={(e) => (e.target.style.borderColor = 'rgba(var(--accent-rgb), 0.5)')}
+              onBlur={(e) => (e.target.style.borderColor = 'rgba(var(--accent-rgb), 0.2)')}
             />
             <button
               type="submit"
@@ -338,8 +338,8 @@ export default function AIChat() {
                 borderRadius: 10,
                 background:
                   isLoading || !input.trim()
-                    ? 'rgba(0,212,255,0.1)'
-                    : 'linear-gradient(135deg,#00d4ff,#1e90ff)',
+                    ? 'rgba(var(--accent-rgb), 0.1)'
+                    : 'var(--accent-gradient)',
                 border: 'none',
                 color: isLoading || !input.trim() ? 'var(--text-muted)' : '#050505',
                 cursor: isLoading || !input.trim() ? 'not-allowed' : 'pointer',

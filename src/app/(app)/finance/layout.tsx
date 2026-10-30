@@ -25,7 +25,7 @@ export default function FinanceSimulatorLayout({ children }: { children: React.R
           className="shrink-0 flex items-center gap-1 px-6 py-2 overflow-x-auto"
           style={{
             background: 'var(--bg-elevated)',
-            borderBottom: '1px solid rgba(0,212,255,0.1)',
+            borderBottom: '1px solid var(--glass-line)',
           }}
         >
           <Link
@@ -35,7 +35,7 @@ export default function FinanceSimulatorLayout({ children }: { children: React.R
           >
             ← Overview
           </Link>
-          <span style={{ color: 'rgba(0,212,255,0.2)', margin: '0 4px' }}>|</span>
+          <span style={{ color: 'rgba(var(--accent-rgb), 0.2)', margin: '0 4px' }}>|</span>
           {SIMULATOR_NAV.map(item => (
             <Link
               key={item.href}

@@ -160,7 +160,7 @@ const QUARTERLY_PAYMENTS_2026: QuarterlyPayment[] = [
 ]
 
 const PROPERTY_TAX_2025: PropertyAuthority[] = [
-  { auth: 'Dallas ISD',      amount: 6_211.47, pct: 42.6, color: '#00D4FF' },
+  { auth: 'Dallas ISD',      amount: 6_211.47, pct: 42.6, color: '#5ee6ff' },
   { auth: 'City of Dallas',  amount: 4_751.84, pct: 32.6, color: '#1E90FF' },
   { auth: 'Dallas County',   amount: 1_465.40, pct: 10.0, color: '#7C3AED' },
   { auth: 'Parkland Hospital', amount: 1_441.60, pct: 9.9, color: '#DB2777' },
@@ -195,7 +195,7 @@ function daysUntil(isoDate: string): number {
 function statusBadge(status: TaxYear['status']) {
   if (status === 'filed')     return { label: 'FILED', bg: 'rgba(34,197,94,0.15)',   border: 'rgba(34,197,94,0.3)',   color: '#22c55e' }
   if (status === 'estimated') return { label: 'ESTIMATED', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.3)', color: '#f59e0b' }
-  return                             { label: 'PROJECTED', bg: 'rgba(0,212,255,0.12)',  border: 'rgba(0,212,255,0.25)', color: '#00D4FF' }
+  return                             { label: 'PROJECTED', bg: 'rgba(var(--accent-rgb), 0.12)',  border: 'var(--glass-line)', color: '#5ee6ff' }
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ function KPI({ label, value, sub, accent = false }: { label: string; value: stri
   return (
     <div className="rounded-xl px-4 py-3" style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}>
       <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>{label}</div>
-      <div className="text-xl font-extrabold" style={{ color: accent ? '#00D4FF' : 'var(--text-primary)' }}>{value}</div>
+      <div className="text-xl font-extrabold" style={{ color: accent ? '#5ee6ff' : 'var(--text-primary)' }}>{value}</div>
       {sub && <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{sub}</div>}
     </div>
   )
@@ -251,9 +251,9 @@ export default function TaxCenterTab() {
               onClick={() => setSelectedYear(y.year)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
               style={{
-                background: active ? 'rgba(0,212,255,0.18)' : 'var(--card-bg)',
-                border: `1px solid ${active ? 'rgba(0,212,255,0.5)' : 'var(--card-border)'}`,
-                color: active ? '#00D4FF' : 'var(--text-secondary)',
+                background: active ? 'rgba(var(--accent-rgb), 0.18)' : 'var(--card-bg)',
+                border: `1px solid ${active ? 'rgba(var(--accent-rgb), 0.5)' : 'var(--card-border)'}`,
+                color: active ? '#5ee6ff' : 'var(--text-secondary)',
               }}
             >
               {y.year}
@@ -285,7 +285,7 @@ export default function TaxCenterTab() {
 
         {selected.notes && (
           <div className="mt-3 rounded-xl px-4 py-3 text-xs leading-relaxed"
-            style={{ background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.15)', color: 'var(--text-secondary)' }}>
+            style={{ background: 'rgba(var(--accent-rgb), 0.06)', border: '1px solid var(--glass-line)', color: 'var(--text-secondary)' }}>
             📝 {selected.notes}
           </div>
         )}
@@ -302,11 +302,11 @@ export default function TaxCenterTab() {
                 tickFormatter={v => `$${v}K`} width={48} />
               <Tooltip
                 formatter={(value: unknown, name: unknown) => [`$${Number(value)}K`, String(name)]}
-                contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 8, fontSize: 12 }}
+                contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-line)', borderRadius: 8, fontSize: 12 }}
               />
               <Bar dataKey="income"   name="Gross Income"     radius={[3,3,0,0]}>
                 {chartData.map((d, i) => (
-                  <Cell key={i} fill={d.status === 'projected' ? 'rgba(0,212,255,0.3)' : d.status === 'estimated' ? 'rgba(245,158,11,0.4)' : 'rgba(0,212,255,0.7)'} />
+                  <Cell key={i} fill={d.status === 'projected' ? 'rgba(var(--accent-rgb), 0.3)' : d.status === 'estimated' ? 'rgba(245,158,11,0.4)' : 'rgba(var(--accent-rgb), 0.7)'} />
                 ))}
               </Bar>
               <Bar dataKey="withheld" name="Withheld"         fill="rgba(30,144,255,0.6)" radius={[3,3,0,0]} />
@@ -326,7 +326,7 @@ export default function TaxCenterTab() {
         <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
           <table className="w-full text-sm">
             <thead>
-              <tr style={{ background: 'rgba(0,212,255,0.05)', borderBottom: '1px solid rgba(0,212,255,0.1)' }}>
+              <tr style={{ background: 'rgba(var(--accent-rgb), 0.05)', borderBottom: '1px solid var(--glass-line)' }}>
                 {['Year', 'Gross', 'Withheld', 'Tax Owed', 'Balance', 'Eff. Rate', 'Deductions', 'Status'].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-widest"
                     style={{ color: 'var(--text-muted)' }}>{h}</th>
@@ -344,11 +344,11 @@ export default function TaxCenterTab() {
                     onClick={() => setSelectedYear(y.year)}
                     className="cursor-pointer transition-colors"
                     style={{
-                      background: isSelected ? 'rgba(0,212,255,0.07)' : i % 2 === 0 ? 'var(--card-bg)' : 'transparent',
+                      background: isSelected ? 'rgba(var(--accent-rgb), 0.07)' : i % 2 === 0 ? 'var(--card-bg)' : 'transparent',
                       borderBottom: '1px solid rgba(255,255,255,0.04)',
                     }}
                   >
-                    <td className="px-4 py-3 font-bold" style={{ color: '#00D4FF' }}>{y.year}</td>
+                    <td className="px-4 py-3 font-bold" style={{ color: '#5ee6ff' }}>{y.year}</td>
                     <td className="px-4 py-3 font-mono" style={{ color: 'var(--text-primary)' }}>{fmt(y.grossIncome)}</td>
                     <td className="px-4 py-3 font-mono" style={{ color: 'var(--text-secondary)' }}>{fmt(y.federalWithheld)}</td>
                     <td className="px-4 py-3 font-mono" style={{ color: 'var(--text-primary)' }}>{fmt(y.taxOwed)}</td>
@@ -402,7 +402,7 @@ export default function TaxCenterTab() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <div className="text-base font-extrabold" style={{ color: '#00D4FF' }}>{q.quarter}</div>
+                    <div className="text-base font-extrabold" style={{ color: '#5ee6ff' }}>{q.quarter}</div>
                     <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
                       Due {deadlineDate}
                     </div>
@@ -454,7 +454,7 @@ export default function TaxCenterTab() {
               <p className="text-[11px] uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>
                 Safe Harbor Target
               </p>
-              <p className="text-2xl font-extrabold" style={{ color: '#00D4FF' }}>{fmt(24_891)}</p>
+              <p className="text-2xl font-extrabold" style={{ color: '#5ee6ff' }}>{fmt(24_891)}</p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
                 100% of 2025 liability — no underpayment penalty if you hit this via withholding
               </p>
@@ -505,12 +505,12 @@ export default function TaxCenterTab() {
                   </Pie>
                   <Tooltip
                     formatter={(value: unknown) => [fmt(Number(value)), '']}
-                    contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 8, fontSize: 12 }}
+                    contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-line)', borderRadius: 8, fontSize: 12 }}
                   />
                 </PieChart>
               </ResponsiveContainer>
               <p className="text-center text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
-                Total: <strong style={{ color: '#00D4FF' }}>{fmt(totalPropertyTax, 2)}</strong>
+                Total: <strong style={{ color: '#5ee6ff' }}>{fmt(totalPropertyTax, 2)}</strong>
               </p>
             </div>
 

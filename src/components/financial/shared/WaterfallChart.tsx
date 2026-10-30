@@ -27,7 +27,7 @@ const TYPE_COLORS: Record<WaterfallItem['type'], string> = {
   deduction: '#ef4444',
   obligation: '#f59e0b',
   expense: '#6b7280',
-  net: '#00d4ff',
+  net: '#5ee6ff',
 }
 
 interface WaterfallDataPoint {
@@ -73,13 +73,13 @@ export default function WaterfallChart({ items, height = 260 }: WaterfallChartPr
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
         <XAxis
           dataKey="label"
-          tick={{ fill: 'rgba(240,246,255,0.4)', fontSize: 10 }}
+          tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
           tickFormatter={fmtK}
-          tick={{ fill: 'rgba(240,246,255,0.4)', fontSize: 10 }}
+          tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
           axisLine={false}
           tickLine={false}
           width={48}
@@ -88,7 +88,7 @@ export default function WaterfallChart({ items, height = 260 }: WaterfallChartPr
           formatter={(value: unknown) => ['$' + Number(value).toLocaleString()]}
           contentStyle={{
             background: 'rgba(10,14,39,0.95)',
-            border: '1px solid rgba(0,212,255,0.3)',
+            border: '1px solid rgba(var(--accent-rgb), 0.3)',
             borderRadius: 8,
             color: 'var(--text-primary)',
             fontSize: 12,

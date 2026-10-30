@@ -138,8 +138,8 @@ export default function DocumentUpload({ section }: DocumentUploadProps) {
         <span
           className="text-xs px-2 py-0.5 rounded-full"
           style={{
-            background: 'rgba(0,212,255,0.1)',
-            border: '1px solid rgba(0,212,255,0.2)',
+            background: 'rgba(var(--accent-rgb), 0.1)',
+            border: '1px solid var(--glass-line)',
             color: 'var(--accent-cyan)',
           }}
         >
@@ -154,13 +154,13 @@ export default function DocumentUpload({ section }: DocumentUploadProps) {
         onDrop={onDrop}
         style={{
           display: 'block',
-          border: `2px dashed ${isDragging ? 'rgba(0,212,255,0.7)' : 'rgba(0,212,255,0.25)'}`,
+          border: `2px dashed ${isDragging ? 'rgba(var(--accent-rgb), 0.7)' : 'rgba(var(--accent-rgb), 0.25)'}`,
           borderRadius: 12,
           padding: '28px 20px',
           textAlign: 'center',
           cursor: uploading ? 'not-allowed' : 'pointer',
           transition: 'all 0.2s',
-          background: isDragging ? 'rgba(0,212,255,0.05)' : 'transparent',
+          background: isDragging ? 'rgba(var(--accent-rgb), 0.05)' : 'transparent',
           marginBottom: 16,
         }}
       >

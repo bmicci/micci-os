@@ -85,8 +85,8 @@ export default function PaycheckSimulator() {
             disabled={saving}
             className="text-xs px-3 py-1 rounded-lg transition-all"
             style={{
-              background: 'rgba(0,212,255,0.1)',
-              border: '1px solid rgba(0,212,255,0.3)',
+              background: 'rgba(var(--accent-rgb), 0.1)',
+              border: '1px solid rgba(var(--accent-rgb), 0.3)',
               color: 'var(--accent-cyan)',
             }}
           >
@@ -270,13 +270,13 @@ function SelectField({
         className="w-full px-3 py-2 rounded-lg text-sm"
         style={{
           background: 'rgba(255,255,255,0.06)',
-          border: '1px solid rgba(0,212,255,0.2)',
+          border: '1px solid var(--glass-line)',
           color: 'var(--text-primary)',
           outline: 'none',
         }}
       >
         {options.map(o => (
-          <option key={o.value} value={o.value} style={{ background: '#0a0e27' }}>
+          <option key={o.value} value={o.value} style={{ background: 'var(--bg-elevated)' }}>
             {o.label}
           </option>
         ))}
@@ -292,7 +292,7 @@ function StubRow({ label, value, highlight, isDeduction, isBenefit }: {
     <div
       className="flex items-center justify-between py-2 px-3 rounded-lg"
       style={{
-        background: highlight ? 'rgba(0,212,255,0.08)' : 'transparent',
+        background: highlight ? 'rgba(var(--accent-rgb), 0.08)' : 'transparent',
         borderBottom: highlight ? 'none' : '1px solid rgba(255,255,255,0.04)',
       }}
     >
@@ -319,7 +319,7 @@ function PayStubView({ result, inputs }: { result: PaycheckResult; inputs: Paych
     <div className="max-w-md mx-auto">
       {/* Header */}
       <div className="p-5 rounded-t-xl text-center"
-        style={{ background: 'var(--bg-elevated)', border: '1px solid rgba(0,212,255,0.2)' }}>
+        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-line)' }}>
         <div className="text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>
           Pay Stub — Per {periodLabel}
         </div>
@@ -330,14 +330,14 @@ function PayStubView({ result, inputs }: { result: PaycheckResult; inputs: Paych
           Net take-home
         </div>
         <div className="inline-block mt-2 px-3 py-1 rounded-full text-xs font-medium"
-          style={{ background: 'rgba(0,212,255,0.12)', color: 'var(--accent-cyan)' }}>
+          style={{ background: 'rgba(var(--accent-rgb), 0.12)', color: 'var(--accent-cyan)' }}>
           Effective Tax Rate: {fmtPct(result.effectiveTotalTaxRate)}
         </div>
       </div>
 
       {/* Line items */}
       <div className="px-0 py-2 rounded-b-xl"
-        style={{ background: 'var(--card-bg)', border: '1px solid rgba(0,212,255,0.1)', borderTop: 'none' }}>
+        style={{ background: 'var(--card-bg)', border: '1px solid var(--glass-line)', borderTop: 'none' }}>
         <StubRow label="Gross Pay" value={fmtDollar(result.grossPay)} />
         <StubRow
           label={`Federal Income Tax (${fmtPct(result.marginalBracket)} marginal)`}
@@ -441,7 +441,7 @@ function AnnualSummaryView({ result, waterfallItems }: { result: PaycheckResult;
 function KpiBox({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="flex flex-col gap-1 p-3 rounded-xl"
-      style={{ background: accent ? 'rgba(0,212,255,0.08)' : 'var(--card-bg)', border: '1px solid var(--card-border)' }}>
+      style={{ background: accent ? 'rgba(var(--accent-rgb), 0.08)' : 'var(--card-bg)', border: '1px solid var(--card-border)' }}>
       <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</span>
       <span className="text-base font-bold font-mono" style={{ color: accent ? 'var(--accent-cyan)' : 'var(--text-primary)' }}>
         {value}

@@ -96,7 +96,7 @@ function AddStepForm({ timeOfDay, onAdded }: { timeOfDay: 'am' | 'pm'; onAdded: 
   return (
     <form onSubmit={handleSubmit}
       className="mt-3 rounded-xl p-4 space-y-3"
-      style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.2)' }}>
+      style={{ background: 'rgba(var(--accent-rgb), 0.05)', border: '1px solid var(--glass-line)' }}>
       <p className="text-xs font-semibold text-[var(--text-primary)]">
         Add {timeOfDay.toUpperCase()} Step
       </p>
@@ -215,7 +215,7 @@ function RoutineSection({
                 style={{ borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                 {/* Step number */}
                 <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold"
-                  style={{ background: 'rgba(0,212,255,0.12)', color: 'var(--accent-cyan)' }}>
+                  style={{ background: 'rgba(var(--accent-rgb), 0.12)', color: 'var(--accent-cyan)' }}>
                   {i + 1}
                 </div>
 

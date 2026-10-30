@@ -7,7 +7,7 @@ export const metadata = { title: 'Pipeline — Micci OS' }
 
 const STATUS_COLORS: Record<string, string> = {
   interviewing: '#22c55e',
-  offer: '#00d4ff',
+  offer: '#5ee6ff',
   active: '#f59e0b',
   submitted: '#3b82f6',
   researching: '#a78bfa',
@@ -46,15 +46,15 @@ export default async function PipelinePage() {
         </div>
         <div className="flex gap-2">
           <Link href="/pipeline/log" className="text-[12px] font-bold px-4 py-2 rounded-lg"
-            style={{ background: 'linear-gradient(135deg,#00d4ff,#1e90ff)', color: '#050505', textDecoration: 'none' }}>
+            style={{ background: 'var(--accent-gradient)', color: '#050505', textDecoration: 'none' }}>
             <Zap size={13} className="inline mr-1 -mt-0.5" /> Log a touch
           </Link>
           <Link href="/pipeline/companies" className="text-[12px] font-semibold px-4 py-2 rounded-lg"
-            style={{ background: 'rgba(0,212,255,0.08)', color: 'var(--accent-cyan)', border: '1px solid rgba(0,212,255,0.3)', textDecoration: 'none' }}>
+            style={{ background: 'rgba(var(--accent-rgb), 0.08)', color: 'var(--accent-cyan)', border: '1px solid rgba(var(--accent-rgb), 0.3)', textDecoration: 'none' }}>
             <Building2 size={13} className="inline mr-1 -mt-0.5" /> Companies
           </Link>
           <Link href="/pipeline/contacts" className="text-[12px] font-semibold px-4 py-2 rounded-lg"
-            style={{ background: 'rgba(0,212,255,0.08)', color: 'var(--accent-cyan)', border: '1px solid rgba(0,212,255,0.3)', textDecoration: 'none' }}>
+            style={{ background: 'rgba(var(--accent-rgb), 0.08)', color: 'var(--accent-cyan)', border: '1px solid rgba(var(--accent-rgb), 0.3)', textDecoration: 'none' }}>
             <Users size={13} className="inline mr-1 -mt-0.5" /> Contacts
           </Link>
         </div>
@@ -79,7 +79,7 @@ export default async function PipelinePage() {
                 {replies > 0 && <span className="text-[11px] ml-2 font-semibold" style={{ color: '#22c55e' }}>{replies} replies</span>}
               </div>
               <div className="h-1.5 rounded-full mt-2" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: done ? '#22c55e' : 'linear-gradient(90deg,#00d4ff,#1e90ff)' }} />
+                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: done ? '#22c55e' : 'linear-gradient(90deg,#5ee6ff,#1e90ff)' }} />
               </div>
             </div>
           )

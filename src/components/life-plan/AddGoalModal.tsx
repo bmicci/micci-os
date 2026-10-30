@@ -89,7 +89,7 @@ export default function AddGoalModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
       <div className="w-full max-w-lg rounded-2xl border p-6"
-        style={{ background: 'var(--bg-elevated)', borderColor: 'rgba(0,212,255,0.2)', maxHeight: '90vh', overflowY: 'auto' }}>
+        style={{ background: 'var(--bg-elevated)', borderColor: 'var(--glass-line)', maxHeight: '90vh', overflowY: 'auto' }}>
 
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-semibold" style={{ fontFamily: 'var(--font-geist-sans)', color: 'var(--text-primary)' }}>Add Goal</h3>
@@ -144,7 +144,7 @@ export default function AddGoalModal({
               placeholder="Describe your goal..."
               rows={3}
               className="w-full rounded-lg px-3 py-2 text-sm border resize-none"
-              style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(0,212,255,0.2)', color: 'var(--text-primary)' }} />
+              style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'var(--glass-line)', color: 'var(--text-primary)' }} />
             <button onClick={() => handleSave(goalText, false)}
               disabled={!goalText.trim() || saving}
               className="mt-3 w-full py-2.5 rounded-lg text-sm font-semibold transition-all"
@@ -163,7 +163,7 @@ export default function AddGoalModal({
                 onKeyDown={e => e.key === 'Enter' && handleAISuggest()}
                 placeholder="e.g. 'language learning' or leave blank..."
                 className="flex-1 rounded-lg px-3 py-2 text-sm border"
-                style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(0,212,255,0.2)', color: 'var(--text-primary)' }} />
+                style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'var(--glass-line)', color: 'var(--text-primary)' }} />
               <button onClick={handleAISuggest} disabled={aiLoading}
                 className="px-4 py-2 rounded-lg text-sm font-semibold transition-all"
                 style={{ background: 'var(--accent-cyan)', color: '#000' }}>
@@ -187,7 +187,7 @@ export default function AddGoalModal({
                 <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Click a suggestion to add it:</p>
                 {suggestions.map((s, i) => (
                   <div key={i} className="flex items-start gap-3 p-3 rounded-lg border"
-                    style={{ background: 'rgba(0,212,255,0.04)', borderColor: 'rgba(0,212,255,0.15)' }}>
+                    style={{ background: 'rgba(var(--accent-rgb), 0.04)', borderColor: 'var(--glass-line)' }}>
                     <span className="flex-1 text-sm" style={{ color: 'var(--text-secondary)' }}>{s}</span>
                     <button onClick={() => handleSave(s, true)} disabled={saving}
                       className="text-xs px-3 py-1 rounded-md font-medium flex-shrink-0 transition-all"

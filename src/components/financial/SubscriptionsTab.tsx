@@ -101,7 +101,7 @@ export default function SubscriptionsTab({ recurring }: { recurring: RecurringAn
       {/* Data provenance */}
       <div
         className="rounded-lg p-3 text-[12px]"
-        style={{ background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.2)', color: 'var(--text-secondary)' }}
+        style={{ background: 'rgba(var(--accent-rgb), 0.06)', border: '1px solid var(--glass-line)', color: 'var(--text-secondary)' }}
       >
         ⚙️ Detected live from imported transactions through{' '}
         <strong style={{ color: 'var(--text-primary)' }}>{formatDate(recurring.dataEnd)}</strong> — a merchant counts as

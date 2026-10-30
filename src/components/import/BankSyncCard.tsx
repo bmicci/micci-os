@@ -70,7 +70,7 @@ function PlaidLinkButton({ linkToken, receivedRedirectUri, onSuccess }: {
       disabled={!ready}
       className="text-[12px] font-semibold px-4 py-2 rounded-lg transition-all"
       style={{
-        background: 'linear-gradient(135deg,#00d4ff,#1e90ff)',
+        background: 'var(--accent-gradient)',
         color: '#050505',
         opacity: ready ? 1 : 0.5,
         cursor: ready ? 'pointer' : 'wait',
@@ -220,7 +220,7 @@ export default function BankSyncCard() {
           <Landmark size={15} strokeWidth={2} className="text-[var(--accent-cyan)]" />
           Bank Auto-Sync
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
-            style={{ background: 'rgba(0,212,255,0.15)', color: 'var(--accent-cyan)' }}>
+            style={{ background: 'rgba(var(--accent-rgb), 0.15)', color: 'var(--accent-cyan)' }}>
             Plaid
           </span>
         </h3>
@@ -230,8 +230,8 @@ export default function BankSyncCard() {
             disabled={busy !== null}
             className="text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5"
             style={{
-              background: 'rgba(0,212,255,0.1)', color: 'var(--accent-cyan)',
-              border: '1px solid rgba(0,212,255,0.3)', cursor: busy ? 'wait' : 'pointer',
+              background: 'rgba(var(--accent-rgb), 0.1)', color: 'var(--accent-cyan)',
+              border: '1px solid rgba(var(--accent-rgb), 0.3)', cursor: busy ? 'wait' : 'pointer',
             }}
           >
             <RefreshCw size={12} className={busy === 'sync' ? 'animate-spin' : ''} /> Sync now
@@ -284,7 +284,7 @@ export default function BankSyncCard() {
                   onClick={() => startConnect(item.id)}
                   disabled={busy !== null}
                   className="shrink-0 text-[10.5px] font-semibold px-2.5 py-1 rounded-lg"
-                  style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--accent-cyan)', border: '1px solid rgba(0,212,255,0.3)', cursor: busy ? 'wait' : 'pointer' }}
+                  style={{ background: 'rgba(var(--accent-rgb), 0.1)', color: 'var(--accent-cyan)', border: '1px solid rgba(var(--accent-rgb), 0.3)', cursor: busy ? 'wait' : 'pointer' }}
                   title="Grant Liabilities (APRs, minimums, due dates), Investments (holdings) and Statements (PDFs with promo end dates) for this bank"
                 >
                   Add details
@@ -312,8 +312,8 @@ export default function BankSyncCard() {
                 disabled={busy !== null}
                 className="text-[12px] font-semibold px-4 py-2 rounded-lg"
                 style={{
-                  background: 'rgba(0,212,255,0.1)', color: 'var(--accent-cyan)',
-                  border: '1px dashed rgba(0,212,255,0.4)', cursor: busy ? 'wait' : 'pointer',
+                  background: 'rgba(var(--accent-rgb), 0.1)', color: 'var(--accent-cyan)',
+                  border: '1px dashed rgba(var(--accent-rgb), 0.4)', cursor: busy ? 'wait' : 'pointer',
                 }}
               >
                 + Connect a bank

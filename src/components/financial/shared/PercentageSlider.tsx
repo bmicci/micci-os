@@ -88,7 +88,7 @@ export default function PercentageSlider({
             className="w-12 px-2 py-1 rounded text-xs text-right font-mono"
             style={{
               background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(0,212,255,0.2)',
+              border: '1px solid var(--glass-line)',
               color: 'var(--text-primary)',
               outline: 'none',
             }}

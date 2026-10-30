@@ -229,7 +229,7 @@ export default async function DashboardPage() {
               <Link key={item.id ?? item.title} href="/tasks"
                 className="flex items-center gap-3 py-2 text-[12.5px] hover:bg-white/[0.02] transition-colors"
                 style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                {dot(item.priority === 'red' ? '#ef4444' : item.priority === 'amber' ? '#f59e0b' : '#00d4ff')}
+                {dot(item.priority === 'red' ? '#ef4444' : item.priority === 'amber' ? '#f59e0b' : '#5ee6ff')}
                 <span className="flex-1 text-[var(--text-primary)] truncate">{item.title}</span>
                 <span className="font-mono text-[11px] text-[var(--text-muted)] shrink-0">
                   {item.amount ? fmtRound(item.amount) + ' · ' : ''}{item.dueDate ? `${daysUntil(item.dueDate)}d` : 'open'}

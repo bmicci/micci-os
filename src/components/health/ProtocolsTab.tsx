@@ -190,7 +190,7 @@ export default function ProtocolsTab({ protocols, supplements, compliance: initi
           </h2>
           {allDoneToday && (
             <span className="text-xs font-semibold px-3 py-1.5 rounded-full"
-              style={{ background: 'rgba(0,212,255,0.15)', color: 'var(--accent-cyan)', border: '1px solid rgba(0,212,255,0.3)' }}>
+              style={{ background: 'rgba(var(--accent-rgb), 0.15)', color: 'var(--accent-cyan)', border: '1px solid rgba(var(--accent-rgb), 0.3)' }}>
               ✓ All Complete
             </span>
           )}
@@ -210,8 +210,8 @@ export default function ProtocolsTab({ protocols, supplements, compliance: initi
                 <div key={p.id}
                   className="rounded-xl p-4 transition-all"
                   style={{
-                    background: done ? 'rgba(0,212,255,0.06)' : 'var(--card-bg)',
-                    border: `1px solid ${done ? 'rgba(0,212,255,0.35)' : 'var(--card-border)'}`,
+                    background: done ? 'rgba(var(--accent-rgb), 0.06)' : 'var(--card-bg)',
+                    border: `1px solid ${done ? 'rgba(var(--accent-rgb), 0.35)' : 'var(--card-border)'}`,
                   }}>
                   <div className="flex items-center gap-4">
                     {/* Checkbox */}
@@ -220,8 +220,8 @@ export default function ProtocolsTab({ protocols, supplements, compliance: initi
                       disabled={isPending}
                       className="w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 transition-all"
                       style={{
-                        borderColor: done ? 'var(--accent-cyan)' : 'rgba(240,246,255,0.3)',
-                        background: done ? 'rgba(0,212,255,0.2)' : 'transparent',
+                        borderColor: done ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                        background: done ? 'rgba(var(--accent-rgb), 0.2)' : 'transparent',
                       }}
                     >
                       {done && <span className="text-[var(--accent-cyan)] text-sm font-bold">✓</span>}
@@ -235,7 +235,7 @@ export default function ProtocolsTab({ protocols, supplements, compliance: initi
                         </span>
                         {p.dosage && (
                           <span className="text-xs px-2 py-0.5 rounded"
-                            style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--accent-cyan)' }}>
+                            style={{ background: 'rgba(var(--accent-rgb), 0.1)', color: 'var(--accent-cyan)' }}>
                             {p.dosage}
                           </span>
                         )}
@@ -248,8 +248,8 @@ export default function ProtocolsTab({ protocols, supplements, compliance: initi
                               <span key={day}
                                 className="text-[10px] rounded px-1.5 py-0.5 font-medium"
                                 style={{
-                                  background: p.day_of_week!.includes(day) ? 'rgba(0,212,255,0.2)' : 'rgba(255,255,255,0.05)',
-                                  color: p.day_of_week!.includes(day) ? '#00d4ff' : 'var(--text-muted)',
+                                  background: p.day_of_week!.includes(day) ? 'rgba(var(--accent-rgb), 0.2)' : 'rgba(255,255,255,0.05)',
+                                  color: p.day_of_week!.includes(day) ? '#5ee6ff' : 'var(--text-muted)',
                                 }}>
                                 {DAY_ABBR[day]}
                               </span>
@@ -273,7 +273,7 @@ export default function ProtocolsTab({ protocols, supplements, compliance: initi
                         </button>
                         {showSiteFor === p.id && (
                           <div className="absolute right-0 top-full mt-1 z-20 rounded-xl overflow-hidden shadow-xl"
-                            style={{ background: '#0a0e27', border: '1px solid rgba(0,212,255,0.2)', minWidth: '160px' }}>
+                            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-line)', minWidth: '160px' }}>
                             {INJECTION_SITES.map(site => (
                               <button key={site}
                                 onClick={() => {
@@ -314,8 +314,8 @@ export default function ProtocolsTab({ protocols, supplements, compliance: initi
               </div>
               <div className="text-center px-4 py-3 rounded-xl shrink-0"
                 style={{
-                  background: trough.daysUntil <= 0 ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${trough.daysUntil <= 0 ? 'rgba(0,212,255,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                  background: trough.daysUntil <= 0 ? 'rgba(var(--accent-rgb), 0.12)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${trough.daysUntil <= 0 ? 'rgba(var(--accent-rgb), 0.4)' : 'rgba(255,255,255,0.1)'}`,
                 }}>
                 {trough.daysUntil <= 0 ? (
                   <>
@@ -371,7 +371,7 @@ export default function ProtocolsTab({ protocols, supplements, compliance: initi
                           <span className="text-sm font-medium text-[var(--text-primary)]">{s.name}</span>
                           {s.dosage && (
                             <span className="text-xs px-1.5 py-0.5 rounded"
-                              style={{ background: 'rgba(0,212,255,0.08)', color: 'var(--accent-cyan)' }}>
+                              style={{ background: 'rgba(var(--accent-rgb), 0.08)', color: 'var(--accent-cyan)' }}>
                               {s.dosage}
                             </span>
                           )}

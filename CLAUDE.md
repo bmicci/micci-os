@@ -45,8 +45,8 @@ This is NOT a greenfield build. Every section below is built and live. Do not sc
 
 ## DESIGN SYSTEM (non-negotiable — match exactly)
 
-CSS variables in `globals.css`: `--bg-base #050505`, `--bg-elevated #0a0e27`, `--accent-cyan #00d4ff`, `--accent-gradient linear-gradient(135deg,#00d4ff,#1e90ff)`, `--card-bg rgba(255,255,255,0.05)`, `--card-border rgba(0,212,255,0.2)`, text `#f0f6ff` / 60% / 35%.
-Glass card: card-bg + card-border, 16px radius, `backdrop-filter: blur(20px)`; hover lifts −4px with cyan glow. Font: Geist Sans. Mobile: single column < 768px, bottom tab bar.
+**Aurora glass** (Oct 2026 redesign). Tokens in `globals.css`: `--bg-base #070b1a` (ink), `--bg-elevated #0d1330`, `--accent-cyan #5ee6ff` (+ `--accent-rgb` for `rgba(var(--accent-rgb), a)`), `--accent-violet #a78bfa` (second data color), `--accent-gradient` cyan→violet, glass `--glass-bg` white 7% / `--glass-line` white 14% / `--glass-highlight` / `--glass-blur 24px`, text `#f2f5ff` / 74% / 62% (muted must stay ≥4.5:1).
+Color ratio: ~60% ink base, ~30% glass, <10% accent. Cyan is for actions and headline numbers only; borders use `--glass-line`, not cyan. Glass card: `.glass-card` (16px radius, blur + saturate, inset top highlight). The `.ambient-glow` layer in `(app)/layout.tsx` sits behind content so the blur has something to frost; keep `<main>` and page wrappers transparent. Use the tokens for new code; literal `#5ee6ff` remains only where a component appends hex-alpha suffixes or feeds a chart prop. Font: Geist Sans. Mobile: single column < 768px, bottom tab bar.
 
 ## FINANCIAL CONTEXT (July 2026)
 

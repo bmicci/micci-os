@@ -57,7 +57,7 @@ export default function HELOCPlanTab({ helocAccounts, helocKPIs, waterfallData, 
       {/* ── Strategy banner — the decided plan ── */}
       <div
         className="p-4 rounded-xl"
-        style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.2)' }}
+        style={{ background: 'rgba(var(--accent-rgb), 0.05)', border: '1px solid var(--glass-line)' }}
       >
         <div className="text-[12px] font-bold mb-2" style={{ color: 'var(--accent-cyan)' }}>
           📋 Drawdown Strategy — decided Jun 2026

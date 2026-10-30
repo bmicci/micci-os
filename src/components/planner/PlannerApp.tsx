@@ -234,13 +234,13 @@ export default function PlannerApp({ initialCompletions, initialCustomBlocks }: 
   // ── Render ───────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg-body)' }}>
+    <div className="min-h-screen">
       {/* ── Sticky header ── */}
       <div
         className="sticky top-0 z-20 border-b px-4 pb-2 pt-4"
         style={{
           background: 'linear-gradient(160deg, #151729 0%, #0c0d14 70%)',
-          borderColor: 'rgba(0,212,255,0.1)',
+          borderColor: 'var(--glass-line)',
         }}
       >
         {/* Title row */}

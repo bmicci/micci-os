@@ -468,7 +468,7 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
               <Tooltip
                 contentStyle={{
                   background: 'var(--bg-card)',
-                  border: '1px solid rgba(0,212,255,0.2)',
+                  border: '1px solid var(--glass-line)',
                   backdropFilter: 'blur(12px)',
                   borderRadius: '8px',
                   fontSize: 12,

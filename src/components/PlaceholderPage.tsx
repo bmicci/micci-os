@@ -36,7 +36,7 @@ export default function PlaceholderPage({
             <div
               className="h-2 rounded-full"
               style={{
-                background: "linear-gradient(90deg,#00d4ff,#1e90ff)",
+                background: "linear-gradient(90deg,#5ee6ff,#1e90ff)",
                 opacity: 0.5 + i * 0.15,
                 width: `${50 + i * 15}%`,
               }}
@@ -69,8 +69,8 @@ export default function PlaceholderPage({
             width: 56,
             height: 56,
             borderRadius: "50%",
-            background: "rgba(0,212,255,0.1)",
-            border: "1px solid rgba(0,212,255,0.3)",
+            background: "rgba(var(--accent-rgb), 0.1)",
+            border: "1px solid rgba(var(--accent-rgb), 0.3)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

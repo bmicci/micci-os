@@ -44,8 +44,8 @@ function Toggle({ on, onClick, children }: { on: boolean; onClick: () => void; c
     <button type="button" onClick={onClick} aria-pressed={on}
       className="flex items-center justify-between gap-3 w-full rounded-xl px-4 py-3.5 text-[14px] font-medium transition-all"
       style={{
-        background: on ? 'rgba(0,212,255,0.14)' : 'rgba(255,255,255,0.04)',
-        border: `1px solid ${on ? 'rgba(0,212,255,0.55)' : 'rgba(255,255,255,0.1)'}`,
+        background: on ? 'rgba(var(--accent-rgb), 0.14)' : 'rgba(255,255,255,0.04)',
+        border: `1px solid ${on ? 'rgba(var(--accent-rgb), 0.55)' : 'rgba(255,255,255,0.1)'}`,
         color: on ? 'var(--text-primary)' : 'var(--text-secondary)',
       }}>
       {children}
@@ -123,7 +123,7 @@ export default function CheckinPage() {
           <ArrowLeft size={14} /> Health
         </Link>
         {logged != null && (
-          <span className="text-[11px] px-2 py-1 rounded-lg" style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--accent-cyan)' }}>
+          <span className="text-[11px] px-2 py-1 rounded-lg" style={{ background: 'rgba(var(--accent-rgb), 0.1)', color: 'var(--accent-cyan)' }}>
             {logged} of last 7 days logged
           </span>
         )}
@@ -206,19 +206,19 @@ export default function CheckinPage() {
               Weight (lb)
               <input inputMode="decimal" value={form.weight_lbs} onChange={e => set('weight_lbs', e.target.value.replace(/[^0-9.]/g, ''))}
                 placeholder="207.8" className="mt-1 w-full rounded-lg px-3 py-2.5 text-[15px] outline-none"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(0,212,255,0.25)', color: 'var(--text-primary)' }} />
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-line)', color: 'var(--text-primary)' }} />
             </label>
             <label className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
               Pain / soreness
               <textarea value={form.pain_notes} onChange={e => set('pain_notes', e.target.value)} rows={2}
                 className="mt-1 w-full rounded-lg px-3 py-2 text-[14px] outline-none"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(0,212,255,0.25)', color: 'var(--text-primary)' }} />
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-line)', color: 'var(--text-primary)' }} />
             </label>
             <label className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
               Notes
               <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2}
                 className="mt-1 w-full rounded-lg px-3 py-2 text-[14px] outline-none"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(0,212,255,0.25)', color: 'var(--text-primary)' }} />
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-line)', color: 'var(--text-primary)' }} />
             </label>
           </div>
         )}
@@ -231,7 +231,7 @@ export default function CheckinPage() {
         <div className="max-w-lg mx-auto">
           <button onClick={save} disabled={saving}
             className="w-full rounded-xl py-3.5 text-[15px] font-semibold shadow-lg"
-            style={{ background: saved ? '#22c55e' : 'linear-gradient(135deg,#00d4ff,#1e90ff)', color: '#050505', border: 'none', opacity: saving ? 0.7 : 1 }}>
+            style={{ background: saved ? '#22c55e' : 'var(--accent-gradient)', color: '#050505', border: 'none', opacity: saving ? 0.7 : 1 }}>
             {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save check-in'}
           </button>
         </div>

@@ -37,7 +37,7 @@ export default async function InvestmentsPage() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <header className="shrink-0 px-6 py-4" style={{ borderBottom: '1px solid rgba(0,212,255,0.08)' }}>
+      <header className="shrink-0 px-6 py-4" style={{ borderBottom: '1px solid var(--glass-line)' }}>
         <h1 className="text-lg font-bold gradient-text">📈 Investment Portfolio</h1>
         <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
           IRA-3509 · {positions.filter(p => Number(p.shares) > 0).length} active positions · Year-end target: $189,053

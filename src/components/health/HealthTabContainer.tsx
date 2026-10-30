@@ -61,7 +61,7 @@ export default function HealthTabContainer({
           className="flex overflow-x-auto px-3 sm:px-6 gap-0"
           style={{
             background: 'var(--bg-elevated)',
-            borderBottom: '1px solid rgba(0,212,255,0.1)',
+            borderBottom: '1px solid var(--glass-line)',
             scrollbarWidth: 'none',
             WebkitOverflowScrolling: 'touch',
           }}
@@ -74,7 +74,7 @@ export default function HealthTabContainer({
               style={{
                 color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-muted)',
                 borderBottomColor: activeTab === tab.id ? 'var(--accent-cyan)' : 'transparent',
-                background: activeTab === tab.id ? 'rgba(0,212,255,0.04)' : 'transparent',
+                background: activeTab === tab.id ? 'rgba(var(--accent-rgb), 0.04)' : 'transparent',
               }}
             >
               <tab.icon size={13} strokeWidth={2} className="inline mr-1.5 -mt-0.5" />
