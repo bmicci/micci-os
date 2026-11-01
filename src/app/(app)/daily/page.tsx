@@ -1,5 +1,4 @@
 import { createServiceClient } from '@/lib/supabase/service'
-import ReactMarkdown from 'react-markdown'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Daily — Micci OS' }
@@ -42,8 +41,8 @@ export default async function DailyPage() {
           <ul className="list-disc pl-5 space-y-1">
             {(brief.highlights || []).map((h: string, i: number) => <li key={i}>{h}</li>)}
           </ul>
-          <div className="prose prose-invert max-w-none">
-            <ReactMarkdown>{brief.body_md || ''}</ReactMarkdown>
+          <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
+            {brief.body_md || ''}
           </div>
           {brief.sources?.length > 0 && (
             <div>
