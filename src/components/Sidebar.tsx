@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Wallet,
@@ -19,6 +20,8 @@ import {
   TrendingUp,
   Receipt,
   Newspaper,
+  LayoutGrid,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -46,8 +49,16 @@ const SIMULATOR_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/finance/tax", label: "Tax Center", icon: Receipt },
 ];
 
+// Phone tab bar: the four most-used sections; everything else (Import,
+// Planner, simulators, …) lives in the "More" sheet. Previously the bar
+// showed NAV_ITEMS.slice(0, 5), leaving half the app unreachable on mobile.
+const MOBILE_TABS = ["/dashboard", "/financial", "/health", "/tasks"];
+
 export default function Sidebar() {
   const pathname = usePathname();
+  const [moreOpen, setMoreOpen] = useState(false);
+  // Close the sheet whenever navigation happens
+  useEffect(() => { setMoreOpen(false); }, [pathname]);
 
   function isActive(href: string, exact: boolean) {
     return exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
@@ -161,7 +172,69 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {/* ── Mobile bottom tab bar (top 5 sections) ── */}
+      {/* ── Mobile "More" sheet ── */}
+      {moreOpen && (
+        <div className="md:hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="All sections">
+          <button aria-label="Close menu" onClick={() => setMoreOpen(false)}
+            className="absolute inset-0 w-full h-full" style={{ background: "rgba(3,6,16,0.55)", border: "none" }} />
+          <div className="absolute left-0 right-0 bottom-0 rounded-t-3xl px-4 pt-3"
+            style={{
+              background: "rgba(13, 19, 48, 0.86)",
+              borderTop: "1px solid var(--glass-line)",
+              backdropFilter: "blur(var(--glass-blur)) saturate(160%)",
+              WebkitBackdropFilter: "blur(var(--glass-blur)) saturate(160%)",
+              paddingBottom: "calc(80px + env(safe-area-inset-bottom))",
+              maxHeight: "80vh", overflowY: "auto",
+            }}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>All sections</span>
+              <button onClick={() => setMoreOpen(false)} aria-label="Close"
+                className="p-2 rounded-full" style={{ background: "var(--glass-bg)", border: "1px solid var(--glass-line)", color: "var(--text-secondary)" }}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => {
+                const active = isActive(href, exact);
+                return (
+                  <Link key={href} href={href}
+                    className="flex flex-col items-center justify-center gap-1.5 rounded-2xl py-3 px-1 text-center"
+                    style={{
+                      background: active ? "rgba(var(--accent-rgb), 0.14)" : "var(--glass-bg)",
+                      border: "1px solid var(--glass-line)",
+                      color: active ? "var(--accent-cyan)" : "var(--text-secondary)",
+                      textDecoration: "none",
+                    }}>
+                    <Icon size={20} strokeWidth={1.9} />
+                    <span className="text-[11.5px] font-medium leading-tight">{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="text-[10.5px] font-bold uppercase tracking-wider mt-4 mb-2" style={{ color: "var(--text-muted)" }}>Simulators</div>
+            <div className="grid grid-cols-3 gap-2">
+              {SIMULATOR_ITEMS.map(({ href, label, icon: Icon }) => {
+                const active = isActive(href, false);
+                return (
+                  <Link key={href} href={href}
+                    className="flex flex-col items-center justify-center gap-1.5 rounded-2xl py-3 px-1 text-center"
+                    style={{
+                      background: active ? "rgba(var(--accent-rgb), 0.14)" : "var(--glass-bg)",
+                      border: "1px solid var(--glass-line)",
+                      color: active ? "var(--accent-cyan)" : "var(--text-secondary)",
+                      textDecoration: "none",
+                    }}>
+                    <Icon size={18} strokeWidth={1.9} />
+                    <span className="text-[11px] font-medium leading-tight">{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Mobile bottom tab bar: 4 main sections + More ── */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 flex items-center justify-around z-50"
         style={{
@@ -169,12 +242,12 @@ export default function Sidebar() {
           borderTop: "1px solid var(--glass-line)",
           backdropFilter: "blur(var(--glass-blur)) saturate(160%)",
           WebkitBackdropFilter: "blur(var(--glass-blur)) saturate(160%)",
-          height: 64,
+          height: "calc(64px + env(safe-area-inset-bottom))",
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
-        {NAV_ITEMS.slice(0, 5).map(({ href, label, icon: Icon, exact }) => {
-          const active = isActive(href, exact);
+        {NAV_ITEMS.filter(i => MOBILE_TABS.includes(i.href)).map(({ href, label, icon: Icon, exact }) => {
+          const active = isActive(href, exact) && !moreOpen;
           return (
             <Link
               key={href}
@@ -190,6 +263,19 @@ export default function Sidebar() {
             </Link>
           );
         })}
+        {(() => {
+          // "More" lights up when the current page isn't one of the 4 tabs
+          const onOther = !NAV_ITEMS.some(i => MOBILE_TABS.includes(i.href) && isActive(i.href, i.exact));
+          const active = moreOpen || onOther;
+          return (
+            <button onClick={() => setMoreOpen(o => !o)} aria-expanded={moreOpen} aria-label="More sections"
+              className="flex flex-col items-center gap-1 px-3 py-2 text-xs"
+              style={{ color: active ? "var(--accent-cyan)" : "var(--text-muted)", background: "none", border: "none" }}>
+              <LayoutGrid size={20} strokeWidth={active ? 2.2 : 1.75} />
+              <span className="font-medium">More</span>
+            </button>
+          );
+        })()}
       </nav>
     </>
   );
