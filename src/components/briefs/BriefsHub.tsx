@@ -23,7 +23,9 @@ function chicagoToday(): string {
 function fmtEdition(e: BriefEdition) {
   const d = new Date(e.brief_date + 'T12:00:00')
   const day = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-  return e.period_label ? `${day} · ${e.period_label}` : day
+  const label = e.period_label ? `${day} · ${e.period_label}` : day
+  // Grok editions run beside the Claude Routines' until cutover (docs/GROK_BRIEFS_HANDOFF.md)
+  return e.doc_key.endsWith('-grok') ? `${label} · Grok` : label
 }
 
 async function post(body: Record<string, unknown>) {
@@ -221,7 +223,7 @@ export default function BriefsHub({
           <div className="glass-card p-6 text-center">
             <p className="text-[14px] text-[var(--text-primary)]">No {BRIEF_TABS.find(t => t.id === tab)!.label} brief yet.</p>
             <p className="text-[13px] text-[var(--text-muted)] mt-1">
-              {tab === 'money' ? 'No Routine writes this tab yet.' : `It appears here after the next scheduled run (${schedule}).`}
+              {`It appears here after the next scheduled run (${schedule}).`}
             </p>
           </div>
         )}
