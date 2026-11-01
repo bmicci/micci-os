@@ -12,7 +12,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Sidebar />
         {/* Transparent so the ambient glow shows through and the glass
             cards have something to blur */}
-        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+        <main className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
           {children}
         </main>
       </div>
