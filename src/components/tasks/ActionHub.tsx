@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Pencil, Trash2, Plus } from 'lucide-react'
 import type { ActionItem } from '@/lib/financial-data'
+import { daysUntil } from '@/lib/finance/due'
 
 // ── Unified Action Hub ──────────────────────────────────────────────────────
 // One list for everything — backed by the same action_items table the
@@ -31,13 +32,6 @@ const PRIORITY_CONFIG = {
   blue:  { label: 'Low',      color: '#3b82f6' },
 } as const
 type Priority = keyof typeof PRIORITY_CONFIG
-
-function daysUntil(dateStr: string): number {
-  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr + 'T00:00:00' : dateStr)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return Math.ceil((d.getTime() - today.getTime()) / 86400000)
-}
 
 function fmtMoney(n: number): string {
   return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 })
