@@ -44,10 +44,22 @@ const LINK_TOKEN_KEY = 'plaid_link_token'
 // Which Item an update-mode Link is for (also survives the OAuth redirect)
 const LINK_MODE_KEY = 'plaid_link_update_item'
 
-function PlaidLinkButton({ linkToken, receivedRedirectUri, onSuccess }: {
+export interface LinkExitInfo {
+  error_type?: string
+  error_code?: string
+  error_message?: string
+  display_message?: string | null
+  request_id?: string
+  link_session_id?: string
+  institution?: string | null
+  status?: string | null
+}
+
+function PlaidLinkButton({ linkToken, receivedRedirectUri, onSuccess, onExit }: {
   linkToken: string
   receivedRedirectUri?: string
   onSuccess: (publicToken: string, institutionName: string | null) => void
+  onExit: (info: LinkExitInfo | null) => void
 }) {
   const { open, ready } = usePlaidLink({
     token: linkToken,
@@ -55,6 +67,16 @@ function PlaidLinkButton({ linkToken, receivedRedirectUri, onSuccess }: {
     onSuccess: (publicToken, metadata) => {
       if (!publicToken) return
       onSuccess(publicToken, metadata.institution?.name ?? null)
+    },
+    // Link's own error screen only says "Something went wrong" — capture the
+    // real code so it can be shown and logged.
+    onExit: (err, metadata) => {
+      onExit(err ? {
+        error_type: err.error_type, error_code: err.error_code, error_message: err.error_message,
+        display_message: err.display_message, request_id: metadata.request_id,
+        link_session_id: metadata.link_session_id, institution: metadata.institution?.name ?? null,
+        status: metadata.status ?? null,
+      } : null)
     },
   })
 
@@ -174,6 +196,27 @@ export default function BankSyncCard() {
     } finally {
       setBusy(null)
     }
+  }
+
+  // Link closed without success: reset so the button can be tried again,
+  // and surface + log Plaid's actual error.
+  function exitLink(info: LinkExitInfo | null) {
+    setLinkToken(null)
+    setOauthRedirectUri(undefined)
+    localStorage.removeItem(LINK_TOKEN_KEY)
+    localStorage.removeItem(LINK_MODE_KEY)
+    if (typeof window !== 'undefined' && window.location.search.includes('oauth_state_id')) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+    const itemId = updateItemId
+    setUpdateItemId(null)
+    if (!info) { setNotice(null); return }
+    setNotice(`⚠️ Plaid: ${info.display_message || info.error_message || 'Link failed'}`
+      + (info.error_code ? ` (${info.error_code}${info.request_id ? ` · request ${info.request_id}` : ''})` : ''))
+    fetch('/api/plaid/link-event', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...info, item_id: itemId }),
+    }).catch(() => {})
   }
 
   async function syncNow(message = 'Syncing all connected banks…') {
@@ -305,7 +348,7 @@ export default function BankSyncCard() {
           {/* Connect flow */}
           <div className="mt-3">
             {linkToken ? (
-              <PlaidLinkButton linkToken={linkToken} receivedRedirectUri={oauthRedirectUri} onSuccess={completeConnect} />
+              <PlaidLinkButton linkToken={linkToken} receivedRedirectUri={oauthRedirectUri} onSuccess={completeConnect} onExit={exitLink} />
             ) : (
               <button
                 onClick={() => startConnect()}

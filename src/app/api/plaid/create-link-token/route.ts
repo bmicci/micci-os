@@ -46,21 +46,24 @@ export async function POST(request: NextRequest) {
     if (body.item_id) {
       const service = await createServiceClient()
       const { data: item } = await service.from('plaid_items')
-        .select('access_token').eq('id', body.item_id).eq('user_id', user.id).single()
+        .select('access_token, product_status').eq('id', body.item_id).eq('user_id', user.id).single()
       if (!item) return NextResponse.json({ error: 'Item not found' }, { status: 404 })
-      // Plaid rejects the whole request if the bank doesn't support one of
-      // the products (Amex has no investments; PayPal supports neither), so
-      // try both, then each alone, and report what the bank can't provide.
+      // Ask only for products this Item hasn't granted yet. Re-requesting
+      // already-consented products (e.g. Chase's liabilities + investments
+      // when only statements is missing) has made Link fail with a generic
+      // "Internal error occurred". Products the bank doesn't offer
+      // ('unsupported') are skipped too.
+      const ps = (item.product_status ?? {}) as Record<string, string>
       const S = Products.Statements
-      const attempts: Products[][] = [
-        [Products.Liabilities, Products.Investments, S],
-        [Products.Liabilities, S],
-        [Products.Investments, S],
-        [S],
-        [Products.Liabilities, Products.Investments],
-        [Products.Liabilities],
-        [Products.Investments],
-      ]
+      const wanted = ([
+        ['statements', S], ['liabilities', Products.Liabilities], ['investments', Products.Investments],
+      ] as const).filter(([k]) => ps[k] !== 'ok' && ps[k] !== 'unsupported').map(([, p]) => p)
+      if (wanted.length === 0) {
+        return NextResponse.json({ error: 'This bank has already granted everything it offers.' }, { status: 409 })
+      }
+      // Plaid rejects the whole request if the bank lacks one of them, so
+      // fall back to each product on its own.
+      const attempts: Products[][] = [wanted, ...(wanted.length > 1 ? wanted.map(p => [p]) : [])]
       let lastErr: unknown = null
       for (const products of attempts) {
         try {
