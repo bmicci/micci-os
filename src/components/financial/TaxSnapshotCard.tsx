@@ -63,7 +63,7 @@ export default function TaxSnapshotCard({ taxSnapshot: t }: { taxSnapshot: TaxSn
         <ul className="space-y-1.5">
           {t.keyItems.map((item, i) => (
             <li key={i} className="flex items-start gap-2 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
-              <span className="mt-0.5 shrink-0" style={{ color: '#00d4ff' }}>›</span>
+              <span className="mt-0.5 shrink-0" style={{ color: '#5ee6ff' }}>›</span>
               {item}
             </li>
           ))}

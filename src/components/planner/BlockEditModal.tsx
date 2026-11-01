@@ -44,8 +44,8 @@ export default function BlockEditModal({ block, dayDate, onSave, onClose }: Prop
         className="w-full sm:max-w-md mx-2 mb-4 sm:mb-0 rounded-2xl border p-5"
         style={{
           background: 'rgba(10,14,39,0.97)',
-          borderColor: 'rgba(0,212,255,0.25)',
-          backdropFilter: 'blur(20px)',
+          borderColor: 'var(--glass-line)',
+          backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
         }}
       >
         {/* Header */}

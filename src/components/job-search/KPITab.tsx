@@ -11,7 +11,7 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
       style={{
         height: 6,
         borderRadius: 3,
-        background: 'rgba(0,212,255,0.1)',
+        background: 'rgba(var(--accent-rgb), 0.1)',
         overflow: 'hidden',
       }}
     >
@@ -89,7 +89,7 @@ export default function KPITab({ data, setData }: Props) {
 
   const inputStyle: React.CSSProperties = {
     background: 'rgba(0,0,0,0.3)',
-    border: '1px solid rgba(0,212,255,0.15)',
+    border: '1px solid var(--glass-line)',
     borderRadius: 6,
     padding: '4px',
     color: 'var(--text-primary)',
@@ -150,7 +150,7 @@ export default function KPITab({ data, setData }: Props) {
                 className="text-left px-3 py-2 text-[10px] font-semibold tracking-widest uppercase"
                 style={{
                   color: 'var(--text-muted)',
-                  borderBottom: '1px solid rgba(0,212,255,0.1)',
+                  borderBottom: '1px solid var(--glass-line)',
                 }}
               >
                 Week
@@ -161,7 +161,7 @@ export default function KPITab({ data, setData }: Props) {
                   className="text-center px-3 py-2 text-[10px] font-semibold tracking-widest uppercase"
                   style={{
                     color: 'var(--text-muted)',
-                    borderBottom: '1px solid rgba(0,212,255,0.1)',
+                    borderBottom: '1px solid var(--glass-line)',
                   }}
                 >
                   {h}
@@ -176,7 +176,7 @@ export default function KPITab({ data, setData }: Props) {
                   className="px-3 py-2.5 font-semibold text-[11px] whitespace-nowrap"
                   style={{
                     color: 'var(--text-primary)',
-                    borderBottom: '1px solid rgba(0,212,255,0.05)',
+                    borderBottom: '1px solid var(--glass-line)',
                   }}
                 >
                   {k.week_label}
@@ -188,7 +188,7 @@ export default function KPITab({ data, setData }: Props) {
                     <td
                       key={field}
                       className="px-3 py-2.5 text-center"
-                      style={{ borderBottom: '1px solid rgba(0,212,255,0.05)' }}
+                      style={{ borderBottom: '1px solid var(--glass-line)' }}
                     >
                       <input
                         type="number"

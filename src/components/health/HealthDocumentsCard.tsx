@@ -40,7 +40,7 @@ const INBODY_FIELDS: { key: keyof InBody; label: string; unit: string }[] = [
 ]
 const MAX_BYTES = 4 * 1024 * 1024
 
-const cell = { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(0,212,255,0.2)', color: 'var(--text-primary)', borderRadius: 6, padding: '3px 6px', fontSize: 12, width: '100%' } as const
+const cell = { background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-line)', color: 'var(--text-primary)', borderRadius: 6, padding: '3px 6px', fontSize: 12, width: '100%' } as const
 const toNum = (s: string) => (s.trim() === '' || !Number.isFinite(Number(s)) ? null : Number(s))
 
 /** Phone photos are often > 4 MB: downscale to a JPEG Claude can still read. */
@@ -71,7 +71,7 @@ function LabReview({ doc, busy, onSave, onDismiss }: { doc: Doc; busy: boolean; 
       </div>
       <div className="overflow-x-auto max-h-[420px] overflow-y-auto rounded-lg" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
         <table className="w-full text-[12px]">
-          <thead className="sticky top-0" style={{ background: '#0a0e27' }}>
+          <thead className="sticky top-0" style={{ background: 'var(--bg-elevated)' }}>
             <tr style={{ color: 'var(--text-muted)' }}>
               <th className="p-2 text-left font-normal">Save</th>
               <th className="p-2 text-left font-normal">Marker</th>
@@ -104,7 +104,7 @@ function LabReview({ doc, busy, onSave, onDismiss }: { doc: Doc; busy: boolean; 
       <div className="flex gap-2 mt-3">
         <button disabled={busy || !date || count === 0} onClick={() => onSave({ collected_on: date, markers: rows })}
           className="text-[12px] font-semibold px-4 py-2 rounded-lg"
-          style={{ background: 'linear-gradient(135deg,#00d4ff,#1e90ff)', color: '#050505', border: 'none', opacity: busy || !date || count === 0 ? 0.5 : 1 }}>
+          style={{ background: 'var(--accent-gradient)', color: '#050505', border: 'none', opacity: busy || !date || count === 0 ? 0.5 : 1 }}>
           Save {count} marker{count === 1 ? '' : 's'}
         </button>
         <button disabled={busy} onClick={onDismiss} className="text-[12px] px-3 py-2 rounded-lg"
@@ -134,7 +134,7 @@ function InBodyReview({ doc, busy, onSave, onDismiss }: { doc: Doc; busy: boolea
       <div className="flex gap-2 mt-3">
         <button disabled={busy || !date} onClick={() => onSave({ inbody: { test_date: date, ...Object.fromEntries(INBODY_FIELDS.map(f => [f.key, toNum(vals[f.key])])) } })}
           className="text-[12px] font-semibold px-4 py-2 rounded-lg"
-          style={{ background: 'linear-gradient(135deg,#00d4ff,#1e90ff)', color: '#050505', border: 'none', opacity: busy || !date ? 0.5 : 1 }}>
+          style={{ background: 'var(--accent-gradient)', color: '#050505', border: 'none', opacity: busy || !date ? 0.5 : 1 }}>
           Save scan
         </button>
         <button disabled={busy} onClick={onDismiss} className="text-[12px] px-3 py-2 rounded-lg"
@@ -206,7 +206,7 @@ export default function HealthDocumentsCard({ kind, onSaved }: { kind: Kind; onS
         </h3>
         <button onClick={() => fileRef.current?.click()} disabled={busy}
           className="text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5"
-          style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--accent-cyan)', border: '1px solid rgba(0,212,255,0.3)', cursor: busy ? 'wait' : 'pointer' }}>
+          style={{ background: 'rgba(var(--accent-rgb), 0.1)', color: 'var(--accent-cyan)', border: '1px solid rgba(var(--accent-rgb), 0.3)', cursor: busy ? 'wait' : 'pointer' }}>
           <Upload size={12} className={busy ? 'animate-pulse' : ''} /> Upload
         </button>
         <input ref={fileRef} type="file" accept={COPY[kind].accept} className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f) }} />
@@ -214,7 +214,7 @@ export default function HealthDocumentsCard({ kind, onSaved }: { kind: Kind; onS
       <p className="text-[11.5px]" style={{ color: 'var(--text-muted)' }}>{COPY[kind].hint}</p>
 
       {pending.map(d => (
-        <div key={d.id} className="mt-4 rounded-lg p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(0,212,255,0.25)' }}>
+        <div key={d.id} className="mt-4 rounded-lg p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-line)' }}>
           <div className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>Review: {d.file_name ?? 'document'}</div>
           {kind === 'lab'
             ? <LabReview doc={d} busy={busy} onSave={b => post({ op: 'apply', id: d.id, ...b }, r => `✅ Saved ${r.written} marker(s)${r.skipped ? ` · ${r.skipped} already recorded for that date` : ''}`)} onDismiss={() => post({ op: 'dismiss', id: d.id }, () => 'Discarded')} />

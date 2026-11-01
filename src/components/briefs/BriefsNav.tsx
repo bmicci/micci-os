@@ -15,7 +15,7 @@ export default function BriefsNav({
   ]
   return (
     <nav className="flex overflow-x-auto px-3 sm:px-6 shrink-0"
-         style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid rgba(0,212,255,0.1)', scrollbarWidth: 'none' }}>
+         style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--glass-line)', scrollbarWidth: 'none' }}>
       {tabs.map(t => {
         const isActive = t.id === active
         const fresh = t.id !== 'overview' && latestByTab[t.id] === today
@@ -25,7 +25,7 @@ export default function BriefsNav({
                 style={{
                   color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
                   borderBottomColor: isActive ? 'var(--accent-cyan)' : 'transparent',
-                  background: isActive ? 'rgba(0,212,255,0.04)' : 'transparent',
+                  background: isActive ? 'rgba(var(--accent-rgb), 0.04)' : 'transparent',
                 }}>
             {t.label}
             {fresh && <span className="absolute top-2 right-1 w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent-cyan)' }} />}

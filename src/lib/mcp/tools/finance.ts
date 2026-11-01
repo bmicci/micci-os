@@ -233,7 +233,9 @@ export const financeTools: AnyMicciTool[] = [
         '',
         '## 0% promo balances',
         ...(d.promos.length
-          ? [...d.promos].sort((x, y) => x.expires.localeCompare(y.expires)).map(p => `- ${p.name}: ${usd(p.balance)} expires **${day(p.expires)}**${p.risk ? ` — deferred interest at risk ${usd(p.risk)}` : ''}${p.note ? ` (${p.note})` : ''}`)
+          ? [...d.promos].sort((x, y) => x.expires.localeCompare(y.expires)).map(p => p.pastExpiry
+              ? `- ${p.name}: ${usd(p.balance)} **PAST EXPIRY ${day(p.expires)} — not marked paid**${p.cardBalance != null ? `; card now owes ${usd(p.cardBalance, true)}${p.likelyPaid ? ' (looks paid — Brandon can mark it paid in Debt Payoff)' : ''}` : ''}${p.note ? ` (${p.note})` : ''}`
+              : `- ${p.name}: ${usd(p.balance)} expires **${day(p.expires)}**${p.risk ? ` — deferred interest at risk ${usd(p.risk)}` : ''}${p.note ? ` (${p.note})` : ''}`)
           : ['- None']),
         '',
         `HELOC limit ${usd(d.helocKPIs.limit)} @ ${d.helocKPIs.rate}%.`,

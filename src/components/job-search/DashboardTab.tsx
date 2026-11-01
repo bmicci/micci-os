@@ -34,7 +34,7 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
       style={{
         height: 6,
         borderRadius: 3,
-        background: 'rgba(0,212,255,0.1)',
+        background: 'rgba(var(--accent-rgb), 0.1)',
         overflow: 'hidden',
       }}
     >
@@ -217,7 +217,7 @@ export default function DashboardTab({ data }: Props) {
                     className="text-left px-3 py-2 text-[10px] font-semibold tracking-widest uppercase"
                     style={{
                       color: 'var(--text-muted)',
-                      borderBottom: '1px solid rgba(0,212,255,0.1)',
+                      borderBottom: '1px solid var(--glass-line)',
                     }}
                   >
                     {h}
@@ -234,7 +234,7 @@ export default function DashboardTab({ data }: Props) {
                       className="px-3 py-2.5 font-bold"
                       style={{
                         color: 'var(--text-primary)',
-                        borderBottom: '1px solid rgba(0,212,255,0.05)',
+                        borderBottom: '1px solid var(--glass-line)',
                       }}
                     >
                       {p.company}
@@ -243,7 +243,7 @@ export default function DashboardTab({ data }: Props) {
                       className="px-3 py-2.5 text-[11px]"
                       style={{
                         color: 'var(--text-muted)',
-                        borderBottom: '1px solid rgba(0,212,255,0.05)',
+                        borderBottom: '1px solid var(--glass-line)',
                       }}
                     >
                       {p.role}
@@ -252,14 +252,14 @@ export default function DashboardTab({ data }: Props) {
                       className="px-3 py-2.5 text-[11px]"
                       style={{
                         color: 'var(--text-secondary)',
-                        borderBottom: '1px solid rgba(0,212,255,0.05)',
+                        borderBottom: '1px solid var(--glass-line)',
                       }}
                     >
                       {p.stage}
                     </td>
                     <td
                       className="px-3 py-2.5"
-                      style={{ borderBottom: '1px solid rgba(0,212,255,0.05)' }}
+                      style={{ borderBottom: '1px solid var(--glass-line)' }}
                     >
                       <span
                         className="inline-block px-2.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase"
@@ -276,7 +276,7 @@ export default function DashboardTab({ data }: Props) {
                       className="px-3 py-2.5 text-[11px]"
                       style={{
                         color: 'var(--text-muted)',
-                        borderBottom: '1px solid rgba(0,212,255,0.05)',
+                        borderBottom: '1px solid var(--glass-line)',
                       }}
                     >
                       {p.next_step}
@@ -302,22 +302,22 @@ export default function DashboardTab({ data }: Props) {
                     .filter((p) => p.status === 'closed')
                     .map((p) => (
                       <tr key={p.id} style={{ opacity: 0.65 }}>
-                        <td className="px-3 py-2 font-semibold" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid rgba(0,212,255,0.04)' }}>
+                        <td className="px-3 py-2 font-semibold" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--glass-line)' }}>
                           {p.company}
                         </td>
-                        <td className="px-3 py-2 text-[11px]" style={{ color: 'var(--text-muted)', borderBottom: '1px solid rgba(0,212,255,0.04)' }}>
+                        <td className="px-3 py-2 text-[11px]" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--glass-line)' }}>
                           {p.role}
                         </td>
-                        <td className="px-3 py-2 text-[11px]" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid rgba(0,212,255,0.04)' }}>
+                        <td className="px-3 py-2 text-[11px]" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--glass-line)' }}>
                           {p.stage}
                         </td>
-                        <td className="px-3 py-2" style={{ borderBottom: '1px solid rgba(0,212,255,0.04)' }}>
+                        <td className="px-3 py-2" style={{ borderBottom: '1px solid var(--glass-line)' }}>
                           <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase"
                             style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.1)' }}>
                             closed
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-[11px]" style={{ color: 'var(--text-muted)', borderBottom: '1px solid rgba(0,212,255,0.04)' }}>
+                        <td className="px-3 py-2 text-[11px]" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--glass-line)' }}>
                           {p.contact ?? '—'}
                         </td>
                       </tr>

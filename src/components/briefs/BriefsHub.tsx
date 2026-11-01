@@ -74,7 +74,7 @@ function TweakButton({
           <button key={k} onClick={() => setKind(k)}
                   className="text-[11px] px-2 py-1 rounded-md"
                   style={{
-                    background: kind === k ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.04)',
+                    background: kind === k ? 'rgba(var(--accent-rgb), 0.15)' : 'rgba(255,255,255,0.04)',
                     color: kind === k ? 'var(--accent-cyan)' : 'var(--text-secondary)',
                   }}>
             {KIND_LABEL[k]}
@@ -84,7 +84,7 @@ function TweakButton({
       <textarea value={text} onChange={e => setText(e.target.value)} rows={3} autoFocus
                 placeholder="What should the next run do differently?"
                 className="w-full text-[13px] rounded-md p-2 bg-black/30 text-[var(--text-primary)] outline-none"
-                style={{ border: '1px solid rgba(0,212,255,0.15)' }} />
+                style={{ border: '1px solid var(--glass-line)' }} />
       {err && <div className="text-[12px] mt-1" style={{ color: TONE_COLOR.crit }}>{err}</div>}
       <button disabled={saving || !text.trim()}
               onClick={async () => {
@@ -120,7 +120,7 @@ function InputsPanel({ tab, config, onClose }: { tab: BriefTab; config: BriefCon
       </div>
       <textarea value={text} onChange={e => { setText(e.target.value); setState('idle') }} rows={14}
                 className="w-full text-[13px] font-mono rounded-md p-3 bg-black/30 text-[var(--text-primary)] outline-none leading-relaxed"
-                style={{ border: '1px solid rgba(0,212,255,0.15)' }} />
+                style={{ border: '1px solid var(--glass-line)' }} />
       <div className="flex items-center gap-3 mt-2">
         <button disabled={state === 'saving'}
                 onClick={async () => {
@@ -174,7 +174,7 @@ export default function BriefsHub({
             disabled={editions.length === 0}
             onChange={e => router.push(`/briefs?tab=${tab}&d=${encodeURIComponent(e.target.value)}`)}
             className="text-[13px] rounded-md px-2.5 py-1.5 bg-black/30 text-[var(--text-primary)] outline-none max-w-full"
-            style={{ border: '1px solid rgba(0,212,255,0.2)' }}
+            style={{ border: '1px solid var(--glass-line)' }}
           >
             {editions.length === 0 && <option value="">No editions yet</option>}
             {editions.map(e => <option key={e.doc_key} value={e.doc_key}>{fmtEdition(e)}</option>)}
@@ -218,7 +218,7 @@ export default function BriefsHub({
               <div className="flex flex-wrap items-center gap-1.5 mt-2">
                 {(brief.chips ?? []).map((c, i) => (
                   <span key={i} className="text-[11px] px-2 py-0.5 rounded-full"
-                        style={{ background: 'rgba(0,212,255,0.08)', color: 'var(--text-secondary)', border: '1px solid rgba(0,212,255,0.15)' }}>
+                        style={{ background: 'rgba(var(--accent-rgb), 0.08)', color: 'var(--text-secondary)', border: '1px solid var(--glass-line)' }}>
                     {c}
                   </span>
                 ))}

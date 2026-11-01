@@ -9,13 +9,13 @@ import { ClipboardCheck, Check, X } from 'lucide-react'
 import type { HealthOverview } from '@/lib/health/overview'
 import { weekday } from '@/lib/health/dates'
 
-const ACCENT = '#00d4ff'
+const ACCENT = '#5ee6ff'
 const tooltipStyle = {
-  contentStyle: { background: '#0a0e27', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 8, fontSize: 12 },
+  contentStyle: { background: 'var(--bg-elevated)', border: '1px solid var(--glass-line)', borderRadius: 8, fontSize: 12 },
   labelStyle: { color: 'rgba(240,246,255,0.6)' },
   itemStyle: { color: '#f0f6ff' },
 }
-const axis = { stroke: 'rgba(240,246,255,0.35)', fontSize: 10, tickLine: false, axisLine: false } as const
+const axis = { stroke: 'var(--text-muted)', fontSize: 10, tickLine: false, axisLine: false } as const
 const shortDate = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 
 function Kpi({ label, value, sub, empty }: { label: string; value: string | null; sub?: string; empty: string }) {
@@ -63,7 +63,7 @@ export default function OverviewTab({ overview: o, briefHeadline, briefDate }: {
       {/* Check-in CTA */}
       <Link href="/health/checkin"
         className="glass-card p-4 flex items-center justify-between gap-3"
-        style={{ borderColor: o.loggedToday ? 'rgba(34,197,94,0.35)' : 'rgba(0,212,255,0.45)' }}>
+        style={{ borderColor: o.loggedToday ? 'rgba(34,197,94,0.35)' : 'rgba(var(--accent-rgb), 0.45)' }}>
         <div className="flex items-center gap-3">
           <ClipboardCheck size={20} style={{ color: o.loggedToday ? '#22c55e' : ACCENT }} />
           <div>
@@ -121,10 +121,10 @@ export default function OverviewTab({ overview: o, briefHeadline, briefDate }: {
                     <span title={`${row.label} · ${shortDate(o.days[i])}: ${c === 'done' ? 'done' : c === 'missed' ? 'missed' : 'not logged'}`}
                       className="inline-flex items-center justify-center w-7 h-7 rounded-md"
                       style={{
-                        background: c === 'done' ? 'rgba(0,212,255,0.22)' : c === 'missed' ? 'rgba(255,255,255,0.05)' : 'transparent',
+                        background: c === 'done' ? 'rgba(var(--accent-rgb), 0.22)' : c === 'missed' ? 'rgba(255,255,255,0.05)' : 'transparent',
                         border: c === 'none' ? '1px dashed rgba(255,255,255,0.12)' : 'none',
                       }}>
-                      {c === 'done' ? <Check size={14} color={ACCENT} strokeWidth={3} /> : c === 'missed' ? <X size={12} color="rgba(240,246,255,0.35)" /> : null}
+                      {c === 'done' ? <Check size={14} color={ACCENT} strokeWidth={3} /> : c === 'missed' ? <X size={12} color="var(--text-muted)" /> : null}
                     </span>
                   </td>
                 ))}

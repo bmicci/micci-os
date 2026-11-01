@@ -39,7 +39,7 @@ export default function DebtCategoryDonut({ debts }: { debts: DebtAccount[] }) {
           formatter={(value) => '$' + Number(value).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           contentStyle={{
             background: '#1a1a2e',
-            border: '1px solid rgba(0,212,255,0.2)',
+            border: '1px solid var(--glass-line)',
             borderRadius: 8,
             color: '#f0f6ff',
             fontSize: 12,

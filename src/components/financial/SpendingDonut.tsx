@@ -26,7 +26,7 @@ export default function SpendingDonut({ categories }: { categories: SpendingCate
         <Tooltip
           contentStyle={{
             background: '#1a1f2e',
-            border: '1px solid rgba(0,212,255,0.2)',
+            border: '1px solid var(--glass-line)',
             borderRadius: 8,
             fontSize: 12,
             color: '#e2e8f0',

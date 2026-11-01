@@ -246,7 +246,7 @@ export default function GoalProgressPanel({
           <button
             onClick={() => onCreateTask(goalText, goalId)}
             className="px-2 py-1 rounded text-[10px] whitespace-nowrap"
-            style={{ background: 'rgba(0,212,255,0.08)', color: 'var(--accent-cyan)', border: '1px solid rgba(0,212,255,0.2)' }}
+            style={{ background: 'rgba(var(--accent-rgb), 0.08)', color: 'var(--accent-cyan)', border: '1px solid var(--glass-line)' }}
           >
             → Task
           </button>

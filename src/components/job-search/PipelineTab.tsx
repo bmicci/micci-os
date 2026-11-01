@@ -152,7 +152,7 @@ export default function PipelineTab({ data, setData }: Props) {
 
   const inputStyle: React.CSSProperties = {
     background: 'rgba(0,0,0,0.3)',
-    border: '1px solid rgba(0,212,255,0.15)',
+    border: '1px solid var(--glass-line)',
     borderRadius: 6,
     padding: '8px 12px',
     color: 'var(--text-primary)',

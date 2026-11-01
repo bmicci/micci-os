@@ -29,14 +29,14 @@ export default async function JobSearchPage() {
         className="shrink-0 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
         style={{
           background: 'var(--bg-elevated)',
-          borderBottom: '1px solid rgba(0,212,255,0.1)',
+          borderBottom: '1px solid var(--glass-line)',
         }}
       >
         <div>
           <div
             className="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full mb-1.5"
             style={{
-              background: pipelineEmpty ? 'rgba(239,68,68,0.15)' : 'rgba(0,212,255,0.15)',
+              background: pipelineEmpty ? 'rgba(239,68,68,0.15)' : 'rgba(var(--accent-rgb), 0.15)',
               color: pipelineEmpty ? '#ef4444' : 'var(--accent-cyan)',
             }}
           >

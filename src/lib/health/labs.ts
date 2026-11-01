@@ -14,7 +14,7 @@ export const LAB_CATEGORIES: { id: string; label: string; match: (name: string) 
   { id: 'heart', label: 'Lipids & heart', match: n => /cholesterol|ldl|hdl|triglycer|apob|lp\(a\)|crp|homocysteine/i.test(n) },
   { id: 'metabolic', label: 'Metabolic & kidney', match: n => /glucose|a1c|insulin|leptin|uric|creatinine|egfr|bun|sodium|potassium|chloride|co2|calcium|albumin|protein|globulin|a\/g/i.test(n) },
   { id: 'liver', label: 'Liver & pancreas', match: n => /^ast$|^alt$|alkaline|bilirubin|ggt|amylase|lipase/i.test(n) },
-  { id: 'blood', label: 'Blood count', match: n => /wbc|rbc|hemoglobin$|hematocrit|mcv|mch|rdw|platelet|mpv|neutro|lymph|mono|eos|baso|immature/i.test(n) },
+  { id: 'blood', label: 'Blood count', match: n => /^wbc$|^rbc$|hemoglobin$|hematocrit|mcv|mch|rdw|platelet|mpv|neutro|lymph|mono|eos|baso|immature/i.test(n) },
   { id: 'nutrients', label: 'Nutrients & minerals', match: n => /vitamin|ferritin|iron|tibc|zinc|magnesium|omega|methylmalonic|aa\/epa|lead|mercury/i.test(n) },
 ]
 

@@ -94,8 +94,8 @@ export default function SpendTrendChart() {
             padding: '32px',
             textAlign: 'center',
             borderRadius: 10,
-            border: '1px dashed rgba(0,212,255,0.2)',
-            background: 'rgba(0,212,255,0.02)',
+            border: '1px dashed var(--glass-line)',
+            background: 'rgba(var(--accent-rgb), 0.02)',
           }}
         >
           <p style={{ fontSize: 28, marginBottom: 8 }}>🧾</p>
@@ -144,18 +144,18 @@ export default function SpendTrendChart() {
             <XAxis
               dataKey="month"
               tickFormatter={formatMonth}
-              tick={{ fill: 'rgba(240,246,255,0.5)', fontSize: 11 }}
+              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
               axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
             />
             <YAxis
-              tick={{ fill: 'rgba(240,246,255,0.5)', fontSize: 11 }}
+              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
               axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
               tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}K`}
             />
             <Tooltip
               contentStyle={{
-                background: '#0a0e27',
-                border: '1px solid rgba(0,212,255,0.3)',
+                background: 'var(--bg-elevated)',
+                border: '1px solid rgba(var(--accent-rgb), 0.3)',
                 borderRadius: 8,
                 fontSize: 12,
               }}
