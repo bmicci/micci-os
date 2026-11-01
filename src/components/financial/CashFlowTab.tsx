@@ -165,7 +165,7 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
   }, [promos])
 
   // ── Allocation colors ──
-  const allocationColors = ['#00d4ff', '#22c55e', '#8b5cf6', '#f59e0b']
+  const allocationColors = ['#5ee6ff', '#22c55e', '#8b5cf6', '#f59e0b']
 
   return (
     <div className="space-y-5">
@@ -332,7 +332,7 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
             </div>
             <div
               className="flex justify-between text-[13px] font-bold pt-2"
-              style={{ borderTop: '1px solid rgba(0,212,255,0.15)' }}
+              style={{ borderTop: '1px solid var(--glass-line)' }}
             >
               <span style={{ color: 'var(--accent-cyan)' }}>Free Cash</span>
               <span className="font-mono" style={{ color: monthlyFlow.freeCash > 0 ? '#22c55e' : '#ef4444' }}>
@@ -526,7 +526,7 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
         </div>
         <div
           className="mt-3 flex justify-between items-center p-3 rounded-lg"
-          style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.1)' }}
+          style={{ background: 'rgba(var(--accent-rgb), 0.05)', border: '1px solid var(--glass-line)' }}
         >
           <span className="text-[12px] font-semibold" style={{ color: 'var(--accent-cyan)' }}>
             Total Monthly Spend {real ? '(all-in)' : '(living est.)'}

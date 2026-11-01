@@ -41,7 +41,7 @@ export default async function TasksPage() {
         className="shrink-0 px-6 py-4"
         style={{
           background: 'var(--bg-elevated)',
-          borderBottom: '1px solid rgba(0,212,255,0.1)',
+          borderBottom: '1px solid var(--glass-line)',
         }}
       >
         <h1 className="text-lg font-bold gradient-text">Action Center</h1>

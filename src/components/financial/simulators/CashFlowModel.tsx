@@ -82,7 +82,7 @@ export default function CashFlowModel() {
         <h2 className="text-sm font-semibold gradient-text">Monthly Expenses</h2>
 
         {/* Cross-module inputs (read-only) */}
-        <div className="p-4 rounded-xl" style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.2)' }}>
+        <div className="p-4 rounded-xl" style={{ background: 'rgba(var(--accent-rgb), 0.05)', border: '1px solid var(--glass-line)' }}>
           <div className="text-xs font-semibold mb-2" style={{ color: 'var(--accent-cyan)' }}>
             From Other Simulators
           </div>
@@ -115,13 +115,13 @@ export default function CashFlowModel() {
             value={newExpenseLabel}
             onChange={e => setNewExpenseLabel(e.target.value)}
             className="px-3 py-1.5 rounded text-sm"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(0,212,255,0.2)', color: 'var(--text-primary)', outline: 'none' }}
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-line)', color: 'var(--text-primary)', outline: 'none' }}
           />
           <CurrencyInput value={newExpenseAmount} onChange={setNewExpenseAmount} />
           <button
             onClick={addCustomExpense}
             className="text-xs py-1.5 rounded-lg"
-            style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.3)', color: 'var(--accent-cyan)' }}
+            style={{ background: 'rgba(var(--accent-rgb), 0.1)', border: '1px solid rgba(var(--accent-rgb), 0.3)', color: 'var(--accent-cyan)' }}
           >
             + Add
           </button>
@@ -224,7 +224,7 @@ function KpiBox({ label, value, accent, positive, negative }: {
   const color = accent ? (positive ? 'var(--accent-cyan)' : '#ef4444') : negative ? '#ef4444' : 'var(--text-primary)'
   return (
     <div className="flex flex-col gap-1 p-3 rounded-xl"
-      style={{ background: accent ? 'rgba(0,212,255,0.06)' : 'var(--card-bg)', border: '1px solid var(--card-border)' }}>
+      style={{ background: accent ? 'rgba(var(--accent-rgb), 0.06)' : 'var(--card-bg)', border: '1px solid var(--card-border)' }}>
       <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</span>
       <span className="text-base font-bold font-mono" style={{ color }}>{value}</span>
     </div>
@@ -237,7 +237,7 @@ function AllocationView({ result, allocations, onUpdateAllocation }: {
   onUpdateAllocation: (id: string, percent: number) => void
 }) {
   const totalPct = allocations.reduce((s: number, a: AllocationBucket) => s + a.percent, 0)
-  const ALLOC_COLORS = ['#00d4ff', '#22c55e', '#f59e0b', '#a78bfa']
+  const ALLOC_COLORS = ['#5ee6ff', '#22c55e', '#f59e0b', '#a78bfa']
 
   return (
     <div className="flex flex-col gap-4">
@@ -296,14 +296,14 @@ function ProjectionView({ data }: { data: ReturnType<typeof project12Months> }) 
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-            <XAxis dataKey="month" tick={{ fill: 'rgba(240,246,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={v => '$' + (v / 1000).toFixed(0) + 'K'} tick={{ fill: 'rgba(240,246,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} width={48} />
+            <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={v => '$' + (v / 1000).toFixed(0) + 'K'} tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} width={48} />
             <Tooltip
               formatter={(v: unknown) => [fmt(Number(v))]}
-              contentStyle={{ background: 'rgba(10,14,39,0.95)', border: '1px solid rgba(0,212,255,0.3)', borderRadius: 8, fontSize: 12 }}
+              contentStyle={{ background: 'rgba(10,14,39,0.95)', border: '1px solid rgba(var(--accent-rgb), 0.3)', borderRadius: 8, fontSize: 12 }}
             />
             <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text-secondary)' }} />
-            <Line type="monotone" dataKey="freeCash" stroke="#00d4ff" name="Free Cash" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="freeCash" stroke="#5ee6ff" name="Free Cash" strokeWidth={2} dot={false} />
             <Line type="monotone" dataKey="cumulativeSavings" stroke="#22c55e" name="Cumulative" strokeWidth={2} dot={false} strokeDasharray="4 2" />
           </LineChart>
         </ResponsiveContainer>

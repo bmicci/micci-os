@@ -207,7 +207,7 @@ export default function LifePlanClient({ initialSections, initialGoals, initialF
               <span>{pct(totalStats.done, totalStats.total)}%</span>
             </div>
             <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-              <div className="h-full rounded-full transition-all" style={{ width: `${pct(totalStats.done, totalStats.total)}%`, background: 'linear-gradient(90deg, #00d4ff, #1e90ff)' }} />
+              <div className="h-full rounded-full transition-all" style={{ width: `${pct(totalStats.done, totalStats.total)}%`, background: 'linear-gradient(90deg, #5ee6ff, #1e90ff)' }} />
             </div>
             <div className="flex justify-between text-[10px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
               <span>{totalStats.done} done</span><span>{totalStats.total - totalStats.done} left</span>
@@ -349,7 +349,7 @@ function GoalItem({ goal, isEditing, editText, setEditText, onToggle, onEdit, on
 
   return (
     <div className="rounded-lg transition-all group"
-      style={{ opacity: dim ? 0.15 : 1, background: highlight ? 'rgba(0,212,255,0.06)' : 'transparent', outline: highlight ? '1px solid rgba(0,212,255,0.25)' : 'none' }}>
+      style={{ opacity: dim ? 0.15 : 1, background: highlight ? 'rgba(var(--accent-rgb), 0.06)' : 'transparent', outline: highlight ? '1px solid rgba(var(--accent-rgb), 0.25)' : 'none' }}>
       <div className="flex items-start gap-2.5 px-3 py-2">
         <button onClick={onToggle}
           className="mt-0.5 w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all"
@@ -373,7 +373,7 @@ function GoalItem({ goal, isEditing, editText, setEditText, onToggle, onEdit, on
               {goal.goal_text}
             </span>
             {goal.ai_generated && (
-              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(0,212,255,0.15)', color: 'var(--accent-cyan)' }}>AI</span>
+              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(var(--accent-rgb), 0.15)', color: 'var(--accent-cyan)' }}>AI</span>
             )}
           </div>
         )}
@@ -382,7 +382,7 @@ function GoalItem({ goal, isEditing, editText, setEditText, onToggle, onEdit, on
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
             <button onClick={() => setExpanded(e => !e)} title="Progress + milestones"
               className="text-[11px] px-1.5 py-0.5 rounded"
-              style={{ color: expanded ? 'var(--accent-cyan)' : 'var(--text-muted)', background: expanded ? 'rgba(0,212,255,0.1)' : 'rgba(255,255,255,0.06)' }}>
+              style={{ color: expanded ? 'var(--accent-cyan)' : 'var(--text-muted)', background: expanded ? 'rgba(var(--accent-rgb), 0.1)' : 'rgba(255,255,255,0.06)' }}>
               {expanded ? '▲' : '▼'}
             </button>
             <button onClick={onEdit} className="text-[11px] px-1.5 py-0.5 rounded" style={{ color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)' }}>Edit</button>
@@ -537,7 +537,7 @@ function TimelineView({ sections, goals, onToggle }: { sections: DBSection[]; go
               style={{ color: 'var(--text-muted)', width: 160, background: 'var(--card-bg)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Life Area</th>
             {tfCols.map(tf => (
               <th key={tf} className="text-left text-xs font-semibold px-3 py-3"
-                style={{ color: 'var(--text-primary)', background: tf === '40' ? 'rgba(0,212,255,0.06)' : 'var(--card-bg)', borderBottom: tf === '40' ? '2px solid var(--accent-cyan)' : '1px solid rgba(255,255,255,0.06)' }}>
+                style={{ color: 'var(--text-primary)', background: tf === '40' ? 'rgba(var(--accent-rgb), 0.06)' : 'var(--card-bg)', borderBottom: tf === '40' ? '2px solid var(--accent-cyan)' : '1px solid rgba(255,255,255,0.06)' }}>
                 Age {tf}{tf === '40' ? ' ↗ Now' : ''}
               </th>
             ))}
@@ -1090,7 +1090,7 @@ const BACKLOG_SECTION_MAP: Record<string, string> = {
 }
 
 const TF_BADGE_COLORS: Record<string, string> = {
-  daily: '#00d4ff', weekly: '#1e90ff', monthly: '#7b5ea7', yearly: '#2ecc71',
+  daily: '#5ee6ff', weekly: '#1e90ff', monthly: '#7b5ea7', yearly: '#2ecc71',
 }
 
 function BacklogView({ sections, onPromote }: {
@@ -1250,9 +1250,9 @@ function BacklogView({ sections, onPromote }: {
                           onClick={() => onPromote(g.title, BACKLOG_SECTION_MAP[g.section] ?? 'health')}
                           className="text-[11px] px-2.5 py-1 rounded-lg font-medium transition-all"
                           style={{
-                            background: 'rgba(0,212,255,0.1)',
+                            background: 'rgba(var(--accent-rgb), 0.1)',
                             color: 'var(--accent-cyan)',
-                            border: '1px solid rgba(0,212,255,0.2)',
+                            border: '1px solid var(--glass-line)',
                           }}>
                           → Life Plan
                         </button>

@@ -111,9 +111,9 @@ function LabCard({ markerName, entries, isExpanded, onToggle }: LabCardProps) {
                 <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
                 <Tooltip
-                  contentStyle={{ background: '#0a0e27', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 8, fontSize: 12 }}
+                  contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-line)', borderRadius: 8, fontSize: 12 }}
                   labelStyle={{ color: 'var(--text-muted)' }}
-                  itemStyle={{ color: '#00d4ff' }}
+                  itemStyle={{ color: '#5ee6ff' }}
                 />
                 {latest.reference_low != null && latest.reference_low > 0 && (
                   <ReferenceLine y={latest.reference_low} stroke="rgba(239,68,68,0.4)" strokeDasharray="4 4" />
@@ -123,8 +123,8 @@ function LabCard({ markerName, entries, isExpanded, onToggle }: LabCardProps) {
                 )}
                 <Line
                   type="monotone" dataKey="value"
-                  stroke="#00d4ff" strokeWidth={2}
-                  dot={{ fill: '#00d4ff', r: 4 }}
+                  stroke="#5ee6ff" strokeWidth={2}
+                  dot={{ fill: '#5ee6ff', r: 4 }}
                   activeDot={{ r: 6 }}
                 />
               </LineChart>
@@ -175,7 +175,7 @@ function AddLabForm({ onAdded }: { onAdded: (m: LabMarker) => void }) {
     return (
       <button onClick={() => setOpen(true)}
         className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
-        style={{ background: 'rgba(0,212,255,0.15)', color: 'var(--accent-cyan)', border: '1px solid rgba(0,212,255,0.3)' }}>
+        style={{ background: 'rgba(var(--accent-rgb), 0.15)', color: 'var(--accent-cyan)', border: '1px solid rgba(var(--accent-rgb), 0.3)' }}>
         + Add Lab Result
       </button>
     )
@@ -194,7 +194,7 @@ function AddLabForm({ onAdded }: { onAdded: (m: LabMarker) => void }) {
   return (
     <form onSubmit={handleSubmit}
       className="rounded-xl p-5 space-y-4"
-      style={{ background: 'var(--card-bg)', border: '1px solid rgba(0,212,255,0.25)' }}>
+      style={{ background: 'var(--card-bg)', border: '1px solid var(--glass-line)' }}>
       <p className="text-sm font-semibold text-[var(--text-primary)]">Add Lab Result</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
@@ -341,7 +341,7 @@ export default function LabsTab({ labMarkers: initialMarkers }: { labMarkers: La
           <div className="flex flex-wrap items-center gap-2">
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search markers (e.g. testosterone, LDL)"
               aria-label="Search markers" className="flex-1 min-w-[200px] rounded-lg px-3 py-2 text-[13px] outline-none"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(0,212,255,0.2)', color: 'var(--text-primary)' }} />
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-line)', color: 'var(--text-primary)' }} />
             <button onClick={() => setOnlyFlagged(v => !v)} aria-pressed={onlyFlagged}
               className="text-[12px] px-3 py-2 rounded-lg"
               style={{

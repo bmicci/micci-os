@@ -1,17 +1,32 @@
 @import "tailwindcss";
 
 :root {
-  --bg-base: #050505;
-  --bg-body: #0a0a0a;
-  --bg-elevated: #0a0e27;
-  --accent-cyan: #00d4ff;
+  /* Aurora palette (Oct 2026 redesign). Ratio target: ~60% ink base,
+     ~30% glass surfaces, <10% accent. Cyan is for actions and headline
+     numbers; violet is the second data color. */
+  --bg-base: #070b1a;
+  --bg-body: #070b1a;
+  --bg-elevated: #0d1330;
+  --accent-cyan: #5ee6ff;
+  --accent-rgb: 94, 230, 255;
+  --accent-violet: #a78bfa;
   --accent-blue: #1e90ff;
-  --accent-gradient: linear-gradient(135deg, #00d4ff, #1e90ff);
-  --card-bg: rgba(255, 255, 255, 0.05);
-  --card-border: rgba(0, 212, 255, 0.2);
-  --text-primary: #f0f6ff;
-  --text-secondary: rgba(240, 246, 255, 0.6);
-  --text-muted: rgba(240, 246, 255, 0.35);
+  --accent-ink: #06101c;
+  --accent-gradient: linear-gradient(135deg, #5ee6ff, #a78bfa);
+  --glow-1: #22d3ee;
+  --glow-2: #7c5cff;
+  --glow-3: #14b8a6;
+  --glass-bg: rgba(255, 255, 255, 0.07);
+  --glass-bg-strong: rgba(255, 255, 255, 0.11);
+  --glass-line: rgba(255, 255, 255, 0.14);
+  --glass-highlight: rgba(255, 255, 255, 0.22);
+  --glass-blur: 24px;
+  --card-bg: var(--glass-bg);
+  --card-border: var(--glass-line);
+  /* Text: muted raised from 35% so labels clear WCAG AA (4.5:1) on glass */
+  --text-primary: #f2f5ff;
+  --text-secondary: rgba(242, 245, 255, 0.74);
+  --text-muted: rgba(242, 245, 255, 0.62);
 }
 
 @theme inline {
@@ -46,8 +61,8 @@ body {
   z-index: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(0, 212, 255, 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 212, 255, 0.12) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
   background-size: 60px 60px;
   animation: gridSlide 24s linear infinite;
 }
@@ -97,19 +112,54 @@ body {
   background-clip: text;
 }
 
+/* === Ambient glow layer ===
+   Soft color fields behind the content so the glass has something to
+   frost. Sits under AnimatedBackground's grid and particles. */
+.ambient-glow {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+.ambient-glow::before,
+.ambient-glow::after,
+.ambient-glow > span {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.45;
+}
+.ambient-glow::before { width: 55vw; height: 55vw; background: var(--glow-1); top: -25vw; left: 15vw; opacity: 0.32; }
+.ambient-glow::after { width: 50vw; height: 50vw; background: var(--glow-2); bottom: -25vw; right: -10vw; }
+.ambient-glow > span { width: 35vw; height: 35vw; background: var(--glow-3); top: 45%; left: -12vw; opacity: 0.25; }
+
 /* === Glass card === */
 .glass-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 12px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+/* Inline-styled cards across the app use --card-bg/--card-border with
+   their own blur; give them the same top highlight. */
+.glass-surface {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
 }
 
 /* === Sidebar nav active state === */
 .nav-active {
-  background: rgba(0, 212, 255, 0.12);
-  border-left: 2px solid var(--accent-cyan);
+  background: var(--glass-bg-strong);
+  box-shadow: inset 0 0 0 1px var(--glass-line);
 }
 
 /* === Pulse animation for placeholder dots === */
@@ -133,11 +183,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.25);
+  background: rgba(255, 255, 255, 0.18);
   border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 212, 255, 0.45);
+  background: rgba(var(--accent-rgb), 0.45);
 }
 
 /* === Button system (design polish pass, Jul 2026) ===
@@ -161,20 +211,20 @@ body {
 .btn:focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 2px; }
 
 .btn-primary {
-  background: linear-gradient(135deg, #00d4ff, #1e90ff);
-  color: #041018;
+  background: var(--accent-cyan);
+  color: var(--accent-ink);
 }
-.btn-primary:hover { box-shadow: 0 4px 18px rgba(0, 212, 255, 0.35); }
+.btn-primary:hover { box-shadow: 0 4px 18px rgba(var(--accent-rgb), 0.35); }
 
 .btn-ghost {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.12);
+  background: var(--glass-bg);
+  border-color: var(--glass-line);
   color: var(--text-secondary);
 }
 .btn-ghost:hover {
-  border-color: rgba(0, 212, 255, 0.4);
+  border-color: rgba(var(--accent-rgb), 0.4);
   color: var(--text-primary);
-  background: rgba(0, 212, 255, 0.06);
+  background: rgba(var(--accent-rgb), 0.06);
 }
 
 .btn-danger {
@@ -188,7 +238,7 @@ body {
 
 /* === List-row hover (consistent across every card list) === */
 .row-hover { transition: background 0.12s ease; }
-.row-hover:hover { background: rgba(0, 212, 255, 0.04); }
+.row-hover:hover { background: rgba(255, 255, 255, 0.04); }
 
 /* === KPI typography rhythm === */
 .kpi-label {

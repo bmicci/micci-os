@@ -48,7 +48,7 @@ export default function QuickLog({ companies, contacts }: {
 
   const inputStyle = {
     width: '100%', background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(0,212,255,0.2)', borderRadius: 10,
+    border: '1px solid var(--glass-line)', borderRadius: 10,
     padding: '10px 12px', color: 'var(--text-primary)', fontSize: 13, outline: 'none',
   } as const
 
@@ -66,7 +66,7 @@ export default function QuickLog({ companies, contacts }: {
           <button key={p} onClick={() => setProng(p)}
             className="flex-1 py-2.5 rounded-lg text-[12.5px] font-bold capitalize transition-all"
             style={{
-              background: prong === p ? 'linear-gradient(135deg,#00d4ff,#1e90ff)' : 'rgba(255,255,255,0.04)',
+              background: prong === p ? 'var(--accent-gradient)' : 'rgba(255,255,255,0.04)',
               color: prong === p ? '#050505' : 'var(--text-secondary)',
               border: prong === p ? 'none' : '1px solid rgba(255,255,255,0.1)',
               cursor: 'pointer',
@@ -136,7 +136,7 @@ export default function QuickLog({ companies, contacts }: {
         <button onClick={save} disabled={saving}
           className="px-6 py-2.5 rounded-lg text-[13px] font-bold"
           style={{
-            background: 'linear-gradient(135deg,#00d4ff,#1e90ff)', color: '#050505',
+            background: 'var(--accent-gradient)', color: '#050505',
             border: 'none', cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.6 : 1,
           }}>
           {saving ? 'Saving…' : 'Log it'}

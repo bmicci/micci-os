@@ -242,8 +242,8 @@ export default function PerksTab({ initialCredits, initialMrBalance, mrAsOf }: {
             }}
             className="shrink-0 text-[11px] px-3 py-1.5 rounded-lg font-semibold transition-all"
             style={{
-              background: 'rgba(0,212,255,0.1)',
-              border: '1px solid rgba(0,212,255,0.3)',
+              background: 'rgba(var(--accent-rgb), 0.1)',
+              border: '1px solid rgba(var(--accent-rgb), 0.3)',
               color: 'var(--accent-cyan)',
             }}
           >
@@ -301,7 +301,7 @@ export default function PerksTab({ initialCredits, initialMrBalance, mrAsOf }: {
 
           <div
             className="p-3 rounded-lg text-center"
-            style={{ background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.25)' }}
+            style={{ background: 'rgba(var(--accent-rgb), 0.06)', border: '1px solid var(--glass-line)' }}
           >
             <div className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--accent-cyan)' }}>
               1.5¢ / point

@@ -128,7 +128,7 @@ export default async function FinancialPage() {
         className="shrink-0 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
         style={{
           background: 'var(--bg-elevated)',
-          borderBottom: '1px solid rgba(0,212,255,0.1)',
+          borderBottom: '1px solid var(--glass-line)',
         }}
       >
         <div>

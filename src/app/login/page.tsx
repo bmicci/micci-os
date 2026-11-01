@@ -70,7 +70,7 @@ export default function LoginPage() {
               width: 40,
               height: 40,
               borderRadius: 10,
-              background: 'linear-gradient(135deg,#00d4ff,#1e90ff)',
+              background: 'var(--accent-gradient)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

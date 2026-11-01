@@ -25,9 +25,9 @@ export default function MetricCard({ label, value, sub, change, accent, classNam
     <div
       className={`flex flex-col gap-1 p-4 rounded-xl transition-all ${className}`}
       style={{
-        background: accent ? 'rgba(0,212,255,0.08)' : 'var(--card-bg)',
-        border: `1px solid ${accent ? 'rgba(0,212,255,0.3)' : 'var(--card-border)'}`,
-        backdropFilter: 'blur(20px)',
+        background: accent ? 'rgba(var(--accent-rgb), 0.08)' : 'var(--card-bg)',
+        border: `1px solid ${accent ? 'rgba(var(--accent-rgb), 0.3)' : 'var(--card-border)'}`,
+        backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
       }}
     >
       <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>

@@ -263,11 +263,11 @@ export default function OverviewTab({ data, onNavigate }: {
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={flowData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-              <XAxis dataKey="label" tick={{ fill: 'rgba(240,246,255,0.45)', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: 'rgba(240,246,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false}
+              <XAxis dataKey="label" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false}
                 tickFormatter={(v: number) => fmtK(v)} width={52} />
               <Tooltip
-                contentStyle={{ background: '#0a0e27', border: '1px solid rgba(0,212,255,0.25)', borderRadius: 8, fontSize: 12 }}
+                contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-line)', borderRadius: 8, fontSize: 12 }}
                 formatter={(v, name) => [fmtRound(Number(v)), name === 'income' ? 'Income' : 'Spend']}
               />
               <Bar dataKey="income" name="income" fill="#22c55e" fillOpacity={0.85} radius={[3, 3, 0, 0]} />
@@ -351,7 +351,7 @@ export default function OverviewTab({ data, onNavigate }: {
                       </defs>
                       <YAxis hide domain={['dataMin', 'dataMax']} />
                       <Tooltip
-                        contentStyle={{ background: '#0a0e27', border: '1px solid rgba(0,212,255,0.25)', borderRadius: 8, fontSize: 10 }}
+                        contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-line)', borderRadius: 8, fontSize: 10 }}
                         formatter={(v) => [fmtRound(Number(v)), 'Value']}
                         labelFormatter={(_, p) => (p?.[0]?.payload?.date ?? '') as string}
                       />

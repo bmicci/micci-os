@@ -35,7 +35,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
       className="p-3 rounded-lg shadow-xl text-[12px]"
       style={{
         background: 'var(--bg-card)',
-        border: '1px solid rgba(0,212,255,0.2)',
+        border: '1px solid var(--glass-line)',
         backdropFilter: 'blur(12px)',
       }}
     >
@@ -122,10 +122,10 @@ export default function CashFlowProjectionChart({ projections }: Props) {
             type="monotone"
             dataKey="freeCash"
             name="Free Cash"
-            stroke="#00d4ff"
+            stroke="#5ee6ff"
             strokeWidth={2}
-            dot={{ r: 3, fill: '#00d4ff', strokeWidth: 0 }}
-            activeDot={{ r: 5, fill: '#00d4ff', stroke: '#fff', strokeWidth: 2 }}
+            dot={{ r: 3, fill: '#5ee6ff', strokeWidth: 0 }}
+            activeDot={{ r: 5, fill: '#5ee6ff', stroke: '#fff', strokeWidth: 2 }}
           />
 
           {/* Cumulative savings trend */}

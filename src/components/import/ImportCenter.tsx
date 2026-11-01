@@ -269,7 +269,7 @@ export default function ImportCenter() {
             border: '1px solid var(--card-border)',
             borderRadius: 16,
             padding: '24px',
-            backdropFilter: 'blur(20px)',
+            backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
           }}
         >
           <h3
@@ -294,9 +294,9 @@ export default function ImportCenter() {
                   padding: '12px 16px',
                   borderRadius: 10,
                   border: `1px solid ${
-                    dataType === t ? 'rgba(0,212,255,0.5)' : 'rgba(255,255,255,0.08)'
+                    dataType === t ? 'rgba(var(--accent-rgb), 0.5)' : 'rgba(255,255,255,0.08)'
                   }`,
-                  background: dataType === t ? 'rgba(0,212,255,0.08)' : 'rgba(255,255,255,0.02)',
+                  background: dataType === t ? 'rgba(var(--accent-rgb), 0.08)' : 'rgba(255,255,255,0.02)',
                   color: dataType === t ? 'var(--accent-cyan)' : 'var(--text-secondary)',
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -337,9 +337,9 @@ export default function ImportCenter() {
                   padding: '4px 12px',
                   borderRadius: 20,
                   border: `1px solid ${
-                    importMode === m ? 'rgba(0,212,255,0.4)' : 'rgba(255,255,255,0.08)'
+                    importMode === m ? 'rgba(var(--accent-rgb), 0.4)' : 'rgba(255,255,255,0.08)'
                   }`,
-                  background: importMode === m ? 'rgba(0,212,255,0.08)' : 'transparent',
+                  background: importMode === m ? 'rgba(var(--accent-rgb), 0.08)' : 'transparent',
                   color: importMode === m ? 'var(--accent-cyan)' : 'var(--text-muted)',
                   fontSize: 12,
                   cursor: 'pointer',
@@ -381,7 +381,7 @@ export default function ImportCenter() {
                   style={{
                     padding: '8px 14px',
                     borderRadius: 8,
-                    border: `1px solid ${accountName ? 'rgba(0,212,255,0.4)' : 'rgba(255,255,255,0.15)'}`,
+                    border: `1px solid ${accountName ? 'rgba(var(--accent-rgb), 0.4)' : 'rgba(255,255,255,0.15)'}`,
                     background: 'rgba(255,255,255,0.03)',
                     color: 'var(--text-primary)',
                     fontSize: 14,
@@ -397,8 +397,8 @@ export default function ImportCenter() {
                       style={{
                         padding: '4px 10px',
                         borderRadius: 20,
-                        border: `1px solid ${accountName === preset ? 'rgba(0,212,255,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                        background: accountName === preset ? 'rgba(0,212,255,0.08)' : 'transparent',
+                        border: `1px solid ${accountName === preset ? 'rgba(var(--accent-rgb), 0.4)' : 'rgba(255,255,255,0.08)'}`,
+                        background: accountName === preset ? 'rgba(var(--accent-rgb), 0.08)' : 'transparent',
                         color: accountName === preset ? 'var(--accent-cyan)' : 'var(--text-muted)',
                         fontSize: 11,
                         cursor: 'pointer',
@@ -426,7 +426,7 @@ export default function ImportCenter() {
             border: '1px solid var(--card-border)',
             borderRadius: 16,
             padding: '32px',
-            backdropFilter: 'blur(20px)',
+            backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
           }}
         >
           <label
@@ -442,10 +442,10 @@ export default function ImportCenter() {
               alignItems: 'center',
               gap: 12,
               padding: '48px 24px',
-              border: `2px dashed ${isDragging ? 'rgba(0,212,255,0.8)' : 'rgba(0,212,255,0.25)'}`,
+              border: `2px dashed ${isDragging ? 'rgba(var(--accent-rgb), 0.8)' : 'rgba(var(--accent-rgb), 0.25)'}`,
               borderRadius: 12,
               cursor: 'pointer',
-              background: isDragging ? 'rgba(0,212,255,0.04)' : 'transparent',
+              background: isDragging ? 'rgba(var(--accent-rgb), 0.04)' : 'transparent',
               transition: 'all 0.2s',
             }}
           >
@@ -478,8 +478,8 @@ export default function ImportCenter() {
                   style={{
                     padding: '3px 10px',
                     borderRadius: 20,
-                    background: 'rgba(0,212,255,0.06)',
-                    border: '1px solid rgba(0,212,255,0.15)',
+                    background: 'rgba(var(--accent-rgb), 0.06)',
+                    border: '1px solid var(--glass-line)',
                     color: 'var(--text-muted)',
                     fontSize: 11,
                     fontFamily: 'var(--font-geist-mono)',
@@ -517,7 +517,7 @@ export default function ImportCenter() {
             border: '1px solid var(--card-border)',
             borderRadius: 16,
             padding: '60px 32px',
-            backdropFilter: 'blur(20px)',
+            backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
             textAlign: 'center',
           }}
         >
@@ -541,7 +541,7 @@ export default function ImportCenter() {
               border: '1px solid var(--card-border)',
               borderRadius: 16,
               padding: '20px 24px',
-              backdropFilter: 'blur(20px)',
+              backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
             }}
           >
             <div className="flex items-center justify-between flex-wrap gap-4">
@@ -623,8 +623,8 @@ export default function ImportCenter() {
                   style={{
                     padding: '3px 10px',
                     borderRadius: 20,
-                    background: 'rgba(0,212,255,0.06)',
-                    border: '1px solid rgba(0,212,255,0.2)',
+                    background: 'rgba(var(--accent-rgb), 0.06)',
+                    border: '1px solid var(--glass-line)',
                     fontSize: 11,
                     fontFamily: 'var(--font-geist-mono)',
                   }}
@@ -644,7 +644,7 @@ export default function ImportCenter() {
               border: '1px solid var(--card-border)',
               borderRadius: 16,
               overflow: 'hidden',
-              backdropFilter: 'blur(20px)',
+              backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
             }}
           >
             <div
@@ -783,7 +783,7 @@ export default function ImportCenter() {
             border: '1px solid var(--card-border)',
             borderRadius: 16,
             padding: '60px 32px',
-            backdropFilter: 'blur(20px)',
+            backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
             textAlign: 'center',
           }}
         >
@@ -805,7 +805,7 @@ export default function ImportCenter() {
             border: '1px solid rgba(52,211,153,0.3)',
             borderRadius: 16,
             padding: '40px 32px',
-            backdropFilter: 'blur(20px)',
+            backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
             textAlign: 'center',
           }}
         >
@@ -826,7 +826,7 @@ export default function ImportCenter() {
             <code
               style={{
                 fontFamily: 'var(--font-geist-mono)',
-                background: 'rgba(0,212,255,0.08)',
+                background: 'rgba(var(--accent-rgb), 0.08)',
                 padding: '1px 6px',
                 borderRadius: 4,
                 fontSize: 12,
@@ -856,8 +856,8 @@ export default function ImportCenter() {
               marginTop: 20,
               padding: '10px 24px',
               borderRadius: 8,
-              border: '1px solid rgba(0,212,255,0.3)',
-              background: 'rgba(0,212,255,0.06)',
+              border: '1px solid rgba(var(--accent-rgb), 0.3)',
+              background: 'rgba(var(--accent-rgb), 0.06)',
               color: 'var(--accent-cyan)',
               fontSize: 13,
               fontWeight: 600,
@@ -877,7 +877,7 @@ export default function ImportCenter() {
             border: '1px solid var(--card-border)',
             borderRadius: 16,
             padding: '24px',
-            backdropFilter: 'blur(20px)',
+            backdropFilter: 'blur(var(--glass-blur)) saturate(160%)',
           }}
         >
           <h3

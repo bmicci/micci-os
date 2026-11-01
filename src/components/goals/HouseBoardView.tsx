@@ -25,7 +25,7 @@ const ROOM_MAP = Object.fromEntries(ROOMS.map(r => [r.id, r]))
 const STATUSES = [
   { id: 'idea',        label: 'Idea',        color: '#8a8aa8', bg: 'rgba(138,138,168,0.15)' },
   { id: 'planned',     label: 'Planned',     color: '#C9A84C', bg: 'rgba(201,168,76,0.15)'  },
-  { id: 'in-progress', label: 'In Progress', color: '#00d4ff', bg: 'rgba(0,212,255,0.15)'   },
+  { id: 'in-progress', label: 'In Progress', color: '#5ee6ff', bg: 'rgba(var(--accent-rgb), 0.15)'   },
   { id: 'done',        label: 'Done',        color: '#52b788', bg: 'rgba(82,183,136,0.15)'  },
 ]
 

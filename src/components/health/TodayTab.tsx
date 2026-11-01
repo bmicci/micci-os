@@ -49,7 +49,7 @@ function complianceStreak(rows: ProtocolCompliance[]): number {
 
 const cardStyle = {
   background: 'var(--card-bg, rgba(255,255,255,0.05))',
-  border: '1px solid rgba(0,212,255,0.15)',
+  border: '1px solid var(--glass-line)',
   borderRadius: 16,
 } as const
 
@@ -135,7 +135,7 @@ export default function TodayTab({
         </div>
         <div
           className="flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full"
-          style={{ background: 'rgba(0,212,255,0.08)', color: 'var(--text-muted)', border: '1px dashed rgba(0,212,255,0.3)' }}
+          style={{ background: 'rgba(var(--accent-rgb), 0.08)', color: 'var(--text-muted)', border: '1px dashed rgba(var(--accent-rgb), 0.3)' }}
           title="Whoop integration is the next health build — recovery % will drive this header"
         >
           <Watch size={13} /> Connect Whoop → recovery-aware days

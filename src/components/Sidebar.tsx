@@ -60,27 +60,29 @@ export default function Sidebar() {
         className="hidden md:flex flex-col flex-shrink-0 h-full overflow-y-auto"
         style={{
           width: 240,
-          background: "var(--bg-elevated)",
-          borderRight: "1px solid rgba(0,212,255,0.1)",
+          background: "rgba(7, 11, 26, 0.45)",
+          borderRight: "1px solid var(--glass-line)",
+          backdropFilter: "blur(var(--glass-blur)) saturate(160%)",
+          WebkitBackdropFilter: "blur(var(--glass-blur)) saturate(160%)",
         }}
       >
         {/* Logo / wordmark */}
         <div
           className="flex items-center gap-2 px-6 py-6"
-          style={{ borderBottom: "1px solid rgba(0,212,255,0.1)" }}
+          style={{ borderBottom: "1px solid var(--glass-line)" }}
         >
           <div
             style={{
               width: 32,
               height: 32,
               borderRadius: 8,
-              background: "linear-gradient(135deg,#00d4ff,#1e90ff)",
+              background: "var(--accent-gradient)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontSize: 14,
               fontWeight: 700,
-              color: "#050505",
+              color: "var(--accent-ink)",
               flexShrink: 0,
             }}
           >
@@ -104,20 +106,20 @@ export default function Sidebar() {
                 href={href}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150"
                 style={{
-                  color: active ? "var(--accent-cyan)" : "var(--text-secondary)",
-                  background: active ? "rgba(0,212,255,0.08)" : "transparent",
-                  boxShadow: active ? "inset 2px 0 0 var(--accent-cyan)" : "none",
+                  color: active ? "var(--text-primary)" : "var(--text-secondary)",
+                  background: active ? "var(--glass-bg-strong)" : "transparent",
+                  boxShadow: active ? "inset 0 0 0 1px var(--glass-line), inset 0 1px 0 var(--glass-highlight)" : "none",
                   textDecoration: "none",
                 }}
               >
-                <Icon size={16} strokeWidth={active ? 2.2 : 1.75} style={{ flexShrink: 0 }} />
+                <Icon size={16} strokeWidth={active ? 2.2 : 1.75} style={{ flexShrink: 0, color: active ? "var(--accent-cyan)" : undefined }} />
                 <span className="font-medium">{label}</span>
               </Link>
             );
           })}
 
           {/* Finance Simulators sub-section */}
-          <div className="mt-2 pt-2" style={{ borderTop: "1px solid rgba(0,212,255,0.08)" }}>
+          <div className="mt-2 pt-2" style={{ borderTop: "1px solid var(--glass-line)" }}>
             <div
               className="px-3 py-1 text-[10px] uppercase tracking-widest font-semibold"
               style={{ color: "var(--text-muted)" }}
@@ -132,13 +134,13 @@ export default function Sidebar() {
                   href={href}
                   className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all duration-150"
                   style={{
-                    color: active ? "var(--accent-cyan)" : "var(--text-muted)",
-                    background: active ? "rgba(0,212,255,0.08)" : "transparent",
-                    boxShadow: active ? "inset 2px 0 0 var(--accent-cyan)" : "none",
+                    color: active ? "var(--text-primary)" : "var(--text-muted)",
+                    background: active ? "var(--glass-bg-strong)" : "transparent",
+                    boxShadow: active ? "inset 0 0 0 1px var(--glass-line)" : "none",
                     textDecoration: "none",
                   }}
                 >
-                  <Icon size={14} strokeWidth={active ? 2.2 : 1.75} style={{ flexShrink: 0 }} />
+                  <Icon size={14} strokeWidth={active ? 2.2 : 1.75} style={{ flexShrink: 0, color: active ? "var(--accent-cyan)" : undefined }} />
                   <span className="font-medium">{label}</span>
                 </Link>
               );
@@ -151,7 +153,7 @@ export default function Sidebar() {
           className="mt-auto px-6 py-4 text-xs"
           style={{
             color: "var(--text-muted)",
-            borderTop: "1px solid rgba(0,212,255,0.08)",
+            borderTop: "1px solid var(--glass-line)",
             fontFamily: "var(--font-geist-mono)",
           }}
         >
@@ -163,10 +165,10 @@ export default function Sidebar() {
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 flex items-center justify-around z-50"
         style={{
-          background: "var(--bg-elevated)",
-          borderTop: "1px solid rgba(0,212,255,0.15)",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
+          background: "rgba(13, 19, 48, 0.72)",
+          borderTop: "1px solid var(--glass-line)",
+          backdropFilter: "blur(var(--glass-blur)) saturate(160%)",
+          WebkitBackdropFilter: "blur(var(--glass-blur)) saturate(160%)",
           height: 64,
           paddingBottom: "env(safe-area-inset-bottom)",
         }}

@@ -340,7 +340,7 @@ export default function LiveScheduleTab({
               {day.isToday && (
                 <span
                   className="text-[10px] font-bold px-2 py-0.5 rounded"
-                  style={{ background: 'rgba(0,212,255,0.15)', color: 'var(--accent-cyan)' }}
+                  style={{ background: 'rgba(var(--accent-rgb), 0.15)', color: 'var(--accent-cyan)' }}
                 >
                   Today
                 </span>
