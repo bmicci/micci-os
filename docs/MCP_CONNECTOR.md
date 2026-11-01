@@ -5,8 +5,11 @@ Read-only finance + briefs tools for any Claude chat, served by micci-os at
 Every number comes from the same code as `/financial` (`getFinancialData()` →
 `src/lib/finance/*`). No tool writes anything.
 
-Code: `src/lib/mcp/server.ts` (tools) · `src/app/api/mcp/[token]/route.ts`
-(route + token check) · `src/proxy.ts` (`/api/mcp/` exempt from the session gate).
+Code: `src/lib/mcp/tools/*` (tool definitions, listed in `registry.ts`; contract +
+helpers in `tool.ts`) · `src/lib/mcp/server.ts` (adapts the registry to MCP) ·
+`src/app/api/mcp/[token]/route.ts` (route + token check) · `src/proxy.ts`
+(`/api/mcp/` exempt from the session gate). To add a tool: `defineTool({...})` in
+the right `tools/*.ts` file; it appears on every surface that reads the registry.
 
 ## Setup (one time)
 1. Vercel → micci-os → Settings → Environment Variables → add

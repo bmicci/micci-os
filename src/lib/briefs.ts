@@ -2,7 +2,8 @@
 // Micci Daily briefs — shared types + tab registry.
 //
 // Briefs are written into Supabase (`briefs`, `brief_config`, `brief_tweaks`)
-// by the claude.ai Routines via `upsert_brief()`; /briefs only reads them.
+// by the claude.ai Routines and the Grok bots via `upsert_brief()`; /briefs only
+// reads them. Grok editions use doc_key `<date>-grok` (docs/GROK_BRIEFS_HANDOFF.md).
 // Every tab except `today` uses the generic block list below — the same
 // contract the Routines' prompts emit (see docs/prds/06-DAILY-BRIEFS-PROMPTS.md).
 // ───────────────────────────────────────────────────────────────────────────
@@ -11,9 +12,10 @@ export const BRIEF_TABS = [
   { id: 'today',   label: 'Today',   schedule: 'Weekdays 6:17 AM' },
   { id: 'jobs',    label: 'Jobs',    schedule: 'Mon/Wed/Fri 7:51 AM' },
   { id: 'markets', label: 'Markets', schedule: 'Weekdays 7:47 AM + 3:22 PM' },
-  { id: 'money',   label: 'Money',   schedule: 'No routine yet' },
+  { id: 'money',   label: 'Money',   schedule: 'Weekdays 7:30 AM (Grok)' },
   { id: 'health',  label: 'Health',  schedule: 'Daily 5:37 AM · Sun 5:47 PM' },
   { id: 'home',    label: 'Home',    schedule: 'Sat 8:57 AM' },
+  { id: 'ai',      label: 'AI News', schedule: 'Weekdays 7:15 AM (Grok)' },
 ] as const
 
 export type BriefTab = (typeof BRIEF_TABS)[number]['id']
