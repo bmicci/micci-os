@@ -34,6 +34,7 @@ Created by migration `20261101_micci_daily_grok.sql`:
 - Shared helpers: chicago.ts, output.ts, grok.ts, writeBrief.ts
 - Functions: markets (pilot), dispatch
 - UI: /daily page reads latest grok_briefs for markets
+- Build fix: `supabase/functions` excluded from Next.js tsconfig so Deno files are not type-checked by the Vercel build.
 
 ## Next for phase 1 done criteria
 
