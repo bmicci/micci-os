@@ -5,6 +5,9 @@ import { getFinancialData } from '@/lib/financial-data-service'
 import { getJobSearchData } from '@/lib/job-search-data-service'
 import { fmtK, HELOC_LIMIT } from '@/lib/financial-data'
 import UpNextRail from '@/components/financial/UpNextRail'
+import MorningOverview from '@/components/briefs/MorningOverview'
+import { createClient } from '@/lib/supabase/server'
+import { chicagoToday, loadBriefHeadlines } from '@/lib/briefsOverview'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Command Center — Micci OS' }
@@ -33,12 +36,14 @@ const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export default async function DashboardPage() {
   const supabase = createServiceClient()
 
-  const [data, jobData, protocolsRes, goalsRes, perksRes] = await Promise.all([
+  const todayCT = chicagoToday()
+  const [data, jobData, protocolsRes, goalsRes, perksRes, briefHeadlines] = await Promise.all([
     getFinancialData(),
     getJobSearchData(),
     supabase?.from('hormone_protocols').select('name, dosage, day_of_week, time_of_day, is_active').eq('is_active', true) ?? Promise.resolve({ data: null }),
     supabase?.from('goals').select('id', { count: 'exact', head: true }).eq('status', 'active') ?? Promise.resolve({ count: null }),
     supabase?.from('perk_credits').select('amount, used, used_amount') ?? Promise.resolve({ data: null }),
+    loadBriefHeadlines(supabase, await createClient(), todayCT).catch(() => []),
   ])
 
   // ── Derived: runway & money ──
@@ -130,6 +135,17 @@ export default async function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* ── This morning — every brief's headline, links into /briefs ── */}
+      {briefHeadlines.some(h => h.date) && (
+        <section>
+          <div className="flex items-baseline justify-between mb-2">
+            <h2 className="text-[12px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">This morning</h2>
+            <Link href="/briefs" className="text-[12px] text-[var(--text-muted)] hover:text-[var(--accent-cyan)]">All briefs →</Link>
+          </div>
+          <MorningOverview headlines={briefHeadlines} today={todayCT} compact />
+        </section>
+      )}
 
       {/* ── 1. Runway ribbon — the season's headline ── */}
       <div className="rounded-xl px-5 py-4 flex items-center gap-6 flex-wrap"

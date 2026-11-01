@@ -4,6 +4,9 @@ import { createServiceClient } from '@/lib/supabase/service'
 import type { DbPortfolioPosition, DbPortfolioTarget } from '@/types/database'
 import type { RunwayProjection } from '@/lib/financial-data'
 import TabContainer from '@/components/financial/TabContainer'
+import BriefHeadlineCard from '@/components/briefs/BriefHeadlineCard'
+import { createClient } from '@/lib/supabase/server'
+import { chicagoToday, loadBriefHeadlines } from '@/lib/briefsOverview'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Financial — Micci OS' }
@@ -113,7 +116,13 @@ async function fetchPortfolio() {
 }
 
 export default async function FinancialPage() {
-  const [data, portfolioData] = await Promise.all([getFinancialData(), fetchPortfolio()])
+  const today = chicagoToday()
+  const [data, portfolioData, briefs] = await Promise.all([
+    getFinancialData(),
+    fetchPortfolio(),
+    loadBriefHeadlines(createServiceClient(), null, today).catch(() => []),
+  ])
+  const moneyBrief = briefs.find(b => b.tab === 'money')
   const banner = getBannerState(data.runwayProjection)
   const newestTxn = data.burnAnalysis.hasData ? data.burnAnalysis.windowEnd : null
   const staleDays = newestTxn
@@ -167,6 +176,12 @@ export default async function FinancialPage() {
           </div>
         </div>
       </header>
+
+      {moneyBrief?.headline && (
+        <div className="px-4 sm:px-6 pt-4">
+          <BriefHeadlineCard brief={moneyBrief} today={today} />
+        </div>
+      )}
 
       {/* Tabbed Dashboard */}
       <TabContainer data={data} positions={portfolioData.positions} targets={portfolioData.targets} />

@@ -17,8 +17,8 @@
 
 - **One table, one save call.** Every Grok brief saves into the same `briefs` table the Claude Routines use, through the same `upsert_brief()` function. That means `/briefs` renders Grok's briefs with no new code, and the Note button, the Inputs box and the `micci_briefs` MCP tool all keep working.
 - **Side by side, then cut over.** Grok saves under `doc_key = <date>-grok`. That key sorts after Claude's `<date>`, so `/briefs` shows Grok's edition by default, and Claude's edition for the same day stays one click away in the history picker. When a Grok brief has beaten Claude's for a few days, pause that Claude Routine (claude.ai → Claude Code → Routines). Grok needs no change at cutover.
-- **Markets stays where it is.** The Stocks & ETFs bot already writes `markets_bot_briefs`, shown on `/markets` (PR #51). Leave it alone. The `markets` tab in `/briefs` keeps showing the Claude Routine until that Routine is paused.
-- **Edge-function pilot is parked.** Its `grok_briefs` and `brief_schedules` migration (`supabase/migrations/20261101_micci_daily_grok.sql`) has not been applied, so `/daily` is empty. Bots need no deploys or secrets and can already reach Gmail and Calendar, so they're the faster path. If the pilot comes back, see "Edge-function notes" at the bottom.
+- **Markets stays where it is.** The Stocks & ETFs bot already writes `markets_bot_briefs`, shown in the Markets tab of `/briefs` (`/markets` redirects there). Leave it alone. The Claude Markets Routine's rows are no longer displayed, so it can be paused.
+- **Edge-function pilot is parked.** Its `grok_briefs` and `brief_schedules` migration (`supabase/migrations/20261101_micci_daily_grok.sql`) has not been applied, and its `/daily` page has been removed. Bots need no deploys or secrets and can already reach Gmail and Calendar, so they're the faster path. If the pilot comes back, see "Edge-function notes" at the bottom.
 
 ## What each bot needs connected in Grok
 
@@ -234,7 +234,7 @@ headline: the big theme in one sentence.
 ```
 
 ## 8 · Markets — no change
-The Stocks & ETFs bot keeps writing `markets_bot_briefs` (pre-market and close) for `/markets`. To retire the Claude Markets Routines, pause both (pre-market and close) in claude.ai once `/markets` is the page Brandon checks. If markets should later appear in `/briefs` too, the bot can also call `upsert_brief('markets', '<date>-grok', …)` with a kpis/table/decision version of the same content.
+The Stocks & ETFs bot keeps writing `markets_bot_briefs` (pre-market and close) for the Markets tab in `/briefs`. The Claude Markets Routines (pre-market and close) can be paused in claude.ai; their rows are no longer shown.
 
 ---
 

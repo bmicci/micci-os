@@ -1,5 +1,10 @@
 import { createServiceClient } from '@/lib/supabase/service'
+import { createClient } from '@/lib/supabase/server'
 import BriefsHub from '@/components/briefs/BriefsHub'
+import BriefsNav from '@/components/briefs/BriefsNav'
+import MorningOverview from '@/components/briefs/MorningOverview'
+import MarketsPanel from '@/components/markets/MarketsPanel'
+import { chicagoToday, loadBriefHeadlines } from '@/lib/briefsOverview'
 import {
   BRIEF_TABS, isBriefTab,
   type BriefConfig, type BriefEdition, type BriefRow, type BriefTab, type BriefTweak,
@@ -8,16 +13,48 @@ import {
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Briefs — Micci OS' }
 
+// One place for every brief. /briefs (no tab) is the morning overview: each
+// brief's latest headline. Each tab shows its editions; Markets shows the
+// Stocks & ETFs bot (markets_bot_briefs, session client) instead of `briefs`.
 // The briefs tables are deny-all (RLS, no policies) like the other
 // single-tenant pipeline tables — read through the server-side service client.
 // The (app) layout's session proxy gates this page.
 export default async function BriefsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; d?: string }>
+  searchParams: Promise<{ tab?: string; d?: string; t?: string; tests?: string }>
 }) {
   const params = await searchParams
-  const tab: BriefTab = isBriefTab(params.tab) ? params.tab : 'today'
+  const today = chicagoToday()
+
+  if (!isBriefTab(params.tab)) {
+    const service = createServiceClient()
+    const headlines = await loadBriefHeadlines(service, await createClient(), today)
+    const latestByTab = Object.fromEntries(headlines.filter(h => h.date).map(h => [h.tab, h.date!]))
+    return (
+      <Shell subtitle={new Date(today + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}>
+        <BriefsNav active="overview" latestByTab={latestByTab} today={today} />
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <MorningOverview headlines={headlines} today={today} />
+        </div>
+      </Shell>
+    )
+  }
+
+  const tab: BriefTab = params.tab
+
+  if (tab === 'markets') {
+    const headlines = await loadBriefHeadlines(createServiceClient(), await createClient(), today)
+    const latestByTab = Object.fromEntries(headlines.filter(h => h.date).map(h => [h.tab, h.date!]))
+    return (
+      <Shell>
+        <BriefsNav active="markets" latestByTab={latestByTab} today={today} />
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <MarketsPanel params={params} />
+        </div>
+      </Shell>
+    )
+  }
 
   const service = createServiceClient()
   let editions: BriefEdition[] = []
@@ -71,14 +108,7 @@ export default async function BriefsPage({
   const tabMeta = BRIEF_TABS.find(t => t.id === tab)!
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-6 md:px-10 pt-8 pb-4 shrink-0">
-        <h1 className="text-3xl font-bold gradient-text mb-1">Briefs</h1>
-        <p className="text-[var(--text-secondary)] text-sm">
-          Micci Daily · written by your scheduled Routines
-        </p>
-      </div>
-
+    <Shell>
       <BriefsHub
         tab={tab}
         schedule={tabMeta.schedule}
@@ -89,6 +119,20 @@ export default async function BriefsPage({
         latestByTab={latestByTab}
         connected={service != null}
       />
+    </Shell>
+  )
+}
+
+function Shell({ subtitle, children }: { subtitle?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="px-6 md:px-10 pt-8 pb-4 shrink-0">
+        <h1 className="text-3xl font-bold gradient-text mb-1">Briefs</h1>
+        <p className="text-[var(--text-secondary)] text-sm">
+          {subtitle ? `${subtitle} · ` : ''}Micci Daily · every morning brief in one place
+        </p>
+      </div>
+      {children}
     </div>
   )
 }

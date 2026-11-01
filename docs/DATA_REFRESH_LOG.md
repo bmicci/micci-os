@@ -130,14 +130,16 @@ _Last updated: Oct 15, 2026_
 | Feedback (`brief_tweaks`) | 🔁 ROUTINE | Note button on any brief section; the next run applies and marks it applied |
 | Money tab | 🔴 OWED | No routine writes it yet |
 
-## Markets (`/markets`) — added Nov 1, 2026
+## Markets (`/briefs?tab=markets`; `/markets` redirects) — added Nov 1, 2026
 
 | Data | Category | How |
 |---|---|---|
-| Markets briefs (`markets_bot_briefs`) | ⚙️ AUTO | Stocks & ETFs **Grok bot** upserts one row per `(brief_type, brief_date)`: `pre_market` ~7:00 AM CT and `close` ~3:30 PM CT, weekdays. `/markets` is read-only on this table (session client, RLS authenticated SELECT) and never reads portfolio/plaid/finance tables. Rows titled `Test…` or `status = 'failed'` are hidden unless `?tests=1` |
+| Markets briefs (`markets_bot_briefs`) | ⚙️ AUTO | Stocks & ETFs **Grok bot** upserts one row per `(brief_type, brief_date)`: `pre_market` ~7:00 AM CT and `close` ~3:30 PM CT, weekdays. The Markets tab in `/briefs` is read-only on this table (session client, RLS authenticated SELECT) and never reads portfolio/plaid/finance tables. Rows titled `Test…` or `status = 'failed'` are hidden unless `?tests=1` |
 | `portfolio_snapshot` JSON | ⚙️ AUTO | Loose by design: tickers live under `prices` keys, so holdings rotate without migrations. UI tolerates both documented keys and the bot's early variants (bare-number prices, `vs_cost_pct`, `fri_change_pct`) |
 
-Overlap to resolve: the claude.ai Markets Routine still writes `briefs` tab `markets` (shown in `/briefs`), and the Grok edge-function pilot (`supabase/functions/markets` → `grok_briefs`, shown in `/daily`) is a separate path. Neither is switched off yet.
+Overlap to resolve: the claude.ai Markets Routine still writes `briefs` tab `markets` (shown in `/briefs`), and the Grok edge-function pilot (`supabase/functions/markets` → `grok_briefs`) is a separate path; its `/daily` page was removed Nov 1 (migration never applied). The Claude Markets Routine's `briefs` rows are no longer shown — pause it.
+
+**Morning hub (Nov 1, 2026):** `/briefs` opens on an Overview (one headline card per brief, freshness + flag counts, `src/lib/briefsOverview.ts`). The dashboard shows a compact "This morning" strip; `/financial` (money), `/pipeline` (jobs) and `/health` show their own headline linking into `/briefs`.
 
 ## Job income (`financial_settings.job_offers`) — added Oct 18, 2026
 

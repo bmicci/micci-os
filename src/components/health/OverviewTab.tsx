@@ -91,7 +91,7 @@ export default function OverviewTab({ overview: o, briefHeadline, briefDate }: {
 
       {/* Latest brief */}
       {briefHeadline && (
-        <Link href="/briefs" className="glass-card p-4 block">
+        <Link href="/briefs?tab=health" className="glass-card p-4 block">
           <div className="text-[10.5px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
             Health brief{briefDate ? ` · ${shortDate(briefDate)}` : ''}
           </div>

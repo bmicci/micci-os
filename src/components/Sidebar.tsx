@@ -19,7 +19,6 @@ import {
   TrendingUp,
   Receipt,
   Newspaper,
-  CandlestickChart,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,7 +30,6 @@ const NAV_ITEMS: { href: string; label: string; icon: LucideIcon; exact: boolean
   { href: "/financial", label: "Financial", icon: Wallet, exact: false },
   { href: "/perks", label: "Perks & Points", icon: Gem, exact: false },
   { href: "/goals", label: "Goals + Vision", icon: Target, exact: false },
-  { href: "/markets", label: "Markets", icon: CandlestickChart, exact: false },
   { href: "/planner", label: "Planner", icon: CalendarDays, exact: false },
   { href: "/pipeline", label: "Job Search", icon: Briefcase, exact: false },
   { href: "/tasks", label: "Actions", icon: ListChecks, exact: false },

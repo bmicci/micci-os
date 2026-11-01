@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MessageSquarePlus, SlidersHorizontal, X } from 'lucide-react'
 import {
@@ -11,6 +10,7 @@ import {
 } from '@/lib/briefs'
 import { BlockBody, BlockCard, TONE_COLOR } from './blocks'
 import TodayBrief from './TodayBrief'
+import BriefsNav from './BriefsNav'
 
 const KIND_LABEL: Record<TweakKind, string> = {
   missing: 'Missing', noise: 'Noise', wrong: 'Wrong', idea: 'Idea',
@@ -164,26 +164,7 @@ export default function BriefsHub({
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      {/* Tab bar — links, so each tab/edition is a shareable URL and the back button works */}
-      <nav className="flex overflow-x-auto px-3 sm:px-6 shrink-0"
-           style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid rgba(0,212,255,0.1)', scrollbarWidth: 'none' }}>
-        {BRIEF_TABS.map(t => {
-          const active = t.id === tab
-          const fresh = latestByTab[t.id] === today
-          return (
-            <Link key={t.id} href={`/briefs?tab=${t.id}`}
-                  className="relative px-3 sm:px-5 py-3 text-[12px] sm:text-[13px] font-medium whitespace-nowrap border-b-[3px] shrink-0 transition-all"
-                  style={{
-                    color: active ? 'var(--text-primary)' : 'var(--text-muted)',
-                    borderBottomColor: active ? 'var(--accent-cyan)' : 'transparent',
-                    background: active ? 'rgba(0,212,255,0.04)' : 'transparent',
-                  }}>
-              {t.label}
-              {fresh && <span className="absolute top-2 right-1 w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent-cyan)' }} />}
-            </Link>
-          )
-        })}
-      </nav>
+      <BriefsNav active={tab} latestByTab={latestByTab} today={today} />
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {/* Edition bar */}
