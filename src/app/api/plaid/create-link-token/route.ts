@@ -61,17 +61,23 @@ export async function POST(request: NextRequest) {
       if (wanted.length === 0) {
         return NextResponse.json({ error: 'This bank has already granted everything it offers.' }, { status: 409 })
       }
+      // Plaid splits update-mode consent by product: Statements must go in
+      // `products` (with its date range); Liabilities/Investments go in
+      // `additional_consented_products`. Putting Statements in the latter is
+      // what made Link fail with "Internal error occurred".
       // Plaid rejects the whole request if the bank lacks one of them, so
       // fall back to each product on its own.
       const attempts: Products[][] = [wanted, ...(wanted.length > 1 ? wanted.map(p => [p]) : [])]
       let lastErr: unknown = null
       for (const products of attempts) {
+        const wantsStatements = products.includes(S)
+        const extra = products.filter(p => p !== S)
         try {
           const { data } = await client.linkTokenCreate({
             ...base,
             access_token: item.access_token,
-            additional_consented_products: products,
-            ...(products.includes(S) ? { statements: statementsLinkRange() } : {}),
+            ...(wantsStatements ? { products: [S], statements: statementsLinkRange() } : {}),
+            ...(extra.length ? { additional_consented_products: extra } : {}),
           })
           return NextResponse.json({ link_token: data.link_token, mode: 'update', products })
         } catch (err) {

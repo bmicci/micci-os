@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { FOUNDATION_DATA, RITUALS_DATA, SECTIONS, type FoundationData, type RitualsData } from '@/lib/life-plan-data'
 import FoundationEditModal, { type FieldSpec, type FieldValues } from './FoundationEditor'
-import { Pencil } from 'lucide-react'
+import { Pencil, Search, Plus, Check, ChevronDown, MoreHorizontal } from 'lucide-react'
 import AddGoalModal from './AddGoalModal'
 import VisionBoardView from '@/components/goals/VisionBoardView'
 import HouseBoardView from '@/components/goals/HouseBoardView'
@@ -66,6 +66,7 @@ export default function LifePlanClient({ initialSections, initialGoals, initialF
   const [activeFilter, setActiveFilter] = useState('all')
   const [activeView, setActiveView] = useState<View>('goals')
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const [goals, setGoals] = useState<DBGoal[]>(initialGoals)
   const [fdDoc, setFdDoc] = useState<FoundationData>(initialFoundation ?? FOUNDATION_DATA)
   const [rdDoc, setRdDoc] = useState<RitualsData>(initialRituals ?? RITUALS_DATA)
@@ -173,143 +174,198 @@ export default function LifePlanClient({ initialSections, initialGoals, initialF
     setShowAddModal(true)
   }
 
+  const views: [View, string][] = [['goals', 'Goals'], ['timeline', 'Timeline'], ['foundation', 'Foundation'], ['vision', 'Vision'], ['backlog', 'Backlog']]
+  const ageFilters: [string, string][] = [
+    ['all', 'All'], ['40', '40'], ['45', '45'], ['50', '50'],
+    ...(goals.some(g => g.timeframe === '55') ? [['55', '55'] as [string, string]] : []),
+    ['60', '60'],
+  ]
+  const q = searchQuery.trim().toLowerCase()
+
+  const itemProps = {
+    editingId, editText, setEditText,
+    onToggle: toggleGoal, onDelete: deleteGoal,
+    onEdit: (id: string, text: string) => { setEditingId(id); setEditText(text) },
+    onSaveEdit: saveEdit, onCancelEdit: () => setEditingId(null),
+  }
+
   // ── RENDER ────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', minHeight: '80vh' }}>
+    <div className="flex flex-col gap-5 pb-20 md:pb-0">
 
-      {/* ── Inner sidebar (Goals view only) ─────────────────── */}
-      {activeView === 'goals' && (
-        <div style={{ width: 200, flexShrink: 0, position: 'sticky', top: 24 }}>
-          <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-            {initialSections.map(s => {
-              const stats = sectionStats[s.id]
-              const isActive = activeSection === s.id
-              return (
-                <button key={s.id} onClick={() => setActiveSection(s.id)}
-                  className="w-full text-left px-3 py-2.5 flex items-center gap-2 transition-all hover:bg-white/5"
-                  style={{ background: isActive ? `${s.color_hex}18` : 'transparent', borderLeft: `3px solid ${isActive ? s.color_hex : 'transparent'}` }}>
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color_hex }} />
-                  <span className="text-xs flex-1 leading-tight" style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: isActive ? 600 : 400 }}>{s.name}</span>
-                  {stats && stats.total > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}>
-                      {stats.done}/{stats.total}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
+      {/* ── Header ───────────────────────────────────────────── */}
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[28px] md:text-3xl font-bold tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>
+            Goals + Vision
+          </h1>
+          <p className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>
+            {totalStats.total} goals · {initialSections.length} areas · {totalStats.done} done
+          </p>
+        </div>
+        {activeView === 'goals' && (
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search all goals" aria-label="Search all goals"
+              className="hidden md:block h-11 w-60 px-4 rounded-2xl text-sm"
+              style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-line)', color: 'var(--text-primary)' }} />
+            <button onClick={() => setSearchOpen(o => !o)} aria-label="Search goals" aria-expanded={searchOpen}
+              className="md:hidden w-11 h-11 rounded-2xl flex items-center justify-center"
+              style={{ background: searchOpen ? 'rgba(var(--accent-rgb), 0.15)' : 'var(--glass-bg)', border: '1px solid var(--glass-line)', color: searchOpen ? 'var(--accent-cyan)' : 'var(--text-primary)' }}>
+              <Search size={18} aria-hidden="true" />
+            </button>
+            <button onClick={() => { setAddTarget(null); setShowAddModal(true) }}
+              className="hidden md:inline-flex items-center gap-2 h-11 px-5 rounded-2xl text-sm font-semibold"
+              style={{ background: 'var(--accent-cyan)', color: '#04131c' }}>
+              <Plus size={16} aria-hidden="true" /> Add goal
+            </button>
           </div>
+        )}
+      </header>
 
-          {/* Overall progress */}
-          <div className="mt-3 p-3 rounded-xl border" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-            <div className="flex justify-between text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>
-              <span>Overall</span>
-              <span>{pct(totalStats.done, totalStats.total)}%</span>
+      {activeView === 'goals' && searchOpen && (
+        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} autoFocus
+          placeholder="Search all goals" aria-label="Search all goals"
+          className="md:hidden h-12 w-full px-4 rounded-2xl text-base"
+          style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-line)', color: 'var(--text-primary)' }} />
+      )}
+
+      {/* ── View switcher ────────────────────────────────────── */}
+      <nav aria-label="Goals views" className="no-scrollbar flex gap-1 p-1 rounded-2xl overflow-x-auto md:w-fit"
+        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>
+        {views.map(([v, label]) => (
+          <button key={v} onClick={() => setActiveView(v)} aria-current={activeView === v ? 'page' : undefined}
+            className="flex-none px-4 py-2.5 rounded-xl text-sm transition-colors"
+            style={{ background: activeView === v ? 'var(--accent-cyan)' : 'transparent', color: activeView === v ? '#04131c' : 'var(--text-secondary)', fontWeight: activeView === v ? 600 : 500 }}>
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {/* ── Goals view ───────────────────────────────────────── */}
+      {activeView === 'goals' && (
+        <div className="md:grid md:grid-cols-[220px_minmax(0,1fr)] md:gap-6 md:items-start">
+
+          {/* Desktop: area list */}
+          <aside className="hidden md:flex flex-col gap-3 sticky top-6">
+            <div className="glass-card overflow-hidden p-1.5">
+              {initialSections.map(s => {
+                const stats = sectionStats[s.id]
+                const isActive = activeSection === s.id
+                return (
+                  <button key={s.id} onClick={() => { setActiveSection(s.id); setSearchQuery('') }}
+                    className="w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-2.5 transition-colors hover:bg-white/5"
+                    style={{ background: isActive ? 'rgba(255,255,255,0.10)' : 'transparent' }}>
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color_hex }} />
+                    <span className="text-sm flex-1 leading-tight" style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: isActive ? 600 : 400 }}>{s.name}</span>
+                    {stats && stats.total > 0 && (
+                      <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{stats.total}</span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-              <div className="h-full rounded-full transition-all" style={{ width: `${pct(totalStats.done, totalStats.total)}%`, background: 'linear-gradient(90deg, #5ee6ff, #1e90ff)' }} />
+            <div className="glass-card p-4">
+              <div className="flex justify-between text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+                <span>Overall</span>
+                <span>{pct(totalStats.done, totalStats.total)}%</span>
+              </div>
+              <ProgressBar value={totalStats.done} max={totalStats.total} color="var(--accent-gradient)" label="Overall progress" />
+              <div className="flex justify-between text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>
+                <span>{totalStats.done} done</span><span>{totalStats.total - totalStats.done} left</span>
+              </div>
             </div>
-            <div className="flex justify-between text-[10px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
-              <span>{totalStats.done} done</span><span>{totalStats.total - totalStats.done} left</span>
-            </div>
+          </aside>
+
+          <div className="flex flex-col gap-4 min-w-0">
+            {/* Phone: area chips */}
+            {!q && (
+              <div className="md:hidden flex flex-col gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-muted)' }}>Life area</span>
+                <div className="no-scrollbar flex gap-2 overflow-x-auto -mx-4 px-4">
+                  {initialSections.map(s => {
+                    const isActive = activeSection === s.id
+                    return (
+                      <button key={s.id} onClick={() => setActiveSection(s.id)} aria-pressed={isActive}
+                        className="flex-none flex items-center gap-2 h-11 px-4 rounded-full text-sm"
+                        style={{
+                          background: isActive ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.05)',
+                          border: `1px solid ${isActive ? 'rgba(255,255,255,0.28)' : 'var(--glass-line)'}`,
+                          color: 'var(--text-primary)', fontWeight: isActive ? 600 : 500,
+                        }}>
+                        <span aria-hidden="true" className="w-2 h-2 rounded-full" style={{ background: s.color_hex }} />
+                        <span className="whitespace-nowrap">{s.name}</span>
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{sectionStats[s.id]?.total ?? 0}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            <QuarterlyReviewBanner onDismiss={() => {}} />
+
+            {q ? (
+              <SearchResults sections={initialSections} goals={goals} query={q} itemProps={itemProps} />
+            ) : currentSection && (
+              <GoalsSectionView
+                section={currentSection} goals={goals}
+                activeFilter={activeFilter} setActiveFilter={setActiveFilter} ageFilters={ageFilters}
+                stats={sectionStats[currentSection.id]}
+                itemProps={itemProps}
+                onAddGoal={openAdd}
+              />
+            )}
           </div>
         </div>
       )}
 
-      {/* ── Main content ─────────────────────────────────────── */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      {activeView === 'foundation' && <FoundationView fd={fdDoc} rd={rdDoc} onSave={saveFoundationDoc} />}
 
-        {/* Top nav + filters */}
-        <div className="flex items-center gap-2 flex-wrap mb-5">
-          <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: 'var(--card-border)', background: 'var(--card-bg)' }}>
-            {([['foundation', 'Foundation'], ['goals', 'Goals'], ['timeline', 'Timeline'], ['vision', 'Vision Board'], ['backlog', 'Backlog']] as [View, string][]).map(([v, label]) => (
-              <button key={v} onClick={() => setActiveView(v)}
-                className="px-4 py-2 text-sm font-medium transition-all"
-                style={{ background: activeView === v ? 'var(--accent-cyan)' : 'transparent', color: activeView === v ? '#000' : 'var(--text-secondary)' }}>
+      {activeView === 'timeline' && (
+        <TimelineView sections={initialSections} goals={goals} onToggle={toggleGoal} />
+      )}
+
+      {activeView === 'vision' && (
+        <div>
+          <div className="no-scrollbar flex gap-1 mb-6 p-1 rounded-xl w-fit max-w-full overflow-x-auto" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            {([['overview', 'Overview'], ['board', 'Vision Board'], ['house', 'House Board']] as const).map(([tab, label]) => (
+              <button key={tab} onClick={() => setVisionSubTab(tab)}
+                className="flex-none px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+                style={{
+                  background: visionSubTab === tab ? 'rgba(201,168,76,0.2)' : 'transparent',
+                  color: visionSubTab === tab ? '#e8c97a' : 'var(--text-secondary)',
+                  border: visionSubTab === tab ? '1px solid rgba(201,168,76,0.4)' : '1px solid transparent',
+                }}>
                 {label}
               </button>
             ))}
           </div>
-
-          {activeView === 'goals' && (
-            <>
-              <div className="flex gap-1.5 flex-wrap">
-                {([['all', 'All Ages'], ['40', 'Age 40'], ['45', 'Age 45'], ['50', 'Age 50'], ...(goals.some(g => g.timeframe === '55') ? [['55', 'Age 55']] : []), ['60', 'Age 60']] as [string, string][]).map(([f, label]) => (
-                  <button key={f} onClick={() => setActiveFilter(f)}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium border transition-all"
-                    style={{ background: activeFilter === f ? 'var(--accent-cyan)' : 'transparent', color: activeFilter === f ? '#000' : 'var(--text-secondary)', borderColor: activeFilter === f ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.1)' }}>
-                    {label}
-                  </button>
-                ))}
-                <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Search..." className="px-3 py-1.5 rounded-full text-xs border"
-                  style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', width: 120 }} />
-              </div>
-              <button onClick={() => { setAddTarget(null); setShowAddModal(true) }}
-                className="ml-auto px-4 py-2 rounded-xl text-sm font-semibold transition-all"
-                style={{ background: 'var(--accent-cyan)', color: '#000' }}>
-                + Add Goal
-              </button>
-            </>
-          )}
+          {visionSubTab === 'overview' && <VisionView fd={fdDoc} rd={rdDoc} />}
+          {visionSubTab === 'board' && <VisionBoardView />}
+          {visionSubTab === 'house' && <HouseBoardView />}
         </div>
+      )}
 
-        {activeView === 'foundation' && <FoundationView fd={fdDoc} rd={rdDoc} onSave={saveFoundationDoc} />}
+      {activeView === 'backlog' && (
+        <BacklogView
+          sections={initialSections}
+          onPromote={(text, sectionId) => {
+            setPreFillText(text)
+            setAddTarget({ sectionId, timeframe: '40', timeframeLabel: 'Age 40 (1 Year)', categoryHeader: null })
+            setShowAddModal(true)
+          }}
+        />
+      )}
 
-        {activeView === 'goals' && (
-          <QuarterlyReviewBanner onDismiss={() => {}} />
-        )}
-
-        {activeView === 'goals' && currentSection && (
-          <GoalsSectionView
-            section={currentSection} goals={goals}
-            activeFilter={activeFilter} searchQuery={searchQuery}
-            stats={sectionStats[currentSection.id]}
-            editingId={editingId} editText={editText} setEditText={setEditText}
-            onToggle={toggleGoal} onDelete={deleteGoal}
-            onEdit={(id, text) => { setEditingId(id); setEditText(text) }}
-            onSaveEdit={saveEdit} onCancelEdit={() => setEditingId(null)}
-            onAddGoal={openAdd}
-          />
-        )}
-
-        {activeView === 'timeline' && (
-          <TimelineView sections={initialSections} goals={goals} onToggle={toggleGoal} />
-        )}
-
-        {activeView === 'vision' && (
-          <div>
-            {/* Sub-tabs */}
-            <div className="flex gap-1 mb-6 p-1 rounded-xl w-fit" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              {([['overview', 'Overview'], ['board', 'Vision Board'], ['house', 'House Board']] as const).map(([tab, label]) => (
-                <button key={tab} onClick={() => setVisionSubTab(tab)}
-                  className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
-                  style={{
-                    background: visionSubTab === tab ? 'rgba(201,168,76,0.2)' : 'transparent',
-                    color: visionSubTab === tab ? '#e8c97a' : 'var(--text-secondary)',
-                    border: visionSubTab === tab ? '1px solid rgba(201,168,76,0.4)' : '1px solid transparent',
-                  }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            {visionSubTab === 'overview' && <VisionView fd={fdDoc} rd={rdDoc} />}
-            {visionSubTab === 'board' && <VisionBoardView />}
-            {visionSubTab === 'house' && <HouseBoardView />}
-          </div>
-        )}
-
-        {activeView === 'backlog' && (
-          <BacklogView
-            sections={initialSections}
-            onPromote={(text, sectionId) => {
-              setPreFillText(text)
-              setAddTarget({ sectionId, timeframe: '40', timeframeLabel: 'Age 40 (1 Year)', categoryHeader: null })
-              setShowAddModal(true)
-            }}
-          />
-        )}
-      </div>
+      {/* ── Phone: floating add button ───────────────────────── */}
+      {activeView === 'goals' && !showAddModal && (
+        <button onClick={() => { setAddTarget(null); setShowAddModal(true) }}
+          className="md:hidden fixed left-4 z-40 flex items-center gap-2 h-[52px] px-5 rounded-full text-[15px] font-semibold"
+          style={{ bottom: 88, background: 'var(--accent-cyan)', color: '#04131c', boxShadow: '0 10px 30px rgba(var(--accent-rgb), 0.35)' }}>
+          <Plus size={18} strokeWidth={2.4} aria-hidden="true" /> Add goal
+        </button>
+      )}
 
       {/* ── Add goal modal ───────────────────────────────────── */}
       {showAddModal && (
@@ -328,16 +384,45 @@ export default function LifePlanClient({ initialSections, initialGoals, initialF
   )
 }
 
+// ── Shared bits ───────────────────────────────────────────────
+/** Area colors are saturated mid-tones; lift them toward white so names stay legible on ink glass. */
+const readable = (hex: string) => `color-mix(in srgb, ${hex} 62%, #ffffff)`
+
+type ItemProps = {
+  editingId: string | null; editText: string; setEditText: (t: string) => void
+  onToggle: (id: string) => void; onDelete: (id: string) => void
+  onEdit: (id: string, text: string) => void; onSaveEdit: () => void; onCancelEdit: () => void
+}
+
+function ProgressBar({ value, max, color, label }: { value: number; max: number; color: string; label: string }) {
+  const p = pct(value, max)
+  return (
+    <div role="progressbar" aria-label={label} aria-valuenow={value} aria-valuemin={0} aria-valuemax={max}
+      className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.10)' }}>
+      <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(p, value > 0 ? 2 : 0)}%`, background: color }} />
+    </div>
+  )
+}
+
+/** Timeframe labels come as "1 YEAR (Age 40) — Dream Home" or "Age 40 (1 Year)";
+ *  show the age as the title and the span as the eyebrow either way. */
+function splitLabel(label: string) {
+  const m = label.match(/^(.*?)\s*\(([^)]+)\)\s*(?:[—-]\s*(.+))?$/)
+  if (!m) return { title: label, eyebrow: null as string | null }
+  const [, main, paren, suffix] = m
+  const tidy = (t: string) => t.toLowerCase().replace(/^\w/, c => c.toUpperCase())
+  const [age, span] = /^age\b/i.test(paren) ? [paren, main] : [main, paren]
+  return { title: suffix ? `${age} · ${suffix}` : age, eyebrow: tidy(span), age }
+}
+
 // ── GOAL ITEM ─────────────────────────────────────────────────
-function GoalItem({ goal, isEditing, editText, setEditText, onToggle, onEdit, onDelete, onSaveEdit, onCancelEdit, searchQuery, sectionColor }: {
+function GoalItem({ goal, isEditing, editText, setEditText, onToggle, onEdit, onDelete, onSaveEdit, onCancelEdit, sectionColor }: {
   goal: DBGoal; isEditing: boolean; editText: string; setEditText: (t: string) => void
   onToggle: () => void; onEdit: () => void; onDelete: () => void
-  onSaveEdit: () => void; onCancelEdit: () => void; searchQuery: string
+  onSaveEdit: () => void; onCancelEdit: () => void
   sectionColor?: string
 }) {
-  const q = searchQuery.toLowerCase()
-  const highlight = !!q && goal.goal_text.toLowerCase().includes(q)
-  const dim = !!q && !highlight
+  const [menuOpen, setMenuOpen] = useState(false)
   const [expanded, setExpanded] = useState(false)
 
   function handleCreateTask(goalText: string) {
@@ -347,70 +432,121 @@ function GoalItem({ goal, isEditing, editText, setEditText, onToggle, onEdit, on
     window.location.href = '/tasks'
   }
 
+  if (isEditing) {
+    return (
+      <div className="flex flex-col sm:flex-row gap-2 px-4 md:px-5 py-2.5">
+        <input value={editText} onChange={e => setEditText(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') onSaveEdit(); if (e.key === 'Escape') onCancelEdit() }}
+          aria-label="Goal text"
+          className="flex-1 h-11 text-base md:text-sm rounded-xl px-3"
+          style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--accent-cyan)', color: 'var(--text-primary)' }}
+          autoFocus />
+        <div className="flex gap-2">
+          <button onClick={onSaveEdit} className="flex-1 sm:flex-none h-11 px-4 rounded-xl text-sm font-semibold" style={{ background: 'var(--accent-cyan)', color: '#04131c' }}>Save</button>
+          <button onClick={onCancelEdit} className="flex-1 sm:flex-none h-11 px-4 rounded-xl text-sm" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--text-secondary)' }}>Cancel</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="rounded-lg transition-all group"
-      style={{ opacity: dim ? 0.15 : 1, background: highlight ? 'rgba(var(--accent-rgb), 0.06)' : 'transparent', outline: highlight ? '1px solid rgba(var(--accent-rgb), 0.25)' : 'none' }}>
-      <div className="flex items-start gap-2.5 px-3 py-2">
-        <button onClick={onToggle}
-          className="mt-0.5 w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all"
-          style={{ borderColor: goal.completed ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.2)', background: goal.completed ? 'var(--accent-cyan)' : 'transparent' }}>
-          {goal.completed && <span style={{ color: '#000', fontSize: 9, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+    <div className="group">
+      <div className="flex items-start gap-1 pl-1 pr-2 md:pl-2">
+        <button onClick={onToggle} role="checkbox" aria-checked={goal.completed} aria-label={goal.goal_text}
+          className="w-11 h-12 flex-shrink-0 flex items-center justify-center">
+          <span className="w-[22px] h-[22px] rounded-md border-2 flex items-center justify-center transition-colors"
+            style={{ borderColor: goal.completed ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.32)', background: goal.completed ? 'var(--accent-cyan)' : 'transparent' }}>
+            {goal.completed && <Check size={14} strokeWidth={3} color="#04131c" aria-hidden="true" />}
+          </span>
         </button>
 
-        {isEditing ? (
-          <div className="flex-1 flex gap-2">
-            <input value={editText} onChange={e => setEditText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') onSaveEdit(); if (e.key === 'Escape') onCancelEdit() }}
-              className="flex-1 text-sm rounded px-2 py-0.5 border"
-              style={{ background: 'rgba(255,255,255,0.08)', borderColor: 'var(--accent-cyan)', color: 'var(--text-primary)' }}
-              autoFocus />
-            <button onClick={onSaveEdit} className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--accent-cyan)', color: '#000' }}>Save</button>
-            <button onClick={onCancelEdit} className="text-xs px-2 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)' }}>✕</button>
-          </div>
-        ) : (
-          <div className="flex-1 min-w-0">
-            <span className="text-sm leading-relaxed" style={{ color: goal.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: goal.completed ? 'line-through' : 'none' }}>
-              {goal.goal_text}
-            </span>
-            {goal.ai_generated && (
-              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(var(--accent-rgb), 0.15)', color: 'var(--accent-cyan)' }}>AI</span>
-            )}
-          </div>
-        )}
+        <div className="flex-1 min-w-0 py-3">
+          <span className="text-[15px] md:text-sm leading-snug" style={{ color: goal.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: goal.completed ? 'line-through' : 'none' }}>
+            {goal.goal_text}
+          </span>
+          {goal.ai_generated && (
+            <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full align-middle" style={{ background: 'rgba(var(--accent-rgb), 0.15)', color: 'var(--accent-cyan)' }}>AI</span>
+          )}
+        </div>
 
-        {!isEditing && (
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-            <button onClick={() => setExpanded(e => !e)} title="Progress + milestones"
-              className="text-[11px] px-1.5 py-0.5 rounded"
-              style={{ color: expanded ? 'var(--accent-cyan)' : 'var(--text-muted)', background: expanded ? 'rgba(var(--accent-rgb), 0.1)' : 'rgba(255,255,255,0.06)' }}>
-              {expanded ? '▲' : '▼'}
-            </button>
-            <button onClick={onEdit} className="text-[11px] px-1.5 py-0.5 rounded" style={{ color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)' }}>Edit</button>
-            <button onClick={onDelete} className="text-[11px] px-1.5 py-0.5 rounded" style={{ color: '#f87171', background: 'rgba(248,113,113,0.1)' }}>✕</button>
-          </div>
-        )}
+        <button onClick={() => setMenuOpen(o => !o)} aria-label="Goal actions" aria-expanded={menuOpen}
+          className="w-11 h-12 flex-shrink-0 flex items-center justify-center rounded-xl transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
+          style={{ color: menuOpen ? 'var(--accent-cyan)' : 'var(--text-muted)', opacity: menuOpen ? 1 : undefined }}>
+          <MoreHorizontal size={18} aria-hidden="true" />
+        </button>
       </div>
 
-      {expanded && (
-        <div className="px-3 pb-2">
-          <GoalProgressPanel
-            goalId={goal.id}
-            goalText={goal.goal_text}
-            sectionColor={sectionColor}
-            onCreateTask={handleCreateTask}
-          />
+      {menuOpen && (
+        <div className="flex gap-2 pl-12 md:pl-14 pr-4 pb-3 -mt-1">
+          <button onClick={() => setExpanded(e => !e)} className="h-10 px-3 rounded-xl text-[13px]"
+            style={{ background: expanded ? 'rgba(var(--accent-rgb), 0.12)' : 'rgba(255,255,255,0.07)', color: expanded ? 'var(--accent-cyan)' : 'var(--text-secondary)' }}>
+            Progress
+          </button>
+          <button onClick={() => { setMenuOpen(false); onEdit() }} className="h-10 px-3 rounded-xl text-[13px]"
+            style={{ background: 'rgba(255,255,255,0.07)', color: 'var(--text-secondary)' }}>
+            Edit
+          </button>
+          <button onClick={() => { if (window.confirm('Delete this goal?')) onDelete() }} className="h-10 px-3 rounded-xl text-[13px]"
+            style={{ background: 'rgba(248,113,113,0.1)', color: '#f87171' }}>
+            Delete
+          </button>
+        </div>
+      )}
+
+      {menuOpen && expanded && (
+        <div className="px-4 md:px-5 pb-3">
+          <GoalProgressPanel goalId={goal.id} goalText={goal.goal_text} sectionColor={sectionColor} onCreateTask={handleCreateTask} />
         </div>
       )}
     </div>
   )
 }
 
+function GoalList({ goals, itemProps, sectionColor }: { goals: DBGoal[]; itemProps: ItemProps; sectionColor?: string }) {
+  return (
+    <>
+      {goals.map(g => (
+        <GoalItem key={g.id} goal={g}
+          isEditing={itemProps.editingId === g.id} editText={itemProps.editText} setEditText={itemProps.setEditText}
+          onToggle={() => itemProps.onToggle(g.id)}
+          onEdit={() => itemProps.onEdit(g.id, g.goal_text)}
+          onDelete={() => itemProps.onDelete(g.id)}
+          onSaveEdit={itemProps.onSaveEdit} onCancelEdit={itemProps.onCancelEdit}
+          sectionColor={sectionColor}
+        />
+      ))}
+    </>
+  )
+}
+
+// ── SEARCH RESULTS (across every area) ────────────────────────
+function SearchResults({ sections, goals, query, itemProps }: { sections: DBSection[]; goals: DBGoal[]; query: string; itemProps: ItemProps }) {
+  const hits = goals.filter(g => g.goal_text.toLowerCase().includes(query))
+  if (hits.length === 0) {
+    return <div className="glass-card p-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>No goals match “{query}”.</div>
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>{hits.length} match{hits.length === 1 ? '' : 'es'}</p>
+      {sections.map(s => {
+        const sh = hits.filter(g => g.section_id === s.id)
+        if (sh.length === 0) return null
+        return (
+          <section key={s.id} className="glass-card overflow-hidden" style={{ borderRadius: 20 }}>
+            <h2 className="px-5 pt-4 pb-1 text-sm font-semibold" style={{ color: readable(s.color_hex) }}>{s.name} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>· {sh.length}</span></h2>
+            <GoalList goals={sh} itemProps={itemProps} sectionColor={s.color_hex} />
+          </section>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── GOALS SECTION VIEW ────────────────────────────────────────
-function GoalsSectionView({ section, goals, activeFilter, searchQuery, stats, editingId, editText, setEditText, onToggle, onDelete, onEdit, onSaveEdit, onCancelEdit, onAddGoal }: {
-  section: DBSection; goals: DBGoal[]; activeFilter: string; searchQuery: string
-  stats: { total: number; done: number }; editingId: string | null; editText: string; setEditText: (t: string) => void
-  onToggle: (id: string) => void; onDelete: (id: string) => void
-  onEdit: (id: string, text: string) => void; onSaveEdit: () => void; onCancelEdit: () => void
+function GoalsSectionView({ section, goals, activeFilter, setActiveFilter, ageFilters, stats, itemProps, onAddGoal }: {
+  section: DBSection; goals: DBGoal[]; activeFilter: string; setActiveFilter: (f: string) => void
+  ageFilters: [string, string][]
+  stats: { total: number; done: number }; itemProps: ItemProps
   onAddGoal: (sectionId: string, tf: string, tfLabel: string, cat: string | null) => void
 }) {
   const grouped = useMemo(() => groupGoals(goals, section.id), [goals, section.id])
@@ -426,58 +562,63 @@ function GoalsSectionView({ section, goals, activeFilter, searchQuery, stats, ed
     return result
   }, [grouped])
 
+  const visibleTfs = orderedTfs.filter(([tf]) => {
+    const isStandardTf = ['40', '45', '50', '55', '60'].includes(tf)
+    return activeFilter === 'all' || !isStandardTf || activeFilter === tf
+  })
+
   return (
-    <div>
-      <div className="mb-4 pb-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-        <h2 className="text-2xl font-bold mb-1" style={{ color: section.color_hex, fontFamily: 'var(--font-geist-sans)' }}>{section.name}</h2>
-        <div className="flex items-center gap-4 mt-2">
-          <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)', maxWidth: 200 }}>
-            <div className="h-full rounded-full transition-all" style={{ width: `${pct(stats.done, stats.total)}%`, background: section.color_hex }} />
-          </div>
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{stats.done}/{stats.total} goals · {pct(stats.done, stats.total)}%</span>
+    <div className="flex flex-col gap-3">
+      {/* Area header card */}
+      <section className="glass-card flex flex-col gap-3.5 p-[18px] md:p-5" style={{ borderRadius: 20 }}>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-xl md:text-2xl font-bold tracking-tight" style={{ color: readable(section.color_hex) }}>{section.name}</h2>
+          <span className="text-[13px] flex-shrink-0" style={{ color: 'var(--text-secondary)' }}>{stats.done} of {stats.total}</span>
         </div>
-      </div>
+        <ProgressBar value={stats.done} max={stats.total} color={section.color_hex} label={`${section.name} progress`} />
+        <div role="group" aria-label="Filter by age" className="grid gap-1 p-1 rounded-2xl md:max-w-md"
+          style={{ gridTemplateColumns: `repeat(${ageFilters.length}, minmax(0, 1fr))`, background: 'rgba(7,11,26,0.5)' }}>
+          {ageFilters.map(([f, label]) => (
+            <button key={f} onClick={() => setActiveFilter(f)} aria-pressed={activeFilter === f}
+              className="h-10 rounded-xl text-[13px] transition-colors"
+              style={{ background: activeFilter === f ? 'rgba(255,255,255,0.14)' : 'transparent', color: activeFilter === f ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: activeFilter === f ? 600 : 500 }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
 
-      {orderedTfs.map(([tf, data]) => {
+      {visibleTfs.map(([tf, data], i) => {
         if (!data) return null
-        const isStandardTf = ['40', '45', '50', '55', '60'].includes(tf)
-        if (activeFilter !== 'all' && isStandardTf && activeFilter !== tf) return null
-
         const tfGoals = goals.filter(g => g.section_id === section.id && g.timeframe === tf)
         const tfDone = tfGoals.filter(g => g.completed).length
-
         return (
-          <TimeframeBlock key={tf} label={data.label} colorHex={section.color_hex}
-            count={`${tfDone}/${tfGoals.length}`} countPct={pct(tfDone, tfGoals.length)}>
+          <TimeframeBlock key={`${section.id}-${tf}`} label={data.label}
+            count={tfDone > 0 ? `${tfDone} of ${tfGoals.length}` : `${tfGoals.length} goal${tfGoals.length === 1 ? '' : 's'}`}
+            defaultOpen={i === 0 || activeFilter !== 'all'}>
             {[...data.cats.entries()].map(([cat, catGoals]) => (
-              <div key={cat ?? '_none'}>
+              <div key={cat ?? '_none'} className="border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
                 {cat && (
-                  <div className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-widest" style={{ color: section.color_hex }}>{cat}</div>
+                  <h3 className="px-4 md:px-5 pt-3.5 pb-1 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{cat}</h3>
                 )}
-                {catGoals.map(g => (
-                  <GoalItem key={g.id} goal={g}
-                    isEditing={editingId === g.id} editText={editText} setEditText={setEditText}
-                    onToggle={() => onToggle(g.id)}
-                    onEdit={() => onEdit(g.id, g.goal_text)}
-                    onDelete={() => onDelete(g.id)}
-                    onSaveEdit={onSaveEdit} onCancelEdit={onCancelEdit}
-                    searchQuery={searchQuery}
-                    sectionColor={section.color_hex}
-                  />
-                ))}
+                <GoalList goals={catGoals} itemProps={itemProps} sectionColor={section.color_hex} />
               </div>
             ))}
-            <AddBtn onClick={() => onAddGoal(section.id, tf, data.label, null)} />
+            <button onClick={() => onAddGoal(section.id, tf, data.label, null)}
+              className="w-full flex items-center gap-2.5 min-h-[52px] px-4 md:px-5 border-t text-sm font-medium transition-colors hover:bg-white/[0.03]"
+              style={{ borderColor: 'rgba(255,255,255,0.08)', color: 'var(--accent-cyan)' }}>
+              <Plus size={16} aria-hidden="true" /> Add to {splitLabel(data.label).age ?? splitLabel(data.label).title}
+            </button>
           </TimeframeBlock>
         )
       })}
 
       {orderedTfs.length === 0 && (
-        <div className="text-center py-12 rounded-xl border" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-          <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>No goals yet. Run the DB migration + seed to populate.</p>
+        <div className="glass-card text-center py-12 px-6">
+          <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>No goals in this area yet.</p>
           <button onClick={() => onAddGoal(section.id, '40', 'Age 40 (1 Year)', null)}
-            className="px-4 py-2 rounded-xl text-sm font-semibold" style={{ background: 'var(--accent-cyan)', color: '#000' }}>
-            + Add First Goal
+            className="h-11 px-5 rounded-2xl text-sm font-semibold" style={{ background: 'var(--accent-cyan)', color: '#04131c' }}>
+            Add the first goal
           </button>
         </div>
       )}
@@ -486,39 +627,27 @@ function GoalsSectionView({ section, goals, activeFilter, searchQuery, stats, ed
 }
 
 // ── COLLAPSIBLE TIMEFRAME BLOCK ───────────────────────────────
-function TimeframeBlock({ label, colorHex, children, count, countPct }: {
-  label: string; colorHex: string; children: React.ReactNode; count?: string; countPct?: number
+function TimeframeBlock({ label, children, count, defaultOpen }: {
+  label: string; children: React.ReactNode; count: string; defaultOpen: boolean
 }) {
-  const [collapsed, setCollapsed] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
+  useEffect(() => { setOpen(defaultOpen) }, [defaultOpen])
+  const { title, eyebrow } = splitLabel(label)
   return (
-    <div className="mb-3 rounded-xl border overflow-hidden" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-      <button onClick={() => setCollapsed(c => !c)}
-        className="w-full flex items-center justify-between px-4 py-3 transition-colors hover:bg-white/[0.02]">
-        <span className="text-sm font-semibold text-left" style={{ fontFamily: 'var(--font-geist-sans)', color: 'var(--text-primary)' }}>{label}</span>
-        <div className="flex items-center gap-3 flex-shrink-0">
-          {count && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{count}</span>
-              <div className="w-20 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                <div className="h-full rounded-full" style={{ width: `${countPct ?? 0}%`, background: colorHex }} />
-              </div>
-            </div>
-          )}
-          <span style={{ color: 'var(--text-muted)', fontSize: 12, transform: collapsed ? 'rotate(-90deg)' : 'none', display: 'inline-block', transition: 'transform 0.2s' }}>▼</span>
-        </div>
+    <section className="glass-card overflow-hidden" style={{ borderRadius: 20 }}>
+      <button onClick={() => setOpen(o => !o)} aria-expanded={open}
+        className="w-full flex items-center justify-between gap-3 min-h-[60px] px-4 md:px-5 py-2 text-left transition-colors hover:bg-white/[0.03]">
+        <span className="flex flex-col gap-0.5 min-w-0">
+          {eyebrow && <span className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-muted)' }}>{eyebrow}</span>}
+          <span className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</span>
+        </span>
+        <span className="flex items-center gap-2.5 flex-shrink-0 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
+          {count}
+          <ChevronDown size={16} aria-hidden="true" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+        </span>
       </button>
-      {!collapsed && <div className="pb-2">{children}</div>}
-    </div>
-  )
-}
-
-function AddBtn({ onClick }: { onClick: () => void }) {
-  return (
-    <button onClick={onClick}
-      className="mx-3 mt-1 mb-2 flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all hover:bg-white/5"
-      style={{ color: 'var(--text-muted)', borderColor: 'rgba(255,255,255,0.08)', borderStyle: 'dashed' }}>
-      + Add goal
-    </button>
+      {open && <div>{children}</div>}
+    </section>
   )
 }
 
@@ -528,46 +657,98 @@ function TimelineView({ sections, goals, onToggle }: { sections: DBSection[]; go
   const tfCols = (['40', '45', '50', '55', '60'] as const).filter(
     tf => tf !== '55' || goals.some(g => g.timeframe === '55'),
   )
+  const [mobileTf, setMobileTf] = useState<string>('40')
   return (
-    <div style={{ overflowX: 'auto', paddingBottom: 20 }}>
-      <table style={{ minWidth: 900, borderCollapse: 'collapse', width: '100%' }}>
-        <thead>
-          <tr>
-            <th className="text-left text-xs font-semibold uppercase tracking-widest px-3 py-3"
-              style={{ color: 'var(--text-muted)', width: 160, background: 'var(--card-bg)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Life Area</th>
-            {tfCols.map(tf => (
-              <th key={tf} className="text-left text-xs font-semibold px-3 py-3"
-                style={{ color: 'var(--text-primary)', background: tf === '40' ? 'rgba(var(--accent-rgb), 0.06)' : 'var(--card-bg)', borderBottom: tf === '40' ? '2px solid var(--accent-cyan)' : '1px solid rgba(255,255,255,0.06)' }}>
-                Age {tf}{tf === '40' ? ' ↗ Now' : ''}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {sections.map(s => (
-            <tr key={s.id}>
-              <td className="px-3 py-2 text-xs font-semibold"
-                style={{ color: s.color_hex, background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.04)', verticalAlign: 'top' }}>{s.name}</td>
-              {tfCols.map(tf => {
-                const all = goals.filter(g => g.section_id === s.id && g.timeframe === tf)
-                return (
-                  <td key={tf} className="px-2 py-1.5" style={{ background: 'transparent', borderBottom: '1px solid rgba(255,255,255,0.04)', verticalAlign: 'top' }}>
-                    {all.slice(0, 3).map(g => (
-                      <div key={g.id} onClick={() => onToggle(g.id)}
-                        className="mb-1 px-2 py-1 rounded text-[11px] cursor-pointer transition-all hover:opacity-90"
-                        style={{ background: `${s.color_hex}18`, color: g.completed ? 'var(--text-muted)' : s.color_hex, textDecoration: g.completed ? 'line-through' : 'none', borderLeft: `3px solid ${s.color_hex}`, lineHeight: 1.3 }}>
-                        {g.goal_text.length > 45 ? g.goal_text.slice(0, 43) + '…' : g.goal_text}
-                      </div>
-                    ))}
-                    {all.length > 3 && <div className="text-[10px] px-2" style={{ color: 'var(--text-muted)' }}>+{all.length - 3} more…</div>}
-                  </td>
-                )
-              })}
-            </tr>
+    <>
+      {/* Phone: one age at a time, areas stacked */}
+      <div className="md:hidden flex flex-col gap-3">
+        <div role="group" aria-label="Age" className="grid gap-1 p-1 rounded-2xl"
+          style={{ gridTemplateColumns: `repeat(${tfCols.length}, minmax(0, 1fr))`, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>
+          {tfCols.map(tf => (
+            <button key={tf} onClick={() => setMobileTf(tf)} aria-pressed={mobileTf === tf}
+              className="h-10 rounded-xl text-[13px]"
+              style={{ background: mobileTf === tf ? 'var(--accent-cyan)' : 'transparent', color: mobileTf === tf ? '#04131c' : 'var(--text-secondary)', fontWeight: mobileTf === tf ? 600 : 500 }}>
+              Age {tf}
+            </button>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </div>
+        {sections.map(s => {
+          const all = goals.filter(g => g.section_id === s.id && g.timeframe === mobileTf)
+          if (all.length === 0) return null
+          return <TimelineAreaCard key={s.id} section={s} goals={all} onToggle={onToggle} />
+        })}
+      </div>
+
+      {/* Desktop: full grid */}
+      <div className="hidden md:block glass-card overflow-x-auto" style={{ borderRadius: 20 }}>
+        <table style={{ minWidth: 900, borderCollapse: 'collapse', width: '100%' }}>
+          <thead>
+            <tr>
+              <th className="text-left text-xs font-semibold uppercase tracking-widest px-4 py-3"
+                style={{ color: 'var(--text-muted)', width: 160, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>Life Area</th>
+              {tfCols.map(tf => (
+                <th key={tf} className="text-left text-xs font-semibold px-3 py-3"
+                  style={{ color: 'var(--text-primary)', background: tf === '40' ? 'rgba(var(--accent-rgb), 0.06)' : 'transparent', borderBottom: tf === '40' ? '2px solid var(--accent-cyan)' : '1px solid rgba(255,255,255,0.08)' }}>
+                  Age {tf}{tf === '40' ? ' · Now' : ''}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sections.map(s => (
+              <tr key={s.id}>
+                <td className="px-4 py-2 text-xs font-semibold"
+                  style={{ color: readable(s.color_hex), borderBottom: '1px solid rgba(255,255,255,0.05)', verticalAlign: 'top' }}>{s.name}</td>
+                {tfCols.map(tf => {
+                  const all = goals.filter(g => g.section_id === s.id && g.timeframe === tf)
+                  return (
+                    <td key={tf} className="px-2 py-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', verticalAlign: 'top' }}>
+                      {all.slice(0, 3).map(g => (
+                        <button key={g.id} onClick={() => onToggle(g.id)}
+                          className="block w-full text-left mb-1 px-2 py-1 rounded text-[11px] transition-opacity hover:opacity-90"
+                          style={{ background: `${s.color_hex}18`, color: g.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: g.completed ? 'line-through' : 'none', borderLeft: `3px solid ${s.color_hex}`, lineHeight: 1.3 }}>
+                          {g.goal_text.length > 45 ? g.goal_text.slice(0, 43) + '…' : g.goal_text}
+                        </button>
+                      ))}
+                      {all.length > 3 && <div className="text-[10px] px-2" style={{ color: 'var(--text-muted)' }}>+{all.length - 3} more</div>}
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  )
+}
+
+function TimelineAreaCard({ section, goals, onToggle }: { section: DBSection; goals: DBGoal[]; onToggle: (id: string) => void }) {
+  const [showAll, setShowAll] = useState(false)
+  const shown = showAll ? goals : goals.slice(0, 3)
+  return (
+    <section className="glass-card overflow-hidden" style={{ borderRadius: 20 }}>
+      <div className="flex items-center justify-between px-4 pt-4 pb-1">
+        <h3 className="text-sm font-semibold" style={{ color: readable(section.color_hex) }}>{section.name}</h3>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{goals.filter(g => g.completed).length} of {goals.length}</span>
+      </div>
+      {shown.map(g => (
+        <button key={g.id} onClick={() => onToggle(g.id)} role="checkbox" aria-checked={g.completed}
+          className="w-full flex items-start gap-3 px-4 py-2.5 text-left">
+          <span className="mt-0.5 w-[18px] h-[18px] rounded border-2 flex-shrink-0 flex items-center justify-center"
+            style={{ borderColor: g.completed ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.3)', background: g.completed ? 'var(--accent-cyan)' : 'transparent' }}>
+            {g.completed && <Check size={12} strokeWidth={3} color="#04131c" aria-hidden="true" />}
+          </span>
+          <span className="text-sm leading-snug" style={{ color: g.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: g.completed ? 'line-through' : 'none' }}>{g.goal_text}</span>
+        </button>
+      ))}
+      {goals.length > 3 ? (
+        <button onClick={() => setShowAll(s => !s)} className="w-full min-h-[44px] px-4 text-left text-[13px] font-medium border-t"
+          style={{ borderColor: 'rgba(255,255,255,0.08)', color: 'var(--accent-cyan)' }}>
+          {showAll ? 'Show less' : `Show all ${goals.length}`}
+        </button>
+      ) : <div className="h-2" />}
+    </section>
   )
 }
 
@@ -1003,7 +1184,7 @@ function FoundationView({ fd, rd, onSave }: {
       </div>
 
       <FoundCard title="What I&apos;m Passionate About" icon="🔥" accent="#C9A84C" onEdit={() => setEditCard('passions')}>
-        <div className="grid grid-cols-2 gap-4 mt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
           {([['Activities That Energize Me', fd.passions.energize], ['Topics I Could Talk About for Hours', fd.passions.talkAbout], ['How I Recharge', fd.passions.recharge], ["When I Feel Most Like Myself", fd.passions.mostMyself]] as [string, string[]][]).map(([label, items]) => (
             <div key={label}>
               <div className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: '#C9A84C' }}>{label}</div>
@@ -1016,7 +1197,7 @@ function FoundationView({ fd, rd, onSave }: {
       </FoundCard>
 
       <FoundCard title="What to Avoid" icon="🛡️" accent="#C1121F" onEdit={() => setEditCard('avoid')}>
-        <div className="grid grid-cols-2 gap-4 mt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
           {([['People to Limit', fd.avoid.people], ['Habits to Break', fd.avoid.habits], ['Environments to Leave', fd.avoid.environments], ['Mindsets to Manage', fd.avoid.mindsets]] as [string, string[]][]).map(([label, items]) => (
             <div key={label}>
               <div className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: '#C1121F' }}>{label}</div>
@@ -1027,7 +1208,7 @@ function FoundationView({ fd, rd, onSave }: {
       </FoundCard>
 
       <FoundCard title="Things I Need to Remind Myself" icon="📌" accent="#2A9D8F" onEdit={() => setEditCard('reminders')}>
-        <div className="grid grid-cols-2 gap-2 mt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
           {rd.reminders.map((r, i) => (
             <div key={i} className="flex gap-2.5 text-sm px-3 py-2 rounded-lg" style={{ background: 'rgba(42,157,143,0.06)', borderLeft: '3px solid rgba(42,157,143,0.4)' }}>
               <span className="text-[10px] font-bold w-4 flex-shrink-0 mt-0.5" style={{ color: '#2A9D8F' }}>{i + 1}</span>
@@ -1207,7 +1388,7 @@ function BacklogView({ sections, onPromote }: {
                   const badgeColor = TF_BADGE_COLORS[g.timeframe] ?? '#888'
                   return (
                     <div key={g.id}
-                      className="flex items-start gap-3 p-3 rounded-xl border transition-all"
+                      className="flex flex-wrap sm:flex-nowrap items-start gap-3 p-3 rounded-xl border transition-all"
                       style={{
                         background: 'var(--card-bg)',
                         borderColor: 'var(--card-border)',
@@ -1224,7 +1405,7 @@ function BacklogView({ sections, onPromote }: {
                       </button>
 
                       {/* Content */}
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 basis-[calc(100%-2.75rem)] sm:basis-auto">
                         <p className="text-sm leading-snug"
                           style={{ color: 'var(--text-primary)', textDecoration: g.completed ? 'line-through' : 'none' }}>
                           {g.title}
@@ -1237,7 +1418,7 @@ function BacklogView({ sections, onPromote }: {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <div className="flex items-center gap-1.5 flex-shrink-0 w-full sm:w-auto pl-8 sm:pl-0">
                         <span className="text-[10px] px-2 py-0.5 rounded-full capitalize"
                           style={{
                             background: `${badgeColor}22`,
