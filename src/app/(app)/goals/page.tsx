@@ -136,18 +136,7 @@ export default async function GoalsPage() {
   if (goals.length === 0) goals = buildStaticGoals()
 
   return (
-    <div className="px-4 py-6 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1
-          className="text-3xl font-bold gradient-text mb-1"
-          style={{ fontFamily: 'var(--font-geist-sans)' }}
-        >
-          Goals + Vision
-        </h1>
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-          Foundation · Life goals by timeframe · Vision board
-        </p>
-      </div>
+    <div className="px-4 py-6 md:px-6 max-w-6xl mx-auto">
       <LifePlanClient initialSections={sections} initialGoals={goals} initialFoundation={foundation} initialRituals={rituals} />
     </div>
   )

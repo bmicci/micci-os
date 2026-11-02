@@ -255,3 +255,7 @@ body {
   font-variant-numeric: tabular-nums;
 }
 .kpi-note { font-size: 10px; color: var(--text-muted); }
+
+/* Horizontal chip rows: scroll without a visible scrollbar */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
