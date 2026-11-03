@@ -133,6 +133,7 @@ export default function StatementFindingsCard() {
   const [statements, setStatements] = useState<Statement[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [dragging, setDragging] = useState(false)
   const [showStatements, setShowStatements] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -171,20 +172,39 @@ export default function StatementFindingsCard() {
     }
   }
 
-  async function upload(file: File) {
+  // One or many PDFs, read one after another (each takes ~a minute).
+  // A failure doesn't stop the batch, except running out of API credits.
+  async function uploadMany(files: File[]) {
+    const pdfs = files.filter(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name))
+    if (pdfs.length === 0) { setNotice('⚠️ Only PDF statements can be uploaded.'); return }
     setBusy('upload')
-    setNotice(`Reading ${file.name} — this takes about a minute…`)
+    let found = 0
+    const failed: string[] = []
     try {
-      const form = new FormData()
-      form.append('file', file)
-      const res = await fetch('/api/statements', { method: 'POST', body: form })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`)
-      setNotice(`✅ Statement read — ${data.findings} finding(s) to review`)
-    } catch (err) {
-      setNotice(`⚠️ ${(err as Error).message}`)
+      for (const [i, file] of pdfs.entries()) {
+        setNotice(`Reading ${pdfs.length > 1 ? `${i + 1} of ${pdfs.length}: ` : ''}${file.name} — about a minute each…`)
+        try {
+          const form = new FormData()
+          form.append('file', file)
+          const res = await fetch('/api/statements', { method: 'POST', body: form })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`)
+          if (data.error) throw new Error(data.error)
+          found += data.findings ?? 0
+        } catch (err) {
+          const m = (err as Error).message
+          failed.push(`${file.name}: ${m}`)
+          if (/credits ran out/i.test(m)) break
+        }
+        await refresh()
+      }
+      const ok = pdfs.length - failed.length
+      setNotice(failed.length === 0
+        ? `✅ ${ok} statement${ok === 1 ? '' : 's'} read — ${found} finding(s) to review`
+        : `${ok ? `✅ ${ok} read, ${found} finding(s). ` : ''}⚠️ ${failed.length} failed — ${failed.join(' · ')}`)
     } finally {
       setBusy(null)
+      setDragging(false)
       if (fileRef.current) fileRef.current.value = ''
       await refresh()
     }
@@ -200,7 +220,11 @@ export default function StatementFindingsCard() {
   const applied = findings.filter(f => f.status === 'applied').length
 
   return (
-    <div className="glass-card p-5">
+    <div className="glass-card p-5 transition-shadow"
+      onDragOver={e => { if (busy === null && e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDragging(true) } }}
+      onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false) }}
+      onDrop={e => { e.preventDefault(); setDragging(false); if (busy === null) uploadMany(Array.from(e.dataTransfer.files)) }}
+      style={dragging ? { boxShadow: 'inset 0 0 0 2px var(--accent-cyan)' } : undefined}>
       <div className="flex items-center justify-between gap-3 mb-1">
         <h3 className="text-[13px] font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
           <FileText size={15} strokeWidth={2} className="text-[var(--accent-cyan)]" />
@@ -218,15 +242,15 @@ export default function StatementFindingsCard() {
           className="text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5"
           style={{ background: 'rgba(var(--accent-rgb), 0.1)', color: 'var(--accent-cyan)', border: '1px solid rgba(var(--accent-rgb), 0.3)', cursor: busy ? 'wait' : 'pointer' }}
         >
-          <Upload size={12} className={busy === 'upload' ? 'animate-pulse' : ''} /> Upload PDF
+          <Upload size={12} className={busy === 'upload' ? 'animate-pulse' : ''} /> Upload PDFs
         </button>
-        <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="hidden"
-          onChange={e => { const f = e.target.files?.[0]; if (f) upload(f) }} />
+        <input ref={fileRef} type="file" accept="application/pdf,.pdf" multiple className="hidden"
+          onChange={e => { const fs = Array.from(e.target.files ?? []); if (fs.length) uploadMany(fs) }} />
       </div>
       <p className="text-[11.5px] mb-4" style={{ color: 'var(--text-muted)' }}>
         Card statements are read for each balance transfer&apos;s remaining balance, APR and promo end date, then
         compared with your promo deadlines. Nothing changes until you confirm. Plaid-connected banks
-        deliver statements automatically; for anything else, upload the PDF.
+        deliver statements automatically; for anything else (e.g. Amex), upload the PDFs — select several at once or drag them onto this card.
       </p>
 
       {pending.length === 0 ? (
