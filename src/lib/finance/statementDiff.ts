@@ -115,7 +115,22 @@ export function diffStatementAgainstPromos(
     return best
   }
 
-  for (const seg of st.segments.filter(isPromoSegment)) {
+  // Chase/Citi/BofA "Balance Subject to Interest Rate" is the cycle's
+  // AVERAGE DAILY balance, not what's owed now. When the promo rows add up to
+  // more than the card's new balance, they're averages (the owner paid down
+  // mid-cycle) — don't propose them as balances; keep dates/paid-status logic.
+  const promoSegs = st.segments.filter(isPromoSegment)
+  const promoSum = promoSegs.reduce((n, sg) => n + sg.balance, 0)
+  const averagesOnly = st.new_balance != null && promoSum > st.new_balance + BALANCE_TOLERANCE
+  if (averagesOnly) {
+    out.push({
+      kind: 'info', promo_id: null, account_name: accountName,
+      title: `${accountName}: statement lists average daily balances per promo (${money(promoSum)} total) but the card owes ${money(st.new_balance!)} — promo balances not updated; check each promo's balance in the bank's app`,
+      current: null, proposed: null,
+    })
+  }
+
+  for (const seg of promoSegs) {
     const promo = take(seg)
     const paidOff = seg.balance <= BALANCE_TOLERANCE
 
@@ -130,7 +145,7 @@ export function diffStatementAgainstPromos(
       }
       const proposed: PromoProposal = { apr: seg.apr }
       const changes: string[] = []
-      if (Math.abs(Number(promo.balance) - seg.balance) > BALANCE_TOLERANCE) {
+      if (!averagesOnly && Math.abs(Number(promo.balance) - seg.balance) > BALANCE_TOLERANCE) {
         proposed.balance = seg.balance
         changes.push(`balance ${money(Number(promo.balance))} → ${money(seg.balance)}`)
       }
@@ -168,7 +183,7 @@ export function diffStatementAgainstPromos(
       current: null,
       proposed: {
         name: `${accountName} — ${seg.description}`, account_name: accountName,
-        balance: seg.balance, expires: seg.promo_end_date,
+        balance: averagesOnly ? Math.min(seg.balance, st.new_balance!) : seg.balance, expires: seg.promo_end_date,
         deferred_interest: seg.deferred_interest, apr: seg.apr,
       },
     })
