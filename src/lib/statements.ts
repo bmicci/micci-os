@@ -67,7 +67,9 @@ const SYSTEM_PROMPT = `You extract balance segments from US credit card statemen
 
 The owner relies on these numbers to avoid being charged interest, so accuracy matters more than completeness: if a value is not printed on the statement, return null rather than estimating it. Dates are YYYY-MM-DD.
 
-The key table is usually titled "Interest Charge Calculation" (Chase, Citi, BofA) or "Interest Charged" / "Plan It" / "Promotional balances" (Amex, store cards). Return one segment per row, including $0 rows that show a promo end date. Balance transfers and promotional purchases often each have their own row with their own expiration date — keep them separate. For deferred-interest plans (store cards), report the accrued deferred interest amount and the date it must be paid by.`
+The key table is usually titled "Interest Charge Calculation" (Chase, Citi, BofA) or "Interest Charged" / "Plan It" / "Promotional balances" (Amex, store cards). Return one segment per row, including $0 rows that show a promo end date. Balance transfers and promotional purchases often each have their own row with their own expiration date — keep them separate. For deferred-interest plans (store cards), report the accrued deferred interest amount and the date it must be paid by.
+
+Important: on Chase, Citi and Bank of America statements the "Balance Subject to Interest Rate" column is the AVERAGE DAILY BALANCE for the cycle, not the amount owed at close. Report that column's value as the segment balance (the app detects averages by comparing with new_balance), and always fill new_balance from the account summary.`
 
 let anthropic: Anthropic | null = null
 function claude(): Anthropic {

@@ -88,4 +88,21 @@ describe('diffStatementAgainstPromos', () => {
     }), ps, ctx)
     expect(out.map(f => [f.promo_id, f.proposed?.balance])).toEqual([['late', 8500], ['early', 2500]])
   })
+
+  it('does not treat average-daily-balance rows as balances (Chase Freedom Unlimited, Oct 2026)', () => {
+    // Real case: BT rows of $6,446.73 + $3,985.80 on a card that owed $3,574
+    const promos = [
+      promo({ id: 'bt3', name: 'FU BT3', balance: 7000, expires: '2026-10-09' }),
+      promo({ id: 'bt4', name: 'FU BT4', balance: 4000, expires: '2026-12-09' }),
+    ]
+    const out = diffStatementAgainstPromos(statement({
+      closing_date: '2026-10-09', new_balance: 3574,
+      segments: [
+        seg({ balance: 6446.73, promo_end_date: '2026-10-09' }),
+        seg({ balance: 3985.8, promo_end_date: '2026-12-09' }),
+      ],
+    }), promos, ctx)
+    expect(out.some(f => f.kind === 'update_promo' && f.proposed && 'balance' in f.proposed)).toBe(false)
+    expect(out.find(f => f.kind === 'info')?.title).toMatch(/average daily balances/)
+  })
 })
