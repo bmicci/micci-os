@@ -47,6 +47,16 @@ const LINK_PRODUCT_KEY = 'plaid_link_update_product'
 // Per-Item products Link failed to add, so the next attempt moves on
 const LINK_SKIP_KEY = 'plaid_link_update_skips'
 const PRODUCT_NAME: Record<string, string> = { liabilities: 'card/loan terms', statements: 'statements', investments: 'holdings' }
+/** Parse a JSON response; a timed-out or crashed function returns plain text. */
+async function readJson(res: Response): Promise<Record<string, any>> {
+  const text = await res.text()
+  try { return JSON.parse(text) } catch {
+    return { error: res.status === 504 || /timed out|An error occurred/i.test(text)
+      ? 'The server took too long and stopped. Anything synced before that is saved; press Sync now again to continue.'
+      : `Unexpected server response (${res.status})` }
+  }
+}
+
 function readSkips(): Record<string, string[]> {
   try { return JSON.parse(localStorage.getItem(LINK_SKIP_KEY) ?? '{}') } catch { return {} }
 }
@@ -244,14 +254,36 @@ export default function BankSyncCard() {
     setNotice(message)
     try {
       const res = await fetch('/api/plaid/sync', { method: 'POST' })
-      const data = await res.json()
+      const data = await readJson(res)
       if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`)
-      const totals = (data.results as { added: number; modified: number; error?: string }[])
-        .reduce((s, r) => ({ added: s.added + r.added, errors: s.errors + (r.error ? 1 : 0) }), { added: 0, errors: 0 })
-      const parsed = (data.statements ?? []) as { findings: number; error?: string }[]
-      const findings = parsed.reduce((n, p) => n + p.findings, 0)
-      setNotice(`✅ Sync complete — ${totals.added} new transactions${totals.errors ? ` · ${totals.errors} institution(s) errored` : ''}`
-        + (parsed.length ? ` · ${parsed.length} statement(s) read, ${findings} finding(s) to review` : ''))
+      const totals = (data.results as { added: number; error?: string }[])
+        .reduce((s, r) => ({ added: s.added + r.added, errors: s.errors + (r.error ? 1 : 0) }), { added: 0, errors: 0 } as { added: number; errors: number })
+      const synced = `✅ Sync complete — ${totals.added} new transactions${totals.errors ? ` · ${totals.errors} institution(s) errored` : ''}`
+      await refresh()
+      // Read waiting statements one per request (~1 min each) so no single
+      // call runs into the server's time limit.
+      let left: number = data.statements_pending ?? 0
+      const total = left
+      let read = 0, findings = 0
+      const failures: string[] = []
+      while (left > 0) {
+        setNotice(`${synced} · reading statement ${read + 1} of ${total} (about a minute each)…`)
+        const r = await fetch('/api/statements', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ op: 'parse_next' }),
+        })
+        const d = await readJson(r)
+        if (d.error) failures.push(d.error)
+        else findings += d.findings ?? 0
+        read++
+        window.dispatchEvent(new Event('statements:updated'))
+        if (!r.ok && typeof d.remaining !== 'number') break // server trouble — stop, retry next sync
+        if (failures.some(f => /credits ran out/i.test(f))) break
+        left = d.remaining ?? 0
+      }
+      setNotice(synced
+        + (read ? ` · ${read - failures.length} statement(s) read, ${findings} finding(s) to review` : '')
+        + (failures.length ? ` · ⚠️ ${failures.length} couldn't be read: ${[...new Set(failures)].join(' · ')}` : ''))
       window.dispatchEvent(new Event('statements:updated'))
       await refresh()
     } catch (err) {
@@ -260,6 +292,7 @@ export default function BankSyncCard() {
       setBusy(null)
     }
   }
+
 
   async function disconnect(id: string, name: string | null) {
     if (!window.confirm(`Disconnect ${name ?? 'this bank'}? Already-synced transactions are kept.`)) return
