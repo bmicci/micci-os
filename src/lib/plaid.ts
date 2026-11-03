@@ -80,6 +80,7 @@ export interface DbPlaidItem {
   last_synced_at: string | null
   last_error: string | null
   statements_refreshed_at?: string | null
+  product_status?: Record<string, string> | null
 }
 
 export interface SyncResult {
@@ -348,6 +349,12 @@ export async function syncPlaidItem(service: any, item: DbPlaidItem): Promise<Sy
       // Statement PDFs → private storage; parsed afterwards by the sync route
       // (lib/statements.ts) into findings the user confirms.
       statements: await syncStatements(service, client, item, productErrorStatus),
+    }
+    // Plaid's API only says "not consented" for a product the bank never
+    // offers; Link's PRODUCTS_NOT_SUPPORTED (recorded by /api/plaid/link-event)
+    // is the real answer, so keep 'unsupported' instead of reverting it.
+    for (const [k, v] of Object.entries(productStatus)) {
+      if (v === 'not_consented' && item.product_status?.[k] === 'unsupported') productStatus[k] = 'unsupported'
     }
     await service.from('plaid_items').update({ product_status: productStatus }).eq('id', item.id)
 

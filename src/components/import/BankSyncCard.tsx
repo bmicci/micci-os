@@ -235,8 +235,8 @@ export default function BankSyncCard() {
       + (itemId && product && info.error_code ? ` — ${PRODUCT_NAME[product] ?? product} isn't available for this bank right now; Add details will try the next item.` : ''))
     fetch('/api/plaid/link-event', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...info, item_id: itemId }),
-    }).catch(() => {})
+      body: JSON.stringify({ ...info, item_id: itemId, product }),
+    }).then(() => refresh()).catch(() => {})
   }
 
   async function syncNow(message = 'Syncing all connected banks…') {
