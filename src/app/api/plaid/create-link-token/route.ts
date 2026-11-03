@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     // Derive it from the request origin so preview + production both work.
     const origin = request.nextUrl.origin
     const redirectUri = process.env.PLAID_REDIRECT_URI || `${origin}/import`
-    const body = await request.json().catch(() => ({})) as { item_id?: string }
+    const body = await request.json().catch(() => ({})) as { item_id?: string; skip?: string[] }
     const base = {
       user: { client_user_id: user.id },
       client_name: 'micci-os',
@@ -48,38 +48,38 @@ export async function POST(request: NextRequest) {
       const { data: item } = await service.from('plaid_items')
         .select('access_token, product_status').eq('id', body.item_id).eq('user_id', user.id).single()
       if (!item) return NextResponse.json({ error: 'Item not found' }, { status: 404 })
-      // Ask only for products this Item hasn't granted yet. Re-requesting
-      // already-consented products (e.g. Chase's liabilities + investments
-      // when only statements is missing) has made Link fail with a generic
-      // "Internal error occurred". Products the bank doesn't offer
-      // ('unsupported') are skipped too.
+      // One product per Link session, most useful first. Bundling several
+      // (e.g. Amex: liabilities + statements + investments, which Amex
+      // doesn't offer) made Link die with INTERNAL_SERVER_ERROR, while the
+      // single-product Chase statements session worked. Skip products this
+      // Item already granted, ones the bank doesn't offer, and ones the
+      // client saw fail in Link (body.skip) so the next click moves on.
       const ps = (item.product_status ?? {}) as Record<string, string>
+      const skip = new Set(Array.isArray(body.skip) ? body.skip : [])
       const S = Products.Statements
-      const wanted = ([
-        ['statements', S], ['liabilities', Products.Liabilities], ['investments', Products.Investments],
-      ] as const).filter(([k]) => ps[k] !== 'ok' && ps[k] !== 'unsupported').map(([, p]) => p)
-      if (wanted.length === 0) {
-        return NextResponse.json({ error: 'This bank has already granted everything it offers.' }, { status: 409 })
+      const order = [['liabilities', Products.Liabilities], ['statements', S], ['investments', Products.Investments]] as const
+      const candidates = order.filter(([k]) => ps[k] !== 'ok' && ps[k] !== 'unsupported' && !skip.has(k))
+      if (candidates.length === 0) {
+        return NextResponse.json({
+          error: skip.size
+            ? 'Plaid could not add the remaining details for this bank. Try again later, or upload statements as PDFs below.'
+            : 'This bank has already granted everything it offers.',
+        }, { status: 409 })
       }
-      // Plaid splits update-mode consent by product: Statements must go in
-      // `products` (with its date range); Liabilities/Investments go in
-      // `additional_consented_products`. Putting Statements in the latter is
-      // what made Link fail with "Internal error occurred".
-      // Plaid rejects the whole request if the bank lacks one of them, so
-      // fall back to each product on its own.
-      const attempts: Products[][] = [wanted, ...(wanted.length > 1 ? wanted.map(p => [p]) : [])]
+      // Statements goes in `products` with its date range; the others in
+      // `additional_consented_products` (Plaid's update-mode rules). If Plaid
+      // rejects a product at token time, try the next one.
       let lastErr: unknown = null
-      for (const products of attempts) {
-        const wantsStatements = products.includes(S)
-        const extra = products.filter(p => p !== S)
+      for (const [key, product] of candidates) {
         try {
           const { data } = await client.linkTokenCreate({
             ...base,
             access_token: item.access_token,
-            ...(wantsStatements ? { products: [S], statements: statementsLinkRange() } : {}),
-            ...(extra.length ? { additional_consented_products: extra } : {}),
+            ...(product === S
+              ? { products: [S], statements: statementsLinkRange() }
+              : { additional_consented_products: [product] }),
           })
-          return NextResponse.json({ link_token: data.link_token, mode: 'update', products })
+          return NextResponse.json({ link_token: data.link_token, mode: 'update', product: key })
         } catch (err) {
           lastErr = err
           if (plaidErrorBody(err)?.error_type !== 'INVALID_REQUEST' && plaidErrorBody(err)?.error_code !== 'INVALID_FIELD') break
