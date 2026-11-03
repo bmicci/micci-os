@@ -43,6 +43,13 @@ function timeAgo(iso: string | null): string {
 const LINK_TOKEN_KEY = 'plaid_link_token'
 // Which Item an update-mode Link is for (also survives the OAuth redirect)
 const LINK_MODE_KEY = 'plaid_link_update_item'
+const LINK_PRODUCT_KEY = 'plaid_link_update_product'
+// Per-Item products Link failed to add, so the next attempt moves on
+const LINK_SKIP_KEY = 'plaid_link_update_skips'
+const PRODUCT_NAME: Record<string, string> = { liabilities: 'card/loan terms', statements: 'statements', investments: 'holdings' }
+function readSkips(): Record<string, string[]> {
+  try { return JSON.parse(localStorage.getItem(LINK_SKIP_KEY) ?? '{}') } catch { return {} }
+}
 
 export interface LinkExitInfo {
   error_type?: string
@@ -142,18 +149,21 @@ export default function BankSyncCard() {
 
   async function startConnect(itemId?: string) {
     setBusy('connect')
-    setNotice(itemId ? 'Opening Plaid to add card terms, holdings + statements for this bank…' : null)
+    setNotice(itemId ? 'Opening Plaid…' : null)
     try {
       const res = await fetch('/api/plaid/create-link-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(itemId ? { item_id: itemId } : {}),
+        body: JSON.stringify(itemId ? { item_id: itemId, skip: readSkips()[itemId] ?? [] } : {}),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`)
       localStorage.setItem(LINK_TOKEN_KEY, data.link_token) // survives OAuth redirect
-      if (itemId) localStorage.setItem(LINK_MODE_KEY, itemId)
-      else localStorage.removeItem(LINK_MODE_KEY)
+      if (itemId) {
+        localStorage.setItem(LINK_MODE_KEY, itemId)
+        if (data.product) localStorage.setItem(LINK_PRODUCT_KEY, data.product)
+        setNotice(`Opening Plaid to add ${PRODUCT_NAME[data.product] ?? 'details'} for this bank…`)
+      } else localStorage.removeItem(LINK_MODE_KEY)
       setUpdateItemId(itemId ?? null)
       setLinkToken(data.link_token)
     } catch (err) {
@@ -175,6 +185,7 @@ export default function BankSyncCard() {
     // the newly granted Liabilities / Investments / Statements data.
     if (updateItemId) {
       localStorage.removeItem(LINK_MODE_KEY)
+      localStorage.removeItem(LINK_PRODUCT_KEY)
       setUpdateItemId(null)
       await syncNow('Access updated — syncing card terms, holdings and statements (reading new statements can take a minute)…')
       return
@@ -209,10 +220,19 @@ export default function BankSyncCard() {
       window.history.replaceState({}, '', window.location.pathname)
     }
     const itemId = updateItemId
+    const product = localStorage.getItem(LINK_PRODUCT_KEY)
+    localStorage.removeItem(LINK_PRODUCT_KEY)
     setUpdateItemId(null)
     if (!info) { setNotice(null); return }
+    // Remember the product that failed so the next "Add details" tries the next one
+    if (itemId && product && info.error_code) {
+      const skips = readSkips()
+      skips[itemId] = [...new Set([...(skips[itemId] ?? []), product])]
+      try { localStorage.setItem(LINK_SKIP_KEY, JSON.stringify(skips)) } catch { /* ignore */ }
+    }
     setNotice(`⚠️ Plaid: ${info.display_message || info.error_message || 'Link failed'}`
-      + (info.error_code ? ` (${info.error_code}${info.request_id ? ` · request ${info.request_id}` : ''})` : ''))
+      + (info.error_code ? ` (${info.error_code}${info.request_id ? ` · request ${info.request_id}` : ''})` : '')
+      + (itemId && product && info.error_code ? ` — ${PRODUCT_NAME[product] ?? product} isn't available for this bank right now; Add details will try the next item.` : ''))
     fetch('/api/plaid/link-event', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...info, item_id: itemId }),
