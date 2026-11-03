@@ -5,6 +5,7 @@
 import * as z from 'zod/v4'
 import { computeRunwayProjection, spendByCategory, type TxnRow, type RunwayProjection } from '@/lib/finance/txnAggregate'
 import { offerPaycheck, type JobOffer } from '@/lib/finance/jobIncome'
+import { formatReconcile, reconcileDebts } from '@/lib/finance/reconcile'
 import { CHARACTER_LIMIT, READ_ONLY, day, db, defineTool, fail, isoDaysAgo, isoToday, text, usd, type AnyMicciTool } from '../tool'
 
 function runwayLines(r: RunwayProjection, liquid: number): string[] {
@@ -62,6 +63,12 @@ export const financeTools: AnyMicciTool[] = [
         heloc ? `- HELOC: ${usd(heloc.balance)} drawn @ ${heloc.rate}%, headroom ${usd(d.helocKPIs.limit - heloc.balance)}${heloc.stale ? ` — **manual figure from ${heloc.asOf}, stale**` : ''}` : '- HELOC: —',
         ...(d.debts.some(x => x.stale) ? [`- ⚠ Stale manual balances (14+ days): ${d.debts.filter(x => x.stale).map(x => `${x.name} (${x.asOf})`).join(', ')}`] : []),
         mortgage ? `- Mortgage: ${usd(mortgage.balance)} @ ${mortgage.rate}%` : '',
+        ...(() => {
+          const errs = reconcileDebts(d.debts, d.promos).filter(i => i.severity === 'error')
+          return errs.length
+            ? ['', '## ⛔ Data to distrust', ...errs.map(i => `- ${i.message}`), '- (call micci_debts for the full list of data checks)']
+            : []
+        })(),
         '',
         '## Next up',
         ...(d.upcoming.length ? d.upcoming.slice(0, 6).map(u => `- ${day(u.date)} · ${u.label}${u.amount != null ? ` · ${usd(u.amount)}` : ''}${u.urgent ? ' ⚠' : ''}`) : ['- Nothing scheduled']),
@@ -239,6 +246,8 @@ export const financeTools: AnyMicciTool[] = [
           : ['- None']),
         '',
         `HELOC limit ${usd(d.helocKPIs.limit)} @ ${d.helocKPIs.rate}%.`,
+        '',
+        ...formatReconcile(reconcileDebts(d.debts, d.promos)),
       ]
       return text(lines.join('\n'))
     },
