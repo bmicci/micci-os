@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { requireUser } from '@/lib/supabase/require-user'
-import { parseStatement, STATEMENTS_BUCKET } from '@/lib/statements'
+import { parseStatement, pendingStatementIds, STATEMENTS_BUCKET } from '@/lib/statements'
 import type { PromoProposal } from '@/lib/finance/statementDiff'
 
 // Statement findings review (/import).
@@ -83,6 +83,15 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null) as Record<string, unknown> | null
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+
+  // Read the next waiting statement (one per request keeps each call well
+  // under the time limit); the browser loops until remaining hits 0.
+  if (body.op === 'parse_next') {
+    const todo = await pendingStatementIds(service)
+    if (todo.length === 0) return NextResponse.json({ remaining: 0, done: true })
+    const result = await parseStatement(service, todo[0])
+    return NextResponse.json({ ...result, remaining: todo.length - 1 })
+  }
 
   if (body.op === 'parse' && typeof body.statement_id === 'string') {
     const result = await parseStatement(service, body.statement_id)

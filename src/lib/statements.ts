@@ -175,7 +175,8 @@ async function writeFindings(service: any, st: any, extracted: StatementExtracti
  * downloaded and can be parsed on demand). Bounded so the cron stays
  * inside its time budget.
  */
-export async function parsePendingStatements(service: any, limit = 4): Promise<ParseResult[]> {
+/** Newest not-yet-read statement per account (older months stay as history). */
+export async function pendingStatementIds(service: any): Promise<string[]> {
   const { data: rows } = await service.from('statements')
     .select('id, plaid_account_id, account_mask, status, period_year, period_month')
     .order('period_year', { ascending: false }).order('period_month', { ascending: false })
@@ -187,8 +188,18 @@ export async function parsePendingStatements(service: any, limit = 4): Promise<P
     seen.add(key)
     if (r.status === 'downloaded') todo.push(r.id)
   }
+  return todo
+}
+
+/** Read up to `limit` pending statements, stopping early once `deadline`
+ *  (epoch ms) passes so the calling function never hits its time limit. */
+export async function parsePendingStatements(service: any, limit = 4, deadline = Infinity): Promise<ParseResult[]> {
+  const todo = await pendingStatementIds(service)
   const results: ParseResult[] = []
-  for (const id of todo.slice(0, limit)) results.push(await parseStatement(service, id))
+  for (const id of todo.slice(0, limit)) {
+    if (Date.now() > deadline) break
+    results.push(await parseStatement(service, id))
+  }
   return results
 }
 
