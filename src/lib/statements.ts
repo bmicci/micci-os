@@ -13,6 +13,7 @@
 //   3. The extraction is diffed against promo_deadlines into
 //      statement_findings. NOTHING is written to promo_deadlines until the
 //      user confirms a finding in /import ("Statement findings"). Promos are
+import { friendlyAiError } from '@/lib/ai/errors'
 //      marked paid, never deleted.
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -137,7 +138,7 @@ export async function parseStatement(service: any, statementId: string): Promise
     const findings = await writeFindings(service, { ...st, ...patch }, extracted)
     return { statement_id: statementId, findings }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
+    const msg = friendlyAiError(err)
     await service.from('statements').update({ status: 'error', parse_error: msg.slice(0, 500) }).eq('id', statementId)
     return { statement_id: statementId, findings: 0, error: msg }
   }

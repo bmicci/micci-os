@@ -9,6 +9,7 @@
 // ───────────────────────────────────────────────────────────────────────────
 
 import Anthropic from '@anthropic-ai/sdk'
+import { friendlyAiError } from '@/lib/ai/errors'
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod'
 import { z } from 'zod'
 
@@ -137,7 +138,7 @@ export async function parseHealthDocument(service: any, id: string): Promise<{ i
     }
     return { id }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
+    const msg = friendlyAiError(err)
     await service.from('health_documents').update({ status: 'error', parse_error: msg.slice(0, 500) }).eq('id', id)
     return { id, error: msg }
   }
