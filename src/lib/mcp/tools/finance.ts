@@ -219,7 +219,7 @@ export const financeTools: AnyMicciTool[] = [
         const promo = Array.isArray(l?.aprs) ? (l.aprs as { apr_type: string; apr_percentage: number; balance_subject_to_apr?: number }[]).filter(x => x.apr_type === 'balance_transfer_apr' || x.apr_type === 'special') : []
         return `| ${a.name} | ${usd(Number(a.balance), true)} | ${l ? `${usd(l.last_statement_balance, true)} (${l.last_statement_date ?? '—'})` : '—'} | ${l?.minimum_payment != null ? usd(l.minimum_payment, true) : '—'} | ${l?.next_payment_due_date ?? '—'} | ${l?.interest_rate ?? purchaseApr ?? '—'}${promo.length ? `; promo ${promo.map(x => `${x.apr_percentage}% on ${usd(x.balance_subject_to_apr ?? null)}`).join(', ')}` : ''} | ${String(a.updated_at).slice(0, 10)} |`
       })
-      const monthlyInterest = debts.reduce((s, x) => s + x.balance * x.rate / 100 / 12, 0)
+      const monthlyInterest = debts.reduce((s, x) => s + (x.payInFull ? 0 : x.balance * x.rate / 100 / 12), 0)
       const lines = [
         ...(live.length ? [
           '# Bank detail (Plaid, synced daily)',
@@ -230,11 +230,11 @@ export const financeTools: AnyMicciTool[] = [
           'Card current balance includes this cycle\'s purchases; cards paid in full monthly will show a balance until the statement is paid.',
           '',
         ] : []),
-        `# All debts — live bank balance where linked, manual otherwise — total ${usd(d.debts.reduce((s, x) => s + x.balance, 0))} (≈ ${usd(monthlyInterest)}/mo interest at stated APRs)`,
+        `# All debts — live bank balance where linked, manual otherwise — total ${usd(d.debts.reduce((s, x) => s + x.balance, 0))} (≈ ${usd(monthlyInterest)}/mo interest at stated APRs, excluding cards paid in full monthly)`,
         '',
         '| Account | Type | Balance | Source | APR | Min/mo | Plan |',
         '|---|---|---|---|---|---|---|',
-        ...debts.map(x => `| ${x.name} | ${x.category} | ${usd(x.balance, true)} | ${x.source === 'live' ? `live ${x.asOf ?? ''}` : `manual ${x.asOf ?? ''}${x.stale ? ' **STALE**' : ''}`}${x.manualBalance != null ? ` (manual says ${usd(x.manualBalance, true)})` : ''} | ${x.rateUnknown ? '?' : `${x.rate}%`} | ${usd(x.min)} | ${x.decision} |`),
+        ...debts.map(x => `| ${x.name} | ${x.category} | ${usd(x.balance, true)} | ${x.source === 'live' ? `live ${x.asOf ?? ''}` : `manual ${x.asOf ?? ''}${x.stale ? ' **STALE**' : ''}`}${x.manualBalance != null ? ` (manual says ${usd(x.manualBalance, true)})` : ''} | ${x.rateUnknown ? '?' : `${x.rate}%`} | ${usd(x.min)} | ${x.payInFull ? 'pays in full monthly' : x.decision} |`),
         '',
         'STALE = hand-entered balance not updated in 14+ days; ask Brandon for a current number before relying on it.',
         '',

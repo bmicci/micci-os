@@ -106,6 +106,7 @@ function mapDebtAccount(row: DbDebtAccount): DebtAccount {
     min: row.minimum_payment != null ? Number(row.minimum_payment) : null,
     decision: mapDecision(row.notes, rate),
     category: mapAccountType(row.account_type),
+    ...(/paid in full each month/i.test(row.notes ?? '') ? { payInFull: true } : {}),
   }
 }
 
