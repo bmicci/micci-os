@@ -24,6 +24,8 @@ export interface DebtAccount {
   liveName?: string
   /** Bank didn't report an APR (rate shown as 0 is a placeholder) */
   rateUnknown?: boolean
+  /** Paid in full every month, nothing carried — the APR costs nothing */
+  payInFull?: boolean
 }
 
 export interface FinancialModule {
