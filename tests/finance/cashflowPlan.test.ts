@@ -73,3 +73,19 @@ describe('plan lines', () => {
       .toEqual([{ id: 'cat:Food & Dining', label: 'Food & Dining', amount: 1974 }])
   })
 })
+
+import { applySpendExclusions, parseSpendExclusions } from '@/lib/finance/txnAggregate'
+describe('spend exclusions', () => {
+  const rows = [
+    { transaction_date: '2026-08-13', amount: 1332.64, category: 'Business Services', merchant: 'BMW' },
+    { transaction_date: '2026-09-02', amount: 80, category: 'Transportation', merchant: 'BMW' },
+    { transaction_date: '2026-10-01', amount: 456.66, category: 'Business Services', merchant: 'Blue Cross Blue Shield' },
+    { transaction_date: '2026-10-02', amount: 12, category: 'Food & Dining', merchant: 'Cafe' },
+  ]
+  it('drops ended bills everywhere and one-offs only on their dates', () => {
+    const rules = parseSpendExclusions([{ match: 'blue cross blue shield' }, { match: 'BMW', dates: ['2026-08-13'] }, { match: 'x' }, null])
+    expect(rules).toHaveLength(2)
+    expect(applySpendExclusions(rows, rules).map(r => r.merchant + ' ' + r.transaction_date))
+      .toEqual(['BMW 2026-09-02', 'Cafe 2026-10-02'])
+  })
+})

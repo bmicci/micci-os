@@ -5,7 +5,7 @@
 
 import { plannedCashEvents, type PropertyTaxPlan } from './finance/cashEvents'
 import { createServiceClient } from './supabase/service'
-import { liveSpendCategories, computeBurn, fetchAllTxns, monthlyFlows, computeRunwayProjection, type TxnRow } from './finance/txnAggregate'
+import { liveSpendCategories, computeBurn, applySpendExclusions, parseSpendExclusions, fetchAllTxns, monthlyFlows, computeRunwayProjection, type TxnRow } from './finance/txnAggregate'
 import { detectRecurring } from './finance/recurring'
 import { computeUpcoming } from './finance/upcoming'
 import { activeOffer, offerPaycheck, parseOffers } from './finance/jobIncome'
@@ -681,7 +681,9 @@ export async function getFinancialData(): Promise<FinancialData> {
     const steadyIncome = incomeBridge.consultingMonthlyNet > 0
       ? incomeBridge.consultingMonthlyNet
       : incomeBridge.newJobMonthlyNet
-    const burnAnalysis = computeBurn(txns, steadyIncome, 90)
+    // One-off charges and ended bills are skipped in the forward average only
+    const spendExclusions = parseSpendExclusions(getSetting(settings, 'spend_exclusions'))
+    const burnAnalysis = computeBurn(applySpendExclusions(txns, spendExclusions), steadyIncome, 90)
 
     // Real spend supersedes the manual monthlyOutflow estimate everywhere
     // downstream (Overview cash buffer, runway boxes, etc.)
