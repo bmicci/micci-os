@@ -114,3 +114,47 @@ describe('bill / subscription savings', () => {
     ])).toBe(10)
   })
 })
+
+import { estimateReturn, TAX_PLAN_2026_FALLBACK } from '@/lib/tax/estimate'
+describe('2026 tax estimate (plan v5 section 13)', () => {
+  it('Dec 31 property-tax payment: ~$9,700 refund on $91,152 taxable', () => {
+    const r = estimateReturn(TAX_PLAN_2026_FALLBACK, true)
+    expect(r.agi).toBe(137457)
+    expect(r.withheld).toBe(24470)
+    expect(r.itemized).toBe(46295)
+    expect(Math.round(r.tax)).toBeGreaterThan(14700)
+    expect(Math.round(r.tax)).toBeLessThan(14800)
+    expect(Math.round(r.refund / 100) * 100).toBe(9700)
+  })
+  it('waiting until January: ~$6,400 refund', () => {
+    const r = estimateReturn(TAX_PLAN_2026_FALLBACK, false)
+    expect(Math.round(r.refund / 100) * 100).toBe(6400)
+  })
+})
+
+import { plannedCashEvents } from '@/lib/finance/cashEvents'
+import { computeRunwayProjection } from '@/lib/finance/txnAggregate'
+import type { DebtAccount, PromoDeadline } from '@/lib/financial-data'
+describe('runway: dated one-time outflows', () => {
+  const card = (name: string, balance: number): DebtAccount => ({ name, balance, rate: 0, min: 40, decision: 'promo', category: 'Credit Card', source: 'live' })
+  const promo = (name: string, acct: string, balance: number, expires: string): PromoDeadline => ({ name, acct, balance, expires, risk: null, note: '' })
+  it('includes the property tax and soon-due promos, capped at the card balance', () => {
+    const ev = plannedCashEvents(
+      [promo('FU BT4', 'Chase Freedom Unlim (7117)', 3985.8, '2026-12-09'), promo('Citi Diamond', 'Citi Diamond (4205)', 11411, '2027-06-18')],
+      [card('Chase Freedom Unlimited (7117)', 3574), card('Citi Diamond 4205', 11411)],
+      { plan_amount: 15000, pay_by: '2026-12-31', taxes_paid: false },
+      '2026-11-05')
+    expect(ev).toEqual([
+      { date: '2026-12-09', amount: -3574, label: 'Pay off FU BT4' },
+      { date: '2026-12-31', amount: -15000, label: 'Property tax (planned payment)' },
+    ])
+  })
+  it('a big dated payment can push the cash-out date even with a job', () => {
+    const pay = { employer: 'Schwab', firstPayday: '2026-11-30', periodDays: 14, netPerCheck: 6257, monthlyNet: 13557 }
+    const today = new Date(2026, 10, 5)
+    const without = computeRunwayProjection(9000, 9800, 0, null, today, pay)
+    const withTax = computeRunwayProjection(9000, 9800, 0, null, today, pay, [{ date: '2026-12-31', amount: -15000, label: 'Property tax' }])
+    expect(without.cashOutDate).toBeNull()
+    expect(withTax.cashOutDate).toBe('2026-12-31')
+  })
+})

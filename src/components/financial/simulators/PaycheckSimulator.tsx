@@ -7,6 +7,7 @@ import PercentageSlider from '@/components/financial/shared/PercentageSlider'
 import WaterfallChart from '@/components/financial/shared/WaterfallChart'
 import type { WaterfallItem } from '@/components/financial/shared/WaterfallChart'
 import type { PayFrequency, FilingStatus, TaxMethod } from '@/types/finance'
+import { LIMIT_401K_2026, LIMIT_HSA_INDIVIDUAL_2026 } from '@/lib/tax'
 
 const STATES = [
   'TX', 'CA', 'NY', 'FL', 'WA', 'IL', 'PA', 'OH', 'GA', 'NC',
@@ -171,12 +172,12 @@ export default function PaycheckSimulator() {
             </label>
             <CurrencyInput
               value={inputs.contribution401k}
-              onChange={v => setInput('contribution401k', Math.min(v, 23_500))}
-              max={23_500}
+              onChange={v => setInput('contribution401k', Math.min(v, LIMIT_401K_2026))}
+              max={LIMIT_401K_2026}
               step={500}
             />
             <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-              2026 limit: $23,500
+              2026 limit: ${LIMIT_401K_2026.toLocaleString('en-US')}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -194,17 +195,17 @@ export default function PaycheckSimulator() {
           <CurrencyInput
             label="HSA / yr"
             value={inputs.hsaContribution}
-            onChange={v => setInput('hsaContribution', Math.min(v, 8_550))}
-            max={8_550}
+            onChange={v => setInput('hsaContribution', Math.min(v, LIMIT_HSA_INDIVIDUAL_2026))}
+            max={LIMIT_HSA_INDIVIDUAL_2026}
           />
           <CurrencyInput
-            label="Health/Dental/Vision / mo"
+            label="Health/Dental/Vision per check"
             value={inputs.healthPremium}
             onChange={v => setInput('healthPremium', v)}
             max={5000}
           />
           <CurrencyInput
-            label="Other Pre-Tax / mo"
+            label="Other Pre-Tax per check"
             value={inputs.otherPreTax}
             onChange={v => setInput('otherPreTax', v)}
             max={10_000}

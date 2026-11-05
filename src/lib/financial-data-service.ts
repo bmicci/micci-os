@@ -3,6 +3,7 @@
 // All Supabase row shapes are mapped to component-facing types here —
 // zero changes needed in any component or chart file.
 
+import { plannedCashEvents, type PropertyTaxPlan } from './finance/cashEvents'
 import { createServiceClient } from './supabase/service'
 import { liveSpendCategories, computeBurn, fetchAllTxns, monthlyFlows, computeRunwayProjection, type TxnRow } from './finance/txnAggregate'
 import { detectRecurring } from './finance/recurring'
@@ -709,6 +710,8 @@ export async function getFinancialData(): Promise<FinancialData> {
         netPerCheck: acceptedPay.netPerCheckEarly,
         monthlyNet: acceptedPay.monthlyNetAvg,
       } : null,
+      // Dated one-time outflows: planned property-tax payment + promo payoffs due soon
+      plannedCashEvents(promos, debts, propertyTaxRaw as PropertyTaxPlan | null, new Date().toISOString().slice(0, 10)),
     )
 
     // ── Deadlines (already in Supabase — fetched via API route) ──

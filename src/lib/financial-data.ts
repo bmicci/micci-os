@@ -817,11 +817,19 @@ export function calcWealth(pv: number, pmt: number, r: number, n: number): numbe
 }
 
 // ── HELOC Constants ──────────────────────────────────
-// Updated June 4, 2026 — HELOC closed March 19, 2026
+// HELOC closed March 19, 2026. The DRAWN balance is live data (the HELOC row in
+// debt_accounts) — use liveHelocDrawn(debts). HELOC_DRAWN is a FALLBACK ONLY for
+// when that row is missing (it is the Jul 2026 figure).
 export const HELOC_LIMIT   = 190_000
 export const HELOC_RATE    = 6.85
-export const HELOC_DRAWN   = 152_473.32   // Jul 2026: +$9,416 (Best Buy #1 + CFU BT1 payoffs)
-export const HELOC_AVAILABLE = HELOC_LIMIT - HELOC_DRAWN  // $37,526.68 remaining
+export const HELOC_DRAWN   = 152_473.32   // FALLBACK ONLY — Jul 2026
+export const HELOC_AVAILABLE = HELOC_LIMIT - HELOC_DRAWN  // FALLBACK ONLY
+
+/** Live HELOC drawn balance from the debts array (fallback: HELOC_DRAWN). */
+export function liveHelocDrawn(debts: DebtAccount[]): number {
+  const row = debts.find(d => d.category === 'HELOC')
+  return row && row.balance > 0 ? row.balance : HELOC_DRAWN
+}
 
 // ── HELOC Computation Engine ─────────────────────────
 // Derives everything from the live debts array — single source of truth
@@ -868,7 +876,9 @@ export function deriveHelocAccounts(debts: DebtAccount[]): HELOCAccount[] {
 export function computeHelocKPIs(debts: DebtAccount[]): HelocKPIs {
   const nonMortgage = debts.filter(d => d.category !== 'Mortgage' && d.category !== 'HELOC')
 
-  const rollAccounts  = nonMortgage.filter(d => d.decision === 'roll')
+  const drawn = liveHelocDrawn(debts)
+  // Cards paid in full each month carry nothing to roll
+  const rollAccounts  = nonMortgage.filter(d => d.decision === 'roll' && !d.payInFull)
   const promoAccounts = nonMortgage.filter(d => d.decision === 'promo')
 
   // Post-consolidation: "immediateRoll" = remaining high-rate debt not yet in HELOC
@@ -876,12 +886,12 @@ export function computeHelocKPIs(debts: DebtAccount[]): HelocKPIs {
   const promoTotal     = promoAccounts.reduce((s, d) => s + d.balance, 0)
 
   // Use actual drawn balance for interest calculation
-  const monthlyHelocInterest       = HELOC_DRAWN * (HELOC_RATE / 100) / 12
+  const monthlyHelocInterest       = drawn * (HELOC_RATE / 100) / 12
   const currentPaymentsOnRolled    = rollAccounts.reduce((s, d) => s + (d.min ?? d.balance * (d.rate / 100) / 12), 0)
   const monthlyRelief              = currentPaymentsOnRolled - (immediateRoll * (HELOC_RATE / 100) / 12)
   const annualGain                 = monthlyRelief * 12
-  const helocAfterRoll             = HELOC_LIMIT - HELOC_DRAWN - immediateRoll
-  const finalBuffer                = HELOC_AVAILABLE - immediateRoll - promoTotal
+  const helocAfterRoll             = HELOC_LIMIT - drawn - immediateRoll
+  const finalBuffer                = (HELOC_LIMIT - drawn) - immediateRoll - promoTotal
 
   return {
     limit:                    HELOC_LIMIT,

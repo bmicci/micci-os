@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import type { Bill, PromoDeadline, DebtAccount, HelocKPIs, BurnAnalysis, RunwayProjection } from '@/lib/financial-data'
-import { fmt, HELOC_RATE, HELOC_DRAWN } from '@/lib/financial-data'
+import { fmt, HELOC_RATE, liveHelocDrawn } from '@/lib/financial-data'
 import {
   calculateMonthlyFlow,
   project12Months,
@@ -215,7 +215,7 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
         <KPICard
           label="HELOC Interest"
           value={fmtRound(helocKPIs.monthlyHelocInterest)}
-          note={`${HELOC_RATE}% on ${fmtK(HELOC_DRAWN)} drawn`}
+          note={`${HELOC_RATE}% on ${fmtK(liveHelocDrawn(debts))} drawn`}
           accent="amber"
         />
         <KPICard

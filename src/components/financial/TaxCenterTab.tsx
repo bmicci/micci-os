@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { estimateReturn, TAX_PLAN_2026_FALLBACK, type TaxPlan2026 } from '@/lib/tax/estimate'
+import { SS_WAGE_BASE_2026, STANDARD_DEDUCTION_2026 } from '@/lib/tax'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   Cell, PieChart, Pie, Legend,
@@ -20,15 +22,6 @@ interface TaxYear {
   deductionType: 'standard' | 'itemized'
   deductionAmount: number
   notes?: string
-}
-
-interface QuarterlyPayment {
-  quarter: string
-  label: string
-  deadline: string          // ISO date string
-  amount: number | null     // null = not yet set
-  paid: boolean
-  paidDate?: string
 }
 
 interface PropertyAuthority {
@@ -108,57 +101,6 @@ const TAX_HISTORY: TaxYear[] = [
   },
 ]
 
-// 2026 projection — W-2 + consulting, ~$180K blended
-const PROJECTED_2026: TaxYear = {
-  year: 2026,
-  grossIncome: 180_000,
-  federalWithheld: 25_000,    // estimated based on new job W-4
-  taxOwed: 28_500,
-  refundOrOwed: -3_500,
-  effectiveRate: 0.158,
-  filingStatus: 'Single',
-  status: 'projected',
-  deductionType: 'itemized',
-  deductionAmount: 27_200,
-  notes: 'Projected — update when final W-2 available. Assumes $180K gross, itemized deductions.',
-}
-
-// Q estimates for 2026 — Brandon is W-2 only so quarterly payments
-// are only needed if consulting / other non-W2 income is significant.
-// These are shown as tracker for awareness even if W-4 covers most liability.
-const QUARTERLY_PAYMENTS_2026: QuarterlyPayment[] = [
-  {
-    quarter: 'Q1',
-    label: 'Q1 2026 — Jan 1 – Mar 31',
-    deadline: '2026-04-15',
-    amount: null,
-    paid: false,
-    notes: 'Covers Jan–Mar income. If W-2 only, W-4 withholding counts.',
-  } as QuarterlyPayment & { notes: string },
-  {
-    quarter: 'Q2',
-    label: 'Q2 2026 — Apr 1 – May 31',
-    deadline: '2026-06-16',
-    amount: null,
-    paid: false,
-    notes: 'IRS Q2 covers only Apr–May (2-month window).',
-  } as QuarterlyPayment & { notes: string },
-  {
-    quarter: 'Q3',
-    label: 'Q3 2026 — Jun 1 – Aug 31',
-    deadline: '2026-09-15',
-    amount: null,
-    paid: false,
-  },
-  {
-    quarter: 'Q4',
-    label: 'Q4 2026 — Sep 1 – Dec 31',
-    deadline: '2027-01-15',
-    amount: null,
-    paid: false,
-  },
-]
-
 const PROPERTY_TAX_2025: PropertyAuthority[] = [
   { auth: 'Dallas ISD',      amount: 6_211.47, pct: 42.6, color: '#5ee6ff' },
   { auth: 'City of Dallas',  amount: 4_751.84, pct: 32.6, color: '#1E90FF' },
@@ -168,12 +110,13 @@ const PROPERTY_TAX_2025: PropertyAuthority[] = [
 ]
 
 const KEY_ITEMS_2026 = [
-  { icon: '📋', text: 'File or update W-4 at new employer — ensure withholding covers 2026 liability' },
-  { icon: '💡', text: '2026 is potentially a lower-income year — ideal window for Roth IRA conversion' },
-  { icon: '📈', text: 'IRA contributions for 2026: limit $7,000 (traditional or Roth) — deadline Apr 15, 2027' },
-  { icon: '🏠', text: 'Property taxes ~$14-15K due Nov 2026 — $10K deductible under SALT cap' },
-  { icon: '🤝', text: 'SS wage base $176,100 — stop withholding after ~pay period 27 (biweekly)' },
-  { icon: '⚠️', text: 'Confirm 2025 HAF program impact with CPA — may affect prior year property tax deductibility' },
+  { icon: '🏠', text: 'Pay the 2026 property tax (~$15,000) by Dec 31: the 2026 SALT cap is $40,400, so both 2026 payments deduct — about $3,300 more refund than waiting until January' },
+  { icon: '📋', text: 'No estimated payments needed for 2026: every income source had withholding, and withholding already exceeds the projected tax' },
+  { icon: '🧾', text: '2026 documents to collect: JPMorgan W-2, Schwab W-2, TWC 1099-G, mortgage 1098, the Dallas County property tax receipt' },
+  { icon: '🔁', text: 'Roth conversion in 2026: likely skip — there is no spare cash for the tax. Confirm with your CPA' },
+  { icon: '📈', text: '2027 401(k): set the rate after the IRS announces the limit; ~10.6% of base reaches $25,500. Pre-tax saves 24% at your 2027 bracket' },
+  { icon: '✍️', text: 'W-4: Schwab withholding assumes the standard deduction; you itemize, so Step 4(b) (confirm with CPA) would raise 2027 paychecks ~$300/mo and shrink the refund' },
+  { icon: '🔎', text: 'Ask your CPA: the 2025 return used a $10K SALT cap, but the 2025 cap was raised to $40,000 — an amended 2025 return may recover tax' },
 ]
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -220,11 +163,29 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 // ─── Main Component ────────────────────────────────────────────────────────
 
-export default function TaxCenterTab() {
-  const [selectedYear, setSelectedYear] = useState<number>(2025)
-  const [paidStatus, setPaidStatus] = useState<Record<string, boolean>>({})
+export default function TaxCenterTab({ plan2026 }: { plan2026?: TaxPlan2026 | null }) {
+  const plan = plan2026 ?? TAX_PLAN_2026_FALLBACK
+  const [selectedYear, setSelectedYear] = useState<number>(2026)
+  const [payDec31, setPayDec31] = useState(plan.payPropertyTaxBy === 'dec31')
+  const est = useMemo(() => estimateReturn(plan, payDec31), [plan, payDec31])
+  const estJan = useMemo(() => estimateReturn(plan, false), [plan])
+  const estDec = useMemo(() => estimateReturn(plan, true), [plan])
 
-  const allYears = useMemo(() => [...TAX_HISTORY, PROJECTED_2026], [])
+  const projected2026: TaxYear = useMemo(() => ({
+    year: 2026,
+    grossIncome: est.agi,
+    federalWithheld: est.withheld,
+    taxOwed: est.tax,
+    refundOrOwed: est.refund,
+    effectiveRate: est.effectiveRate,
+    filingStatus: 'Single',
+    status: 'projected',
+    deductionType: est.usesItemized ? 'itemized' : 'standard',
+    deductionAmount: est.deduction,
+    notes: `Projected from ${plan.source} (as of ${plan.asOf}). Property tax ${payDec31 ? 'paid by Dec 31, 2026' : 'paid in Jan 2027'}. Update when the W-2s and 1099-G arrive.`,
+  }), [est, plan, payDec31])
+
+  const allYears = useMemo(() => [...TAX_HISTORY, projected2026], [projected2026])
   const selected = useMemo(() => allYears.find(y => y.year === selectedYear) ?? TAX_HISTORY[TAX_HISTORY.length - 1], [allYears, selectedYear])
 
   const chartData = useMemo(() => allYears.map(y => ({
@@ -376,70 +337,65 @@ export default function TaxCenterTab() {
         </p>
       </div>
 
-      {/* ── 2026 Quarterly Payments ───────────────────────────────────────── */}
+      {/* ── 2026 Return Estimate ─────────────────────────────────────────── */}
       <div>
-        <SectionTitle>2026 Estimated Tax Payments</SectionTitle>
-        <div className="rounded-xl px-4 py-3 mb-4 text-xs leading-relaxed"
-          style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#fcd34d' }}>
-          <strong>W-2 Safe Harbor:</strong> If your new employer withholds enough via W-4 to cover 100% of your 2025 tax liability ($24,891) or 90% of your 2026 liability, quarterly payments are not required. These are useful if you have freelance / consulting income outside of W-2 withholding.
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {QUARTERLY_PAYMENTS_2026.map(q => {
-            const days = daysUntil(q.deadline)
-            const isPast = days < 0
-            const isUrgent = days >= 0 && days <= 14
-            const isPaid = paidStatus[q.quarter] ?? q.paid
-            const deadlineDate = new Date(q.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        <SectionTitle>2026 Return Estimate</SectionTitle>
+        <div className="rounded-2xl p-5 space-y-4" style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>2026 property tax (~{fmt(plan.propertyTaxBill2026)}) paid:</span>
+            {([[true, `By Dec 31 (${Math.max(0, daysUntil('2026-12-31'))}d left)`], [false, 'In January 2027']] as const).map(([v, label]) => (
+              <button key={String(v)} onClick={() => setPayDec31(v)} aria-pressed={payDec31 === v}
+                className="text-xs font-semibold px-3 py-2 rounded-lg"
+                style={{ background: payDec31 === v ? 'rgba(var(--accent-rgb), 0.15)' : 'rgba(255,255,255,0.06)', color: payDec31 === v ? 'var(--accent-cyan)' : 'var(--text-secondary)', border: '1px solid var(--glass-line)' }}>
+                {label}
+              </button>
+            ))}
+          </div>
 
-            return (
-              <div
-                key={q.quarter}
-                className="rounded-2xl p-4"
-                style={{
-                  background: isPaid ? 'rgba(34,197,94,0.08)' : isPast ? 'rgba(239,68,68,0.06)' : 'var(--card-bg)',
-                  border: `1px solid ${isPaid ? 'rgba(34,197,94,0.3)' : isPast ? 'rgba(239,68,68,0.2)' : isUrgent ? 'rgba(245,158,11,0.4)' : 'var(--card-border)'}`,
-                }}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className="text-base font-extrabold" style={{ color: '#5ee6ff' }}>{q.quarter}</div>
-                    <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                      Due {deadlineDate}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setPaidStatus(p => ({ ...p, [q.quarter]: !p[q.quarter] }))}
-                    className="text-xs font-semibold px-2.5 py-1 rounded-lg transition-all"
-                    style={{
-                      background: isPaid ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.06)',
-                      border: `1px solid ${isPaid ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
-                      color: isPaid ? '#22c55e' : 'var(--text-muted)',
-                    }}
-                  >
-                    {isPaid ? '✓ Paid' : 'Mark Paid'}
-                  </button>
-                </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <KPI label="Total income (AGI)" value={fmt(est.agi)} />
+            <KPI label="Federal tax" value={fmt(est.tax)} sub={`${Math.round(est.marginal * 100)}% bracket`} />
+            <KPI label="Already withheld" value={fmt(est.withheld)} />
+            <KPI label={est.refund >= 0 ? 'Estimated refund' : 'Estimated owed'} value={fmt(Math.abs(est.refund))} accent sub={`vs ${fmt(payDec31 ? estJan.refund : estDec.refund)} if paid ${payDec31 ? 'in January' : 'by Dec 31'}`} />
+          </div>
 
-                <div className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-                  {q.amount != null ? fmt(q.amount) : '—'}
-                </div>
-                <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                  {q.amount == null ? 'Amount TBD' : 'estimated due'}
-                </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ color: 'var(--text-muted)' }}>
+                  <th className="text-left py-2 pr-3 font-semibold">Income source</th>
+                  <th className="text-right py-2 px-3 font-semibold">Taxable</th>
+                  <th className="text-right py-2 pl-3 font-semibold">Withheld</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plan.income.map(i => (
+                  <tr key={i.label} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <td className="py-2 pr-3">
+                      <div style={{ color: 'var(--text-primary)' }}>{i.label}</div>
+                      {i.note && <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{i.note}</div>}
+                    </td>
+                    <td className="py-2 px-3 text-right tabular-nums">{fmt(i.taxable)}</td>
+                    <td className="py-2 pl-3 text-right tabular-nums">{fmt(i.withheld)}</td>
+                  </tr>
+                ))}
+                <tr style={{ borderTop: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-primary)' }}>
+                  <td className="py-2 pr-3 font-semibold">Total</td>
+                  <td className="py-2 px-3 text-right tabular-nums font-semibold">{fmt(est.agi)}</td>
+                  <td className="py-2 pl-3 text-right tabular-nums font-semibold">{fmt(est.withheld)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-                <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                  {isPast ? (
-                    <span className="text-[11px] font-semibold text-red-400">Deadline passed</span>
-                  ) : (
-                    <span className="text-[11px] font-semibold"
-                      style={{ color: isUrgent ? '#fbbf24' : 'var(--text-secondary)' }}>
-                      {days === 0 ? '⚠️ Due today!' : `${days}d remaining`}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <div><strong style={{ color: 'var(--text-primary)' }}>Itemized: {fmt(est.itemized)}</strong> — mortgage interest {fmt(plan.mortgageInterest)} + property tax {fmt(est.salt)} (SALT cap {fmt(plan.saltCap)})</div>
+            <div><strong style={{ color: 'var(--text-primary)' }}>Standard deduction: {fmt(STANDARD_DEDUCTION_2026.single)}</strong> — itemizing wins by {fmt(Math.max(0, est.itemized - STANDARD_DEDUCTION_2026.single))}</div>
+            <div><strong style={{ color: 'var(--text-primary)' }}>Taxable income: {fmt(est.taxable)}</strong> — the Dec 31 payment is worth about {fmt(estDec.refund - estJan.refund)} of refund</div>
+          </div>
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            Estimates only (2026 brackets, single filer, Texas). Source: {plan.source}. Not tax advice; confirm with your CPA.
+          </p>
         </div>
       </div>
 
@@ -452,22 +408,22 @@ export default function TaxCenterTab() {
             {/* Safe harbor target */}
             <div>
               <p className="text-[11px] uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>
-                Safe Harbor Target
+                Withheld vs 2026 Tax
               </p>
-              <p className="text-2xl font-extrabold" style={{ color: '#5ee6ff' }}>{fmt(24_891)}</p>
+              <p className="text-2xl font-extrabold" style={{ color: '#5ee6ff' }}>{fmt(est.withheld)}</p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                100% of 2025 liability — no underpayment penalty if you hit this via withholding
+                vs {fmt(est.tax)} projected tax — {est.withheld >= est.tax * 0.9 ? 'covered; no underpayment penalty risk' : 'below 90% of the tax — check withholding'}
               </p>
             </div>
 
             {/* Monthly needed */}
             <div>
               <p className="text-[11px] uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>
-                Monthly Withholding Needed
+                Schwab Federal Withholding
               </p>
-              <p className="text-2xl font-extrabold" style={{ color: '#f59e0b' }}>{fmt(24_891 / 12)}</p>
+              <p className="text-2xl font-extrabold" style={{ color: '#f59e0b' }}>{fmt((plan.income.find(i => /schwab/i.test(i.label))?.withheld ?? 0) / 3)}</p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                ~$2,074/mo · biweekly ≈ $958/check
+                per biweekly check (est.) — withholding assumes the standard deduction, which is why the refund is large
               </p>
             </div>
 
@@ -476,16 +432,16 @@ export default function TaxCenterTab() {
               <p className="text-[11px] uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>
                 SS Cap Relief (Biweekly)
               </p>
-              <p className="text-2xl font-extrabold" style={{ color: '#22c55e' }}>{fmt(176_100)}</p>
+              <p className="text-2xl font-extrabold" style={{ color: '#22c55e' }}>{fmt(SS_WAGE_BASE_2026)}</p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                2026 SS wage base — net pay increases ~$500/check after cap (~pay period 23 at $180K salary)
+                2026 Social Security wage base — not reached at Schwab in 2026; in 2027 it hits around check 21, then net pay rises ~$570/check
               </p>
             </div>
           </div>
 
           {/* W-4 tip */}
           <div className="mt-4 pt-4 text-xs leading-relaxed" style={{ borderTop: '1px solid rgba(255,255,255,0.07)', color: 'var(--text-secondary)' }}>
-            <strong style={{ color: 'var(--text-primary)' }}>💡 W-4 Tip:</strong> If you're unsure your withholding covers the target, use Step 4(c) on your W-4 to add a flat additional amount per paycheck (e.g., +$100–200/period). For biweekly pay at $180K, baseline federal withholding should be ~$900–1,100/check — add $100–200 as buffer if no other changes.
+            <strong style={{ color: 'var(--text-primary)' }}>💡 W-4 Tip:</strong> You are over-withheld because the W-4 assumes the standard deduction while you itemize (~{fmt(est.itemized)}). For 2027, entering the extra deductions in Step 4(b) would raise each paycheck (about $300/mo) and shrink the spring refund. Confirm the amount with your CPA.
           </div>
         </div>
       </div>
@@ -533,7 +489,7 @@ export default function TaxCenterTab() {
               ))}
 
               <div className="pt-2 mt-3 text-xs" style={{ borderTop: '1px solid rgba(255,255,255,0.07)', color: 'var(--text-muted)' }}>
-                <strong style={{ color: '#fcd34d' }}>⚠️ SALT Note:</strong> Only $10,000 of the $14,595 is deductible under the federal SALT cap (Schedule A). Confirm with CPA whether HAF funds received affected 2025 deductibility.
+                <strong style={{ color: '#fcd34d' }}>⚠️ SALT Note:</strong> This $14,595 bill was paid Jan 30, 2026, so it deducts on the 2026 return. The SALT cap is $40,400 for 2026 (it was raised to $40,000 for 2025), so paying the 2026 bill by Dec 31 lets both deduct in 2026. Your 2025 return used a $10K cap — ask your CPA whether an amended 2025 return is worth it.
               </div>
             </div>
           </div>
