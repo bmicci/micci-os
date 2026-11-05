@@ -1,16 +1,18 @@
 // ═══════════════════════════════════════════════════════════════════
 // HELOC Drawdown Plan — month-by-month schedule engine
 //
-// Encodes the June 2026 strategy:
-//  · AmEx Gold/Plat (27.49%) roll to HELOC immediately
-//  · Every 2026 promo bucket is paid from the HELOC in its expiry month
-//  · Promos expiring 2027+ (Citi Diamond) are DEFERRED — re-BT or pay
-//    from new-job income; they do not fit in the line
-//  · Keep-decision debts (Virginia FCU via Dad) never touch the line
+// "What if every remaining 2026 promo were paid from the line?" — starting
+// from the LIVE drawn balance. Since Nov 2026 the line is nearly full, so the
+// schedule shows where it would overflow; plan v5 pays the December promos
+// from cash flow plus the last of the line (see financial_settings.strategic_plan).
+//  · Roll-decision debts (not paid in full monthly) are drawn this month
+//  · 2026 promo buckets are drawn in their expiry month
+//  · Promos expiring 2027+ are DEFERRED — paid from 2027 cash flow
+//  · Keep-decision debts (family loan, RH) never touch the line
 // ═══════════════════════════════════════════════════════════════════
 
 import type { DebtAccount, PromoDeadline } from '@/lib/financial-data'
-import { HELOC_LIMIT, HELOC_RATE, HELOC_DRAWN } from '@/lib/financial-data'
+import { HELOC_LIMIT, HELOC_RATE, liveHelocDrawn } from '@/lib/financial-data'
 
 export interface PlanDraw {
   label: string
@@ -76,7 +78,7 @@ export function buildHelocPlan(
   // 1) Immediate rolls: high-rate roll-decision debts, drawn this month
   for (const d of debts) {
     if (d.category === 'Mortgage' || d.category === 'HELOC') continue
-    if (d.decision === 'roll' && d.balance > 0) {
+    if (d.decision === 'roll' && d.balance > 0 && !d.payInFull) {
       addDraw(monthKey(start), {
         label: `Roll ${d.name} (${d.rate}%)`,
         amount: d.balance,
@@ -95,12 +97,14 @@ export function buildHelocPlan(
   // 2) Promo buckets: pay from HELOC in the expiry month; 2027+ deferred
   for (const p of promos) {
     if (p.balance <= 0) continue
+    // Past expiry and the card now owes less than this promo: looks paid, not a draw
+    if (p.likelyPaid) continue
     const expiry = new Date(p.expires)
     if (expiry >= new Date(2027, 0, 1)) {
       excluded.push({
         label: p.name,
         amount: p.balance,
-        reason: 'Deferred — does not fit the line. Re-BT (~3% fee) or pay from new-job income before expiry.',
+        reason: 'Deferred — pay from 2027 cash flow (or re-BT) before expiry; the line has no room.',
       })
       continue
     }
@@ -112,7 +116,8 @@ export function buildHelocPlan(
 
   // 3) Walk the months
   const months: PlanMonth[] = []
-  let balance = HELOC_DRAWN
+  const startBalance = liveHelocDrawn(debts)
+  let balance = startBalance
   let peakBalance = balance
   let totalPlannedDraws = 0
 
@@ -141,7 +146,7 @@ export function buildHelocPlan(
   return {
     months,
     excluded,
-    startBalance: HELOC_DRAWN,
+    startBalance,
     peakBalance,
     peakInterestMo: peakBalance * (HELOC_RATE / 100) / 12,
     totalPlannedDraws,

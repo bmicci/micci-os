@@ -95,7 +95,7 @@ export function computeUpcoming(
           : `${p.acct} · not confirmed paid — deferred interest may post`
         : p.risk
           ? `⚠ ${p.acct} · deferred interest at risk`
-          : `${p.acct} · pay from HELOC before this date`,
+          : `${p.acct} · pay off before this date`,
       date: p.expires,
       daysAway,
       amount: p.balance,

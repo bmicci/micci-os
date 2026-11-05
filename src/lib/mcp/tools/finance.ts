@@ -21,6 +21,9 @@ function runwayLines(r: RunwayProjection, liquid: number): string[] {
     out.push(`- Monthly burn: ${usd(r.phase === 'post-cliff' ? r.postCliffMonthlyBurn : r.preCliffMonthlyBurn)}`)
   }
   out.push(`- Projected cash-out: ${r.cashOutDate ? `**${day(r.cashOutDate)}**` : 'none within 10 years'}`)
+  if (r.events?.length) {
+    out.push(`- Includes dated one-time payments: ${r.events.map(e => `${day(e.date)} ${e.label} ${usd(-e.amount)}`).join('; ')}`)
+  }
   return out
 }
 
@@ -319,7 +322,7 @@ export const financeTools: AnyMicciTool[] = [
         const r = computeRunwayProjection(liquid, spend, 0, null, new Date(), {
           employer: o.employer, firstPayday: o.firstPayday, periodDays: p.periodDays,
           netPerCheck: p.netPerCheckEarly, monthlyNet: p.monthlyNetAvg,
-        })
+        }, d.runwayProjection.events ?? [])
         return [
           `## ${o.employer}${o.title ? ` — ${o.title}` : ''} (${o.status})`,
           `- Terms: ${o.kind === 'hourly' ? `${usd(o.hourlyRate)}/hr × ${o.hoursPerWeek ?? 40} hrs/wk` : `${usd(o.annualSalary)} salary${o.bonusPct ? ` + ${o.bonusPct}% bonus` : ''}`}, ${o.employment.toUpperCase()}, ${o.payFrequency === 26 ? 'biweekly' : `${o.payFrequency}×/yr`}; starts ${day(o.startDate)}, first check ${day(o.firstPayday)}`,
@@ -359,7 +362,7 @@ export const financeTools: AnyMicciTool[] = [
       const r = computeRunwayProjection(liquid, spend, 0, null, new Date(), pay ? {
         employer: pay.offer.employer, firstPayday: pay.offer.firstPayday, periodDays: pay.periodDays,
         netPerCheck: pay.netPerCheckEarly, monthlyNet: pay.monthlyNetAvg,
-      } : null)
+      } : null, d.runwayProjection.events ?? [])
       return text([
         '# What-if projection',
         `Assumptions: liquid cash ${usd(liquid)}${a.cash_adjustment ? ` (after ${a.cash_adjustment > 0 ? '+' : ''}${usd(a.cash_adjustment)} today)` : ''}, spend ${usd(spend)}/mo${a.monthly_spend != null ? ` (real: ${usd(realSpend)})` : ' (real 90-day)'}, income: ${pay ? `${pay.offer.employer} from ${day(pay.offer.firstPayday)}` : 'none'}.`,

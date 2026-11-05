@@ -94,10 +94,10 @@ describe('401(k) calculator (Schwab rules)', () => {
     expect(cashCost).toBeGreaterThan(0)
     expect(cashCost).toBeLessThan(extra)
   })
-  it('early-year base check is near the plan (~$6,257 at 5%)', () => {
+  it('early-year semi-monthly check is ~$6,750 at 5% with $205.70 of benefits', () => {
     const r = k401Calc({ ...SCHWAB_DEFAULTS, basePct: 5 })
-    expect(r.netPerCheckEarly).toBeGreaterThan(6100)
-    expect(r.netPerCheckEarly).toBeLessThan(6450)
+    expect(r.netPerCheckEarly).toBeGreaterThan(6600)
+    expect(r.netPerCheckEarly).toBeLessThan(6900)
   })
 })
 
@@ -112,5 +112,49 @@ describe('bill / subscription savings', () => {
       { id: 'a', name: 'a', monthly: 10, savings: 10, on: true },
       { id: 'b', name: 'b', monthly: 20, savings: 20, on: false },
     ])).toBe(10)
+  })
+})
+
+import { estimateReturn, TAX_PLAN_2026_FALLBACK } from '@/lib/tax/estimate'
+describe('2026 tax estimate (plan v5 section 13)', () => {
+  it('Dec 31 property-tax payment: ~$9,600 refund on $92,875 taxable', () => {
+    const r = estimateReturn(TAX_PLAN_2026_FALLBACK, true)
+    expect(r.agi).toBe(139170)
+    expect(r.withheld).toBe(24743)
+    expect(r.itemized).toBe(46295)
+    expect(Math.round(r.tax)).toBeGreaterThan(15100)
+    expect(Math.round(r.tax)).toBeLessThan(15200)
+    expect(Math.round(r.refund / 100) * 100).toBe(9600)
+  })
+  it('waiting until January: ~$6,300 refund', () => {
+    const r = estimateReturn(TAX_PLAN_2026_FALLBACK, false)
+    expect(Math.round(r.refund / 100) * 100).toBe(6300)
+  })
+})
+
+import { plannedCashEvents } from '@/lib/finance/cashEvents'
+import { computeRunwayProjection } from '@/lib/finance/txnAggregate'
+import type { DebtAccount, PromoDeadline } from '@/lib/financial-data'
+describe('runway: dated one-time outflows', () => {
+  const card = (name: string, balance: number): DebtAccount => ({ name, balance, rate: 0, min: 40, decision: 'promo', category: 'Credit Card', source: 'live' })
+  const promo = (name: string, acct: string, balance: number, expires: string): PromoDeadline => ({ name, acct, balance, expires, risk: null, note: '' })
+  it('includes the property tax and soon-due promos, capped at the card balance', () => {
+    const ev = plannedCashEvents(
+      [promo('FU BT4', 'Chase Freedom Unlim (7117)', 3985.8, '2026-12-09'), promo('Citi Diamond', 'Citi Diamond (4205)', 11411, '2027-06-18')],
+      [card('Chase Freedom Unlimited (7117)', 3574), card('Citi Diamond 4205', 11411)],
+      { plan_amount: 15000, pay_by: '2026-12-31', taxes_paid: false },
+      '2026-11-05')
+    expect(ev).toEqual([
+      { date: '2026-12-09', amount: -3574, label: 'Pay off FU BT4' },
+      { date: '2026-12-31', amount: -15000, label: 'Property tax (planned payment)' },
+    ])
+  })
+  it('a big dated payment can push the cash-out date even with a job', () => {
+    const pay = { employer: 'Schwab', firstPayday: '2026-11-30', periodDays: 14, netPerCheck: 6257, monthlyNet: 13557 }
+    const today = new Date(2026, 10, 5)
+    const without = computeRunwayProjection(9000, 9800, 0, null, today, pay)
+    const withTax = computeRunwayProjection(9000, 9800, 0, null, today, pay, [{ date: '2026-12-31', amount: -15000, label: 'Property tax' }])
+    expect(without.cashOutDate).toBeNull()
+    expect(withTax.cashOutDate).toBe('2026-12-31')
   })
 })

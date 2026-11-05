@@ -12,7 +12,7 @@ export interface K401Inputs {
   limit: number             // IRS employee limit for the year
   matchPct: number          // Schwab matches $1 per $1 up to this % of eligible earnings
   kicker: number            // flat amount after the first contribution each year
-  payPeriods: number        // 26 = biweekly
+  payPeriods: number        // 24 = semi-monthly, 26 = biweekly
   section125PerCheck: number
   section125Checks: number  // deductions per year (24 of 26)
   ltdAnnual: number
@@ -27,7 +27,7 @@ export interface K401Result {
   match: number
   federalTax: number
   netAnnual: number
-  /** Net per biweekly check on base pay before the Social Security cap (what early-year checks pay). */
+  /** Net per check on base pay before the Social Security cap (what early-year checks pay). */
   netPerCheckEarly: number
   netPerMonth: number
   balance: number           // employee + match, compounded
@@ -35,7 +35,8 @@ export interface K401Result {
 
 export const SCHWAB_DEFAULTS: K401Inputs = {
   salary: 240000, bonusPct: 0, basePct: 5, bonusDeferPct: 5, limit: 25500, matchPct: 5, kicker: 250,
-  payPeriods: 26, section125PerCheck: 78, section125Checks: 24, ltdAnnual: 736.8, returnPct: 7, years: 3,
+  // Semi-monthly pay; benefits $205.70 every check ($105.70 premiums + $100 HSA)
+  payPeriods: 24, section125PerCheck: 205.70, section125Checks: 24, ltdAnnual: 0, returnPct: 7, years: 3,
 }
 
 export function k401Calc(i: K401Inputs): K401Result {

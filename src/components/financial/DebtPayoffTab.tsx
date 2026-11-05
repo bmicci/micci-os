@@ -343,7 +343,7 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
         <KPICard
           label="HELOC Available"
           value={fmtK(helocKPIs.helocAfterRoll)}
-          note="After initial roll"
+          note="Room left on the line"
           accent="cyan"
         />
       </div>
@@ -377,8 +377,8 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
           className="mt-3 p-3 rounded-lg text-[11px]"
           style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}
         >
-          ⚠️ Reality check: you&apos;re currently cash-flow negative (unemployed), so real extra payment is
-          <strong> $0/mo</strong> until re-employed. These scenarios model paydown once income resumes —
+          ℹ️ Schwab pay starts with the first check around Nov 30. Until then the real extra payment is
+          <strong> $0/mo</strong>; the Calculators section models extra payments, bonuses and a car —
           slide to your expected post-job surplus.
         </div>
       </div>
@@ -611,7 +611,7 @@ export default function DebtPayoffTab({ debts, helocKPIs, promos }: DebtPayoffTa
           >
             <strong style={{ color: '#f59e0b' }}>⚠ Strategy:</strong>{' '}
             <span style={{ color: 'var(--text-secondary)' }}>
-              All 0% promo balances are safe as long as they&apos;re paid from HELOC BEFORE expiry.
+              All 0% promo balances are safe as long as they&apos;re paid BEFORE expiry — the line has little room left, so most come from paychecks.
               Total promo balance: <strong style={{ color: 'var(--text-primary)' }}>{fmt(totalPromo)}</strong> across {sortedPromos.length} accounts.
               HELOC has <strong style={{ color: 'var(--text-primary)' }}>{fmt(helocKPIs.finalBuffer)}</strong> available after initial roll — {helocKPIs.finalBuffer >= totalPromo ? 'more than enough to cover all promos' : 'may need additional funds for full coverage'}.
               {pastExpiryCount > 0 && (

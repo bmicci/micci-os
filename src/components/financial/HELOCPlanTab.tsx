@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import type { HELOCAccount, HelocKPIs, WaterfallItem, PromoDeadline, DebtAccount } from '@/lib/financial-data'
-import { fmt, HELOC_LIMIT, HELOC_RATE, HELOC_DRAWN } from '@/lib/financial-data'
+import { fmt, HELOC_LIMIT, HELOC_RATE, liveHelocDrawn } from '@/lib/financial-data'
 import { buildHelocPlan } from '@/lib/finance/helocPlan'
 import KPICard from './KPICard'
 import HELOCBarChart from './HELOCBarChart'
@@ -48,8 +48,9 @@ export default function HELOCPlanTab({ helocAccounts, helocKPIs, waterfallData, 
   const kpi = helocKPIs
   const plan = useMemo(() => buildHelocPlan(promos, debts), [promos, debts])
 
-  const headroom = HELOC_LIMIT - HELOC_DRAWN
-  const utilizationPct = Math.round((HELOC_DRAWN / HELOC_LIMIT) * 100)
+  const drawn = liveHelocDrawn(debts)
+  const headroom = HELOC_LIMIT - drawn
+  const utilizationPct = Math.round((drawn / HELOC_LIMIT) * 100)
   const excludedTotal = plan.excluded.reduce((s, e) => s + e.amount, 0)
 
   return (
@@ -60,15 +61,15 @@ export default function HELOCPlanTab({ helocAccounts, helocKPIs, waterfallData, 
         style={{ background: 'rgba(var(--accent-rgb), 0.05)', border: '1px solid var(--glass-line)' }}
       >
         <div className="text-[12px] font-bold mb-2" style={{ color: 'var(--accent-cyan)' }}>
-          📋 Drawdown Strategy — decided Jun 2026
+          📋 HELOC strategy — plan v5 (Nov 2026)
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
-          <div>1. Roll AmEx Gold + Platinum now — 27.49% is the expensive leak</div>
-          <div>2. Pay each 2026 promo bucket from the line in its expiry month</div>
-          <div>3. Virginia FCU stays with Dad ($350/mo) — preserves headroom</div>
-          <div>4. Citi Diamond ($11,999, Jun 2027) deferred — re-BT or new-job income</div>
-          <div>5. 🔥 Best Buy deferred promos NEVER slip — interest is retroactive</div>
-          <div>6. Relief valve if cash runs out: let Dec Chase buckets go to ~29% APR (not retroactive, recoverable)</div>
+          <div>1. The line is {utilizationPct}% used — {fmtRound(headroom)} left. Protect it; there is no backstop after it.</div>
+          <div>2. December promos (Chase, Best Buy, PayPal) come from paychecks plus the last of the line</div>
+          <div>3. Property tax (~$15K) by Dec 31: line room + a short card balance until the March refund</div>
+          <div>4. AmEx is paid in full monthly — nothing to roll. Family loan stays at $325/mo</div>
+          <div>5. Citi Diamond (Jun 2027) and BofA (Oct 2027) from 2027 cash flow</div>
+          <div>6. Each March bonus: cards, then family loan, then the HELOC (RH and car loan last)</div>
         </div>
       </div>
 
@@ -76,7 +77,7 @@ export default function HELOCPlanTab({ helocAccounts, helocKPIs, waterfallData, 
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         <KPICard
           label="Drawn Today"
-          value={fmtRound(HELOC_DRAWN)}
+          value={fmtRound(drawn)}
           note={`${utilizationPct}% of ${fmtK(HELOC_LIMIT)} limit · ${HELOC_RATE}%`}
           accent="amber"
         />
@@ -88,13 +89,13 @@ export default function HELOCPlanTab({ helocAccounts, helocKPIs, waterfallData, 
         <KPICard
           label="Planned Draws"
           value={fmtRound(plan.totalPlannedDraws)}
-          note="AmEx roll + 2026 promo payoffs"
+          note="If every 2026 promo were paid from the line"
           accent="red"
         />
         <KPICard
           label="Line After Plan"
           value={fmtRound(plan.lineAfterPlan)}
-          note={plan.fits ? 'Plan fits — zero slack' : 'Plan exceeds the line'}
+          note={plan.fits ? 'Fits in the line' : 'Does not fit — pay from cash flow'}
           accent={plan.lineAfterPlan >= 0 ? 'green' : 'red'}
         />
         <KPICard
@@ -106,7 +107,7 @@ export default function HELOCPlanTab({ helocAccounts, helocKPIs, waterfallData, 
         <KPICard
           label="Kept Off the Line"
           value={fmtRound(excludedTotal)}
-          note="VFCU (Dad) + Citi Diamond deferred"
+          note="Kept off the line or deferred to 2027"
         />
       </div>
 

@@ -318,6 +318,8 @@ export interface RunwayProjection {
   cashOutDate: string | null       // projected zero-cash date, or null if it never happens within 10y
   phase: 'pre-cliff' | 'post-cliff' | 'no-cliff'
   employment: RunwayEmployment | null  // set when an accepted job's paychecks are modeled
+  /** Dated one-time outflows included in the walk (property tax, promo payoffs). */
+  events?: { date: string; amount: number; label: string }[]
 }
 
 /** Discrete paycheck schedule for an accepted job (see finance/jobIncome.ts). */
@@ -368,6 +370,7 @@ export function computeRunwayProjection(
   cliffDateIso: string | null,
   today: Date = new Date(),
   paychecks: PaycheckSchedule | null = null,
+  events: { date: string; amount: number; label: string }[] = [],
 ): RunwayProjection {
   const cursor = new Date(today)
   cursor.setHours(0, 0, 0, 0)
@@ -378,10 +381,15 @@ export function computeRunwayProjection(
   const daysUntilCliff = cliff ? Math.round((cliff.getTime() - cursor.getTime()) / 86400000) : null
 
   const phase: RunwayProjection['phase'] = !cliff ? 'no-cliff' : daysUntilCliff! > 0 ? 'pre-cliff' : 'post-cliff'
-  const base = { today: isoDate(cursor), cliffDate: cliffDateIso, daysUntilCliff, preCliffMonthlyBurn, postCliffMonthlyBurn, phase }
+  const todayIso = isoDate(cursor)
+  const evs = events.filter(e => e.date >= todayIso)
+  const base = { today: todayIso, cliffDate: cliffDateIso, daysUntilCliff, preCliffMonthlyBurn, postCliffMonthlyBurn, phase, events: evs }
+  const eventsByDay = new Map<string, number>()
+  for (const e of evs) eventsByDay.set(e.date, (eventsByDay.get(e.date) ?? 0) + e.amount)
+  const lastEventMs = evs.length ? Math.max(...evs.map(e => parseLocalDate(e.date).getTime())) : -Infinity
 
   // Cash-flow positive with no cliff and no job ahead → never runs out.
-  if (!cliff && !paychecks && preCliffMonthlyBurn <= 0) {
+  if (!cliff && !paychecks && preCliffMonthlyBurn <= 0 && evs.length === 0) {
     return { ...base, cashOutDate: null, employment: null }
   }
 
@@ -394,7 +402,8 @@ export function computeRunwayProjection(
   const firstPay = paychecks ? parseLocalDate(paychecks.firstPayday) : null
   let nextPayMs = firstPay ? firstPay.getTime() : Infinity
   // Track the trough through one full pay period after the first check.
-  const troughHorizonMs = firstPay ? firstPay.getTime() + paychecks!.periodDays * 86400000 : -Infinity
+  // …and through any dated one-time outflow (property tax, promo payoffs).
+  const troughHorizonMs = Math.max(firstPay ? firstPay.getTime() + paychecks!.periodDays * 86400000 : -Infinity, lastEventMs)
   let lowCash = cash
   let lowDate = isoDate(cursor)
   const employment = (): RunwayEmployment | null => paychecks && firstPay ? {
@@ -417,6 +426,7 @@ export function computeRunwayProjection(
       dailyNet += paychecks!.netPerCheck
       nextPayMs += paychecks!.periodDays * 86400000
     }
+    dailyNet += eventsByDay.get(isoDate(walker)) ?? 0
     if (dailyNet < 0 && cash + dailyNet <= 0) {
       return { ...base, cashOutDate: isoDate(walker), employment: employment() }
     }
