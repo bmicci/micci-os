@@ -94,10 +94,10 @@ describe('401(k) calculator (Schwab rules)', () => {
     expect(cashCost).toBeGreaterThan(0)
     expect(cashCost).toBeLessThan(extra)
   })
-  it('early-year semi-monthly check is ~$6,600 at 5% with $405.70 of benefits', () => {
+  it('early-year semi-monthly check is ~$6,750 at 5% with $205.70 of benefits', () => {
     const r = k401Calc({ ...SCHWAB_DEFAULTS, basePct: 5 })
-    expect(r.netPerCheckEarly).toBeGreaterThan(6450)
-    expect(r.netPerCheckEarly).toBeLessThan(6750)
+    expect(r.netPerCheckEarly).toBeGreaterThan(6600)
+    expect(r.netPerCheckEarly).toBeLessThan(6900)
   })
 })
 
@@ -117,18 +117,18 @@ describe('bill / subscription savings', () => {
 
 import { estimateReturn, TAX_PLAN_2026_FALLBACK } from '@/lib/tax/estimate'
 describe('2026 tax estimate (plan v5 section 13)', () => {
-  it('Dec 31 property-tax payment: ~$9,500 refund on $92,275 taxable', () => {
+  it('Dec 31 property-tax payment: ~$9,600 refund on $92,875 taxable', () => {
     const r = estimateReturn(TAX_PLAN_2026_FALLBACK, true)
-    expect(r.agi).toBe(138570)
-    expect(r.withheld).toBe(24551)
+    expect(r.agi).toBe(139170)
+    expect(r.withheld).toBe(24743)
     expect(r.itemized).toBe(46295)
-    expect(Math.round(r.tax)).toBeGreaterThan(14950)
-    expect(Math.round(r.tax)).toBeLessThan(15050)
-    expect(Math.round(r.refund / 100) * 100).toBe(9500)
+    expect(Math.round(r.tax)).toBeGreaterThan(15100)
+    expect(Math.round(r.tax)).toBeLessThan(15200)
+    expect(Math.round(r.refund / 100) * 100).toBe(9600)
   })
-  it('waiting until January: ~$6,200 refund', () => {
+  it('waiting until January: ~$6,300 refund', () => {
     const r = estimateReturn(TAX_PLAN_2026_FALLBACK, false)
-    expect(Math.round(r.refund / 100) * 100).toBe(6200)
+    expect(Math.round(r.refund / 100) * 100).toBe(6300)
   })
 })
 
