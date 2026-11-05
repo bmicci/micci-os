@@ -19,6 +19,7 @@ import {
   Scale,
   TrendingUp,
   Receipt,
+  Calculator,
   Newspaper,
   LayoutGrid,
   X,
@@ -47,6 +48,7 @@ const SIMULATOR_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/finance/scenarios", label: "Scenarios", icon: Scale },
   { href: "/finance/investments", label: "Investments", icon: TrendingUp },
   { href: "/finance/tax", label: "Tax Center", icon: Receipt },
+  { href: "/finance/calculators", label: "Calculators", icon: Calculator },
 ];
 
 // Phone tab bar: the four most-used sections; everything else (Import,

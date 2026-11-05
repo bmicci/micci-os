@@ -1,7 +1,7 @@
 import SimulatorProvider from '@/components/financial/SimulatorProvider'
 import FinancialHydrator from '@/components/financial/FinancialHydrator'
 import Link from 'next/link'
-import { Banknote, Landmark, Waves, Scale, TrendingUp, Receipt } from 'lucide-react'
+import { Banknote, Landmark, Waves, Scale, TrendingUp, Receipt, Calculator } from 'lucide-react'
 
 const SIMULATOR_NAV = [
   { href: '/finance/paycheck',     label: 'Paycheck',    icon: Banknote },
@@ -10,6 +10,7 @@ const SIMULATOR_NAV = [
   { href: '/finance/scenarios',    label: 'Scenarios',   icon: Scale },
   { href: '/finance/investments',  label: 'Investments', icon: TrendingUp },
   { href: '/finance/tax',          label: 'Tax Center',  icon: Receipt },
+  { href: '/finance/calculators',  label: 'Calculators', icon: Calculator },
 ]
 
 export const metadata = { title: 'Financial Simulator — Micci OS' }
