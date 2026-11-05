@@ -1,6 +1,9 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import HELOCTracker from '@/components/financial/simulators/HELOCTracker'
 import type { HELOCDebtAccount, AccountType } from '@/types/finance'
+import { getFinancialData } from '@/lib/financial-data-service'
+import type { DebtAccount } from '@/lib/financial-data'
+import { HELOC_LIMIT } from '@/lib/finance/heloc'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'HELOC Tracker — Micci OS' }
@@ -105,7 +108,7 @@ function inferStatus(
   return 'keep'
 }
 
-async function fetchDebtAccounts(): Promise<HELOCDebtAccount[] | null> {
+async function fetchDebtAccounts(live: DebtAccount[]): Promise<HELOCDebtAccount[] | null> {
   try {
     const supabase = createServiceClient()
     if (!supabase) return null
@@ -122,8 +125,11 @@ async function fetchDebtAccounts(): Promise<HELOCDebtAccount[] | null> {
 
     if (!data || data.length === 0) return null
 
+    // Prefer the live bank balance (Plaid overlay) over the hand-entered row
+    const liveByName = new Map(live.map(d => [d.name, d]))
     return data.map((row, i) => {
-      const balance = Number(row.balance ?? 0)
+      const lv = liveByName.get(row.name)
+      const balance = lv ? lv.balance : Number(row.balance ?? 0)
       // Rates are stored as percent values (6.85 = 6.85%) — same convention
       // as financial-data-service.ts. Do not multiply.
       const ratePercent = Number(row.interest_rate ?? 0)
@@ -142,7 +148,7 @@ async function fetchDebtAccounts(): Promise<HELOCDebtAccount[] | null> {
         originalBalance: balance,
         currentBalance: balance,
         interestRate: ratePercent,
-        monthlyPayment: Number(row.minimum_payment ?? 0),
+        monthlyPayment: lv?.min ?? Number(row.minimum_payment ?? 0),
         status: inferStatus(row.name, ratePercent, balance, row.account_type, row.notes),
         rollDate: null,
         promoExpiry,
@@ -157,17 +163,22 @@ async function fetchDebtAccounts(): Promise<HELOCDebtAccount[] | null> {
 }
 
 export default async function HELOCPage() {
-  const initialAccounts = await fetchDebtAccounts()
+  const data = await getFinancialData()
+  const initialAccounts = await fetchDebtAccounts(data.debts)
+  const heloc = initialAccounts?.find(a => a.accountType === 'heloc')
+  const usd = (n: number) => '$' + Math.round(n).toLocaleString('en-US')
 
   return (
     <div className="flex flex-col min-h-full">
       <header
-        className="shrink-0 px-6 py-4"
+        className="shrink-0 px-4 md:px-6 py-4"
         style={{ borderBottom: '1px solid var(--glass-line)' }}
       >
-        <h1 className="text-lg font-bold gradient-text">🏦 HELOC Consolidation Tracker</h1>
+        <h1 className="text-lg font-bold gradient-text">HELOC Tracker</h1>
         <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-          $190K limit @ 6.85% · First draw: ~$153K · Balance timeline + deadline countdowns
+          {heloc
+            ? `${usd(heloc.currentBalance)} drawn of ${usd(HELOC_LIMIT)} @ ${heloc.interestRate}% (variable) · ${usd(HELOC_LIMIT - heloc.currentBalance)} left`
+            : 'No HELOC row found in debt accounts'} · payoff timeline + promo deadlines
         </p>
       </header>
       <div className="flex-1 overflow-y-auto">

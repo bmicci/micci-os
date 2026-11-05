@@ -20,11 +20,28 @@ function fmtMetric(key: string, value: number): string {
 
 type Tab = 'list' | 'compare'
 
-export default function ScenarioEngine() {
+export interface ScenarioLiveTotals { monthlyDebtPayments: number; totalLivingExpenses: number }
+
+async function persist(url: string, method: string, body?: unknown): Promise<Record<string, unknown> | null> {
+  try {
+    const r = await fetch(url, {
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    })
+    if (!r.ok) return null
+    return await r.json()
+  } catch {
+    return null
+  }
+}
+
+export default function ScenarioEngine({ live }: { live?: ScenarioLiveTotals }) {
   const store = useScenarioStore()
   const paycheckInputs = usePaycheckStore(s => s.inputs)
   const helocState = useHELOCStore()
-  const cashflowState = useCashFlowStore()
+  const planTotals = useCashFlowStore(s => s.planTotals)
+  const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('list')
   const [newName, setNewName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -46,11 +63,10 @@ export default function ScenarioEngine() {
         totalDrawn: helocState.totalDrawn,
         monthlyInterest: helocState.monthlyInterest,
       },
+      // Debt minimums + living costs as edited on the Cash Flow page, else live
       cashflowInputs: {
-        helocMonthlyInterest: cashflowState.helocMonthlyInterest,
-        promoMinimums: cashflowState.promoMinimums,
-        deferredPayments: cashflowState.deferredPayments,
-        totalLivingExpenses: cashflowState.result?.totalLivingExpenses ?? 0,
+        monthlyDebtPayments: Math.round(planTotals?.monthlyDebtPayments ?? live?.monthlyDebtPayments ?? 0),
+        totalLivingExpenses: Math.round(planTotals?.totalLivingExpenses ?? live?.totalLivingExpenses ?? 0),
       },
       notes: '',
     }
@@ -59,24 +75,35 @@ export default function ScenarioEngine() {
     if (!added) { alert('Maximum 5 scenarios reached.'); return }
     setNewName('')
 
-    // Persist to Supabase
+    // Persist, then adopt the database id so later edits hit the right row
     setSaving(true)
-    try {
-      await fetch('/api/finance/scenarios', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: scenario.name,
-          is_baseline: scenario.isBaseline,
-          paycheck_inputs: scenario.paycheckInputs,
-          heloc_inputs: scenario.helocInputs,
-          cashflow_inputs: scenario.cashflowInputs,
-          notes: scenario.notes,
-        }),
-      })
-    } finally {
-      setSaving(false)
-    }
+    const row = await persist('/api/finance/scenarios', 'POST', toRow(scenario))
+    setSaving(false)
+    if (row?.id) store.updateScenario(scenario.id, { id: String(row.id) })
+    else setError(`"${scenario.name}" wasn't saved to the database — it will disappear on reload.`)
+  }
+
+  async function setBaseline(id: string) {
+    store.setBaseline(id)
+    if (!(await persist(`/api/finance/scenarios/${id}`, 'PUT', { is_baseline: true }))) setError('Baseline change was not saved.')
+  }
+
+  async function duplicate(id: string, name: string) {
+    const src = store.getById(id)
+    if (!src) return false
+    const now = new Date().toISOString()
+    const copy: Scenario = { ...src, id: crypto.randomUUID(), name, isBaseline: false, createdAt: now, updatedAt: now }
+    if (!store.addScenario(copy)) return false
+    const row = await persist('/api/finance/scenarios', 'POST', toRow(copy))
+    if (row?.id) store.updateScenario(copy.id, { id: String(row.id) })
+    else setError(`"${name}" wasn't saved to the database.`)
+    return true
+  }
+
+  async function remove(id: string) {
+    store.removeScenario(id)
+    setSelectedIds(prev => prev.filter(x => x !== id))
+    if (!(await persist(`/api/finance/scenarios/${id}`, 'DELETE'))) setError('Delete was not saved — it may reappear on reload.')
   }
 
   function toggleSelect(id: string) {
@@ -119,14 +146,22 @@ export default function ScenarioEngine() {
         </span>
       </div>
 
+      {error && (
+        <div className="text-xs p-3 rounded-xl flex justify-between gap-3"
+          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#fca5a5' }}>
+          <span>{error}</span>
+          <button onClick={() => setError(null)} aria-label="Dismiss">×</button>
+        </div>
+      )}
+
       {tab === 'list' ? (
         <ScenarioList
           scenarios={store.scenarios}
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
-          onSetBaseline={id => store.setBaseline(id)}
-          onDuplicate={(id, name) => store.duplicateScenario(id, name)}
-          onDelete={id => store.removeScenario(id)}
+          onSetBaseline={id => { void setBaseline(id) }}
+          onDuplicate={(id, name) => { void duplicate(id, name); return true }}
+          onDelete={id => { void remove(id) }}
         />
       ) : (
         <ComparisonView scenarios={comparisonScenarios} metrics={metrics} baseline={baseline} />
@@ -138,7 +173,7 @@ export default function ScenarioEngine() {
           style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}>
           <input
             type="text"
-            placeholder="Scenario name (e.g., McKesson $250K)"
+            placeholder="Scenario name (e.g., Schwab, max 401(k))"
             value={newName}
             onChange={e => setNewName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && saveScenario()}
@@ -162,6 +197,17 @@ export default function ScenarioEngine() {
       )}
     </div>
   )
+}
+
+function toRow(s: Scenario) {
+  return {
+    name: s.name,
+    is_baseline: s.isBaseline,
+    paycheck_inputs: s.paycheckInputs,
+    heloc_inputs: s.helocInputs,
+    cashflow_inputs: s.cashflowInputs,
+    notes: s.notes,
+  }
 }
 
 // ── Sub-components ─────────────────────────────────────────────────
@@ -198,7 +244,7 @@ function ScenarioList({
               border: `1px solid ${isSelected ? 'rgba(var(--accent-rgb), 0.4)' : 'var(--card-border)'}`,
             }}
           >
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"

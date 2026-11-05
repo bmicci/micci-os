@@ -16,6 +16,10 @@ interface CashFlowStore {
   promoMinimums: number
   deferredPayments: number
 
+  // Totals from the Cash Flow page (live debt minimums + living costs), shared with Scenarios
+  planTotals: { monthlyDebtPayments: number; totalLivingExpenses: number } | null
+  setPlanTotals: (t: { monthlyDebtPayments: number; totalLivingExpenses: number }) => void
+
   // Computed
   result: CashFlowResult | null
 
@@ -48,6 +52,8 @@ export const useCashFlowStore = create<CashFlowStore>()(
     promoMinimums: 0,
     deferredPayments: 0,
     result: null,
+    planTotals: null,
+    setPlanTotals: (t) => set({ planTotals: t }),
 
     setExpenses: (expenses) => {
       set({ expenses })
