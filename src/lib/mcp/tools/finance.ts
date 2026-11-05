@@ -253,6 +253,57 @@ export const financeTools: AnyMicciTool[] = [
     },
   }),
   defineTool({
+    name: 'micci_strategic_plan',
+    title: 'Strategic financial plan (v5)',
+    description:
+      "Brandon's written strategic plan (Nov 2026 to Dec 2029): assumptions, spending strategies A/B/C, car options, 401(k) elections, paydown order, subscription and bill savings, projected debt at the end of 2029 and the open decisions. Use for planning questions like 'which strategy?', 'what does a $75K car do?', 'what's the 401(k) plan?'. Live balances are in micci_debts; this is the plan layered on top and may be marked draft.",
+    annotations: READ_ONLY,
+    handler: async () => {
+      const { data } = await db().from('financial_settings').select('value, updated_at').eq('key', 'strategic_plan').maybeSingle()
+      const p = data?.value as Record<string, any> | undefined // eslint-disable-line @typescript-eslint/no-explicit-any
+      if (!p || !p.assumptions) return text('No strategic plan saved yet (financial_settings.strategic_plan is empty).')
+      const a = p.assumptions as Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
+      const lines = (p.spending_lines ?? []) as { name: string; today: number; A: number; B: number }[]
+      const total = (k: 'today' | 'A' | 'B') => lines.reduce((s, l) => s + l[k], 0)
+      const subs = (p.subscriptions ?? []) as { name: string; monthly: number; action: string; replacement?: number }[]
+      const subTotal = subs.reduce((s, x) => s + x.monthly, 0)
+      const subSave = subs.reduce((s, x) => s + (x.action === 'cancel' ? x.monthly : x.action === 'switch' ? Math.max(0, x.monthly - (x.replacement ?? 0)) : 0), 0)
+      const res = (p.results_debt_end_2029 ?? {}) as Record<string, Record<string, number>>
+      const out = [
+        `# Strategic plan v${p.version} — ${p.status} (as of ${p.as_of})`,
+        `Source: ${p.source}. Planning information, not advice.`,
+        '',
+        '## Key assumptions',
+        `- Take-home per biweekly check: ${usd(a.net_per_check_5pct)} at a 5% 401(k); ${usd(a.net_per_check_max_401k)} at the 2027 max. Monthly: ${usd(a.take_home_month_5pct)} / ${usd(a.take_home_month_max_401k)}.`,
+        `- Bonus: 25% target, ${usd(a.bonus_net)} net each March starting ${a.first_bonus}; federal refund ~${usd(a.refund_2026)} in Mar 2027 (${usd(a.refund_2026_if_paid_jan)} if the property tax waits until January).`,
+        `- Property tax ~${usd(a.property_tax)} paid by ${a.property_tax_pay_by}; set-aside ${usd(a.property_tax_setaside_monthly)}/mo.`,
+        `- Car: ${a.car_apr}% loan, ${usd(a.car_trade_in)} trade-in, ${a.car_sales_tax_pct}% tax on price minus trade-in, ${usd(a.car_fees)} fees; target purchase ${a.car_target_purchase}.`,
+        `- 401(k): limit ${usd(a.k401_limit_2026)} (2026), ${usd(a.k401_limit_2027_projected)} projected for 2027; Schwab matches 100% up to ${a.k401_match_pct}% plus ${usd(a.k401_kicker)}.`,
+        '',
+        '## Spending strategies (monthly living and bills)',
+        `- Today / C: ${usd(total('today'))} · A Balanced: ${usd(total('A'))} (cuts ~${usd(p.strategies?.A?.cut_per_month ?? 0)}/mo) · B Aggressive: ${usd(total('B'))} (cuts ~${usd(p.strategies?.B?.cut_per_month ?? 0)}/mo)`,
+        '',
+        '## Projected non-mortgage debt, Dec 2029 (plan simulation)',
+        '| Strategy | No car | $50K car | $75K car | $100K car |',
+        '|---|---|---|---|---|',
+        ...Object.entries(res).map(([k, v]) => `| ${k} | ${usd(v.no_car)} | ${usd(v.car_50k)} | ${usd(v.car_75k)} | ${usd(v.car_100k)} |`),
+        '',
+        '## Savings levers',
+        `- Subscriptions: ${subs.length} tracked, ${usd(subTotal)}/mo; cancelling/switching the flagged ones saves ~${usd(subSave)}/mo.`,
+        '',
+        '## Paydown order',
+        ...(p.paydown_order ?? []).map((x: string, i: number) => `${i + 1}. ${x}`),
+        '',
+        '## Decisions',
+        ...Object.entries(p.decisions ?? {}).map(([k, v]) => `- ${k.replace(/_/g, ' ')}: ${v ?? 'OPEN'}`),
+        '',
+        '## Not tracked',
+        `- ${p.not_tracked?.note ?? ''}`,
+      ]
+      return text(out.join('\n'))
+    },
+  }),
+  defineTool({
     name: 'micci_job_offers',
     title: 'Job offers compared',
     description:

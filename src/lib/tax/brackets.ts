@@ -5,8 +5,9 @@
 
 import type { FilingStatus, TaxResult } from '@/types/finance'
 
-// ── 2026 Projected Brackets ──────────────────────────────────────
-// Source: IRS Revenue Procedure (projected — update when final numbers publish)
+// ── 2026 Brackets (IRS Rev. Proc. 2025-32) ───────────────────────
+// Single figures match the Schwab compensation reference doc; MFJ/MFS/HOH
+// are from the same release — verify against irs.gov before relying on them.
 
 interface Bracket {
   min: number
@@ -16,56 +17,56 @@ interface Bracket {
 
 const BRACKETS_2026: Record<FilingStatus, Bracket[]> = {
   single: [
-    { min: 0, max: 11_925, rate: 0.10 },
-    { min: 11_925, max: 48_475, rate: 0.12 },
-    { min: 48_475, max: 103_350, rate: 0.22 },
-    { min: 103_350, max: 197_300, rate: 0.24 },
-    { min: 197_300, max: 250_525, rate: 0.32 },
-    { min: 250_525, max: 626_350, rate: 0.35 },
-    { min: 626_350, max: Infinity, rate: 0.37 },
+    { min: 0, max: 12_400, rate: 0.10 },
+    { min: 12_400, max: 50_400, rate: 0.12 },
+    { min: 50_400, max: 105_700, rate: 0.22 },
+    { min: 105_700, max: 201_775, rate: 0.24 },
+    { min: 201_775, max: 256_225, rate: 0.32 },
+    { min: 256_225, max: 640_600, rate: 0.35 },
+    { min: 640_600, max: Infinity, rate: 0.37 },
   ],
   mfj: [
-    { min: 0, max: 23_850, rate: 0.10 },
-    { min: 23_850, max: 96_950, rate: 0.12 },
-    { min: 96_950, max: 206_700, rate: 0.22 },
-    { min: 206_700, max: 394_600, rate: 0.24 },
-    { min: 394_600, max: 501_050, rate: 0.32 },
-    { min: 501_050, max: 752_800, rate: 0.35 },
-    { min: 752_800, max: Infinity, rate: 0.37 },
+    { min: 0, max: 24_800, rate: 0.10 },
+    { min: 24_800, max: 100_800, rate: 0.12 },
+    { min: 100_800, max: 211_400, rate: 0.22 },
+    { min: 211_400, max: 403_550, rate: 0.24 },
+    { min: 403_550, max: 512_450, rate: 0.32 },
+    { min: 512_450, max: 768_700, rate: 0.35 },
+    { min: 768_700, max: Infinity, rate: 0.37 },
   ],
   mfs: [
-    { min: 0, max: 11_925, rate: 0.10 },
-    { min: 11_925, max: 48_475, rate: 0.12 },
-    { min: 48_475, max: 103_350, rate: 0.22 },
-    { min: 103_350, max: 197_300, rate: 0.24 },
-    { min: 197_300, max: 250_525, rate: 0.32 },
-    { min: 250_525, max: 376_400, rate: 0.35 },
-    { min: 376_400, max: Infinity, rate: 0.37 },
+    { min: 0, max: 12_400, rate: 0.10 },
+    { min: 12_400, max: 50_400, rate: 0.12 },
+    { min: 50_400, max: 105_700, rate: 0.22 },
+    { min: 105_700, max: 201_775, rate: 0.24 },
+    { min: 201_775, max: 256_225, rate: 0.32 },
+    { min: 256_225, max: 384_350, rate: 0.35 },
+    { min: 384_350, max: Infinity, rate: 0.37 },
   ],
   hoh: [
-    { min: 0, max: 17_000, rate: 0.10 },
-    { min: 17_000, max: 64_850, rate: 0.12 },
-    { min: 64_850, max: 103_350, rate: 0.22 },
-    { min: 103_350, max: 197_300, rate: 0.24 },
-    { min: 197_300, max: 250_500, rate: 0.32 },
-    { min: 250_500, max: 626_350, rate: 0.35 },
-    { min: 626_350, max: Infinity, rate: 0.37 },
+    { min: 0, max: 17_700, rate: 0.10 },
+    { min: 17_700, max: 67_450, rate: 0.12 },
+    { min: 67_450, max: 105_700, rate: 0.22 },
+    { min: 105_700, max: 201_750, rate: 0.24 },
+    { min: 201_750, max: 256_200, rate: 0.32 },
+    { min: 256_200, max: 640_600, rate: 0.35 },
+    { min: 640_600, max: Infinity, rate: 0.37 },
   ],
 }
 
 // ── Standard Deductions (2026 projected) ─────────────────────────
 
 export const STANDARD_DEDUCTION_2026: Record<FilingStatus, number> = {
-  single: 15_000,
-  mfj: 30_000,
-  mfs: 15_000,
-  hoh: 22_500,
+  single: 16_100,
+  mfj: 32_200,
+  mfs: 16_100,
+  hoh: 24_150,
 }
 
 // ── FICA Constants ───────────────────────────────────────────────
 
 export const SS_RATE = 0.062
-export const SS_WAGE_BASE_2026 = 176_100
+export const SS_WAGE_BASE_2026 = 184_500
 export const MEDICARE_RATE = 0.0145
 export const MEDICARE_ADDITIONAL_RATE = 0.009
 export const MEDICARE_ADDITIONAL_THRESHOLD: Record<FilingStatus, number> = {
@@ -77,10 +78,10 @@ export const MEDICARE_ADDITIONAL_THRESHOLD: Record<FilingStatus, number> = {
 
 // ── 401(k) Limits ────────────────────────────────────────────────
 
-export const LIMIT_401K_2026 = 23_500
-export const LIMIT_401K_CATCHUP_2026 = 7_500 // age 50+
-export const LIMIT_HSA_INDIVIDUAL_2026 = 4_300
-export const LIMIT_HSA_FAMILY_2026 = 8_550
+export const LIMIT_401K_2026 = 24_500
+export const LIMIT_401K_CATCHUP_2026 = 8_000 // age 50+
+export const LIMIT_HSA_INDIVIDUAL_2026 = 4_400
+export const LIMIT_HSA_FAMILY_2026 = 8_750
 
 // ── Bracket Calculation ──────────────────────────────────────────
 
