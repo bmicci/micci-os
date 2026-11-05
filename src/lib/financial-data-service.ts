@@ -5,7 +5,8 @@
 
 import { plannedCashEvents, type PropertyTaxPlan } from './finance/cashEvents'
 import { createServiceClient } from './supabase/service'
-import { liveSpendCategories, computeBurn, applySpendExclusions, parseSpendExclusions, fetchAllTxns, monthlyFlows, computeRunwayProjection, type TxnRow } from './finance/txnAggregate'
+import { debtPaymentLines, livingLines } from './finance/cashflowPlan'
+import { liveSpendCategories, computeBurn, applySpendExclusions, type BurnAnalysis, parseSpendExclusions, fetchAllTxns, monthlyFlows, computeRunwayProjection, type TxnRow } from './finance/txnAggregate'
 import { detectRecurring } from './finance/recurring'
 import { computeUpcoming } from './finance/upcoming'
 import { activeOffer, offerPaycheck, parseOffers } from './finance/jobIncome'
@@ -683,12 +684,26 @@ export async function getFinancialData(): Promise<FinancialData> {
       : incomeBridge.newJobMonthlyNet
     // One-off charges and ended bills are skipped in the forward average only
     const spendExclusions = parseSpendExclusions(getSetting(settings, 'spend_exclusions'))
-    const burnAnalysis = computeBurn(applySpendExclusions(txns, spendExclusions), steadyIncome, 90)
+    const burnRaw = computeBurn(applySpendExclusions(txns, spendExclusions), steadyIncome, 90)
+    // What actually leaves checking each month: living spend (the Debt Service
+    // category swapped for the debt list) + every debt minimum — HELOC, family
+    // loan and card minimums are paid by transfer and never appear as spend.
+    const livingSpend = livingLines(burnRaw.byCategory).reduce((s, l) => s + l.amount, 0)
+    const debtPayments = debtPaymentLines(debts).reduce((s, l) => s + l.amount, 0)
+    const burnAnalysis: BurnAnalysis = burnRaw.hasData
+      ? {
+          ...burnRaw,
+          livingSpend: Math.round(livingSpend),
+          debtPayments: Math.round(debtPayments),
+          monthlyOutflow: Math.round(livingSpend + debtPayments),
+          monthlyNetBurn: Math.round(livingSpend + debtPayments - steadyIncome),
+        }
+      : burnRaw
 
     // Real spend supersedes the manual monthlyOutflow estimate everywhere
     // downstream (Overview cash buffer, runway boxes, etc.)
     const incomeBridgeFinal: IncomeBridge = burnAnalysis.hasData
-      ? { ...incomeBridge, monthlyOutflow: burnAnalysis.monthlySpend }
+      ? { ...incomeBridge, monthlyOutflow: burnAnalysis.monthlyOutflow }
       : incomeBridge
 
     // ── Cliff-aware runway: walks forward day by day so a confirmed income
@@ -701,7 +716,7 @@ export async function getFinancialData(): Promise<FinancialData> {
     const acceptedPay = accepted ? offers.find(o => o.offer.id === accepted.id) ?? null : null
     const runwayProjection = computeRunwayProjection(
       assets.cash + assets.savings,
-      burnAnalysis.hasData ? burnAnalysis.monthlySpend : incomeBridgeFinal.monthlyOutflow,
+      burnAnalysis.hasData ? burnAnalysis.monthlyOutflow : incomeBridgeFinal.monthlyOutflow,
       steadyIncome,
       incomeBridgeFinal.benefitsEndDate,
       new Date(),

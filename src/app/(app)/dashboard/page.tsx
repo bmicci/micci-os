@@ -318,7 +318,7 @@ export default async function DashboardPage() {
             </div>
             <div>
               <div className="font-mono text-[14px] font-bold" style={{ color: '#ef4444' }}>
-                {fmtRound(burnAnalysis.hasData ? burnAnalysis.monthlySpend : 0)}
+                {fmtRound(burnAnalysis.hasData ? burnAnalysis.monthlyOutflow : 0)}
               </div>
               <div className="text-[9.5px] uppercase tracking-widest text-[var(--text-muted)]">Out / mo</div>
             </div>

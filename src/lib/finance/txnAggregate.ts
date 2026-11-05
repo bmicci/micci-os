@@ -220,6 +220,12 @@ export interface BurnAnalysis {
   windowDays: number
   txnCount: number         // rows inside the window — provenance for derived numbers
   monthlySpend: number     // real, from transactions over the recent window
+  /** Cash out per month: living spend (Debt Service category excluded) + every debt minimum.
+   *  Card/loan payments made by transfer never show up as spend, so monthlySpend alone
+   *  understates what leaves checking. Set by the data service; equals monthlySpend here. */
+  monthlyOutflow: number
+  livingSpend?: number
+  debtPayments?: number
   monthlyIncome: number    // steady-state recurring income (passed in, NOT tx-derived)
   monthlyNetBurn: number   // monthlySpend − monthlyIncome (positive = burning cash)
   byCategory: BurnCategory[]
@@ -227,7 +233,7 @@ export interface BurnAnalysis {
 
 export const EMPTY_BURN: BurnAnalysis = {
   hasData: false, windowStart: '', windowEnd: '', windowDays: 0, txnCount: 0,
-  monthlySpend: 0, monthlyIncome: 0, monthlyNetBurn: 0, byCategory: [],
+  monthlySpend: 0, monthlyOutflow: 0, monthlyIncome: 0, monthlyNetBurn: 0, byCategory: [],
 }
 
 /**
@@ -263,6 +269,7 @@ export function computeBurn(rows: TxnRow[], steadyMonthlyIncome: number, windowD
       return d >= start && d <= maxD
     }).length,
     monthlySpend,
+    monthlyOutflow: monthlySpend,
     monthlyIncome: Math.round(steadyMonthlyIncome),
     monthlyNetBurn: Math.round(monthlySpend - steadyMonthlyIncome),
     byCategory: byCat.map(c => ({ cat: c.cat, monthly: Math.round(c.net * monthlyFactor), color: categoryColor(c.cat) })),

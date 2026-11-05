@@ -104,7 +104,7 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
           helocMonthlyInterest: 0,
           promoMinimums: 0,
           deferredPayments: 0,
-          expenses: [{ id: 'all', category: 'All spend', label: 'Real recent spend', amount: burnAnalysis.monthlySpend, isCustom: false }],
+          expenses: [{ id: 'all', category: 'All spend', label: 'Living spend + debt minimums', amount: burnAnalysis.monthlyOutflow, isCustom: false }],
           allocations: DEFAULT_ALLOCATIONS,
         }
       : inputs
@@ -143,7 +143,7 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
 
   // ── Headline burn: prefer REAL transaction-derived numbers ──
   const income = real ? burnAnalysis.monthlyIncome : monthlyFlow.totalIncome
-  const spend = real ? burnAnalysis.monthlySpend : monthlyFlow.totalObligations + monthlyFlow.totalLivingExpenses
+  const spend = real ? burnAnalysis.monthlyOutflow : monthlyFlow.totalObligations + monthlyFlow.totalLivingExpenses
   // Cliff-aware: current burn is pre- or post-benefits depending on where
   // today actually falls, not a flat rate assumed to hold forever.
   const monthlyBurn = runwayProjection.phase === 'post-cliff' ? runwayProjection.postCliffMonthlyBurn : runwayProjection.preCliffMonthlyBurn

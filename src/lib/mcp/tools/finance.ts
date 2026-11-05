@@ -54,7 +54,7 @@ export const financeTools: AnyMicciTool[] = [
         '',
         '## Spending',
         b.hasData
-          ? `- Real spend: **${usd(b.monthlySpend)}/mo** (last ${b.windowDays} days, ${b.windowStart} → ${b.windowEnd}, ${b.txnCount.toLocaleString()} transactions)`
+          ? `- Cash out: **${usd(b.monthlyOutflow)}/mo** = living ${usd(b.livingSpend ?? b.monthlySpend)} + debt minimums ${usd(b.debtPayments ?? 0)} (the runway uses this)\n- Real spend: ${usd(b.monthlySpend)}/mo (last ${b.windowDays} days, ${b.windowStart} → ${b.windowEnd}, ${b.txnCount.toLocaleString()} transactions; card/loan payments by transfer aren't spend)`
           : '- No transaction data',
         ...(b.hasData ? b.byCategory.slice(0, 6).map(c => `  - ${c.cat}: ${usd(c.monthly)}/mo`) : []),
         `- Recurring charges: ${usd(d.recurring.activeMonthlyTotal)}/mo (${d.recurring.active.length} active; subscriptions ${usd(d.recurring.subsMonthlyTotal)}, bills ${usd(d.recurring.billsMonthlyTotal)})`,
@@ -316,7 +316,7 @@ export const financeTools: AnyMicciTool[] = [
       const d = await ctx.data()
       if (d.offers.length === 0) return text('No job offers saved yet (financial_settings.job_offers is empty).')
       const liquid = d.assets.cash + d.assets.savings
-      const spend = d.burnAnalysis.hasData ? d.burnAnalysis.monthlySpend : d.incomeBridge.monthlyOutflow
+      const spend = d.burnAnalysis.hasData ? d.burnAnalysis.monthlyOutflow : d.incomeBridge.monthlyOutflow
       const sections = d.offers.map(p => {
         const o = p.offer
         const r = computeRunwayProjection(liquid, spend, 0, null, new Date(), {
@@ -351,7 +351,7 @@ export const financeTools: AnyMicciTool[] = [
     handler: async (a, ctx) => {
       const d = await ctx.data()
       const liquid = d.assets.cash + d.assets.savings + a.cash_adjustment
-      const realSpend = d.burnAnalysis.hasData ? d.burnAnalysis.monthlySpend : d.incomeBridge.monthlyOutflow
+      const realSpend = d.burnAnalysis.hasData ? d.burnAnalysis.monthlyOutflow : d.incomeBridge.monthlyOutflow
       const spend = a.monthly_spend ?? realSpend
       let pay = a.offer_id === 'none' ? null
         : d.offers.find(p => (a.offer_id ? p.offer.id === a.offer_id : p.offer.status === 'accepted')) ?? null
