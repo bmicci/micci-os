@@ -423,7 +423,7 @@ export default function TaxCenterTab({ plan2026 }: { plan2026?: TaxPlan2026 | nu
               </p>
               <p className="text-2xl font-extrabold" style={{ color: '#f59e0b' }}>{fmt((plan.income.find(i => /schwab/i.test(i.label))?.withheld ?? 0) / 3)}</p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                per biweekly check (est.) — withholding assumes the standard deduction, which is why the refund is large
+                per semi-monthly check (est.) — withholding assumes the standard deduction, which is why the refund is large
               </p>
             </div>
 
@@ -434,7 +434,7 @@ export default function TaxCenterTab({ plan2026 }: { plan2026?: TaxPlan2026 | nu
               </p>
               <p className="text-2xl font-extrabold" style={{ color: '#22c55e' }}>{fmt(SS_WAGE_BASE_2026)}</p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                2026 Social Security wage base — not reached at Schwab in 2026; in 2027 it hits around check 21, then net pay rises ~$570/check
+                2026 Social Security wage base — not reached at Schwab in 2026; in 2027 it hits around check 20 (October), then net pay rises ~$595/check
               </p>
             </div>
           </div>

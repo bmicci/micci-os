@@ -27,7 +27,7 @@ export interface K401Result {
   match: number
   federalTax: number
   netAnnual: number
-  /** Net per biweekly check on base pay before the Social Security cap (what early-year checks pay). */
+  /** Net per check on base pay before the Social Security cap (what early-year checks pay). */
   netPerCheckEarly: number
   netPerMonth: number
   balance: number           // employee + match, compounded
@@ -35,7 +35,8 @@ export interface K401Result {
 
 export const SCHWAB_DEFAULTS: K401Inputs = {
   salary: 240000, bonusPct: 0, basePct: 5, bonusDeferPct: 5, limit: 25500, matchPct: 5, kicker: 250,
-  payPeriods: 26, section125PerCheck: 78, section125Checks: 24, ltdAnnual: 736.8, returnPct: 7, years: 3,
+  // Semi-monthly pay; Workday benefits total $405.70 every check (assumed to include LTD, so no separate LTD)
+  payPeriods: 24, section125PerCheck: 405.70, section125Checks: 24, ltdAnnual: 0, returnPct: 7, years: 3,
 }
 
 export function k401Calc(i: K401Inputs): K401Result {

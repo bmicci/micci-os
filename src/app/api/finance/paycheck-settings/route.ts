@@ -55,9 +55,9 @@ export async function GET() {
     employer_match_pct: 5,
     employer_match_cap: 5,
     hsa_contribution: 0,
-    // The offer stores the premium per deducted check (24 of 26); the simulator
-    // charges every check, so average it across the year.
-    health_premium: Math.round(((offer.healthPremiumPerCheck ?? 0) * 24) / Math.max(1, offer.payFrequency)),
+    // The offer stores benefits per deducted check; with semi-monthly pay every
+    // check is deducted (24/24). Biweekly pay deducts 24 of 26, so average it.
+    health_premium: Math.round((((offer.healthPremiumPerCheck ?? 0) * Math.min(24, offer.payFrequency)) / Math.max(1, offer.payFrequency)) * 100) / 100,
     other_pre_tax: 0,
   })
 }

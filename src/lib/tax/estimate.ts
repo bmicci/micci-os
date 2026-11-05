@@ -54,7 +54,7 @@ export const TAX_PLAN_2026_FALLBACK: TaxPlan2026 = {
   income: [
     { label: 'JPMorgan W-2', taxable: 95557, withheld: 17821, note: 'Salary through Mar 19, $15,000 incentive, $47,200 severance (withheld at a flat 22%)' },
     { label: 'Unemployment (1099-G)', taxable: 15730, withheld: 1586, note: '26 weeks at $605, $61 withheld a week' },
-    { label: 'Charles Schwab W-2', taxable: 26170, withheld: 5063, note: '3 checks (Nov 30, Dec 14, Dec 28) after 5% 401(k) and benefits' },
+    { label: 'Charles Schwab W-2', taxable: 27283, withheld: 5144, note: '3 semi-monthly checks (Nov 30, Dec 15, Dec 31) after a 5% 401(k) and $405.70 of benefits each' },
   ],
   mortgageInterest: 16700, propertyTaxPaidEarlier: 14595, propertyTaxBill2026: 15000, saltCap: 40400,
   payPropertyTaxBy: 'dec31',

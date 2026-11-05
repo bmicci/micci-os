@@ -66,7 +66,7 @@ export default function K401Calc({ plan }: Pick<CalculatorProps, 'plan'>) {
           <div className="grid grid-cols-2 gap-2">
             <Stat label="You contribute" tone="accent" value={usd(chosen.totalDeferral)} hint={`${limitPct.toFixed(0)}% of the limit`} />
             <Stat label="Schwab match" tone="good" value={usd(chosen.match)} hint={chosen.match >= 12250 ? 'full match' : 'below the full match'} />
-            <Stat label="Take-home per check" value={usd(chosen.netPerCheckEarly)} hint="biweekly, early in the year" />
+            <Stat label="Take-home per check" value={usd(chosen.netPerCheckEarly)} hint="semi-monthly, before the Social Security cap" />
             <Stat label="Take-home per month" value={usd(chosen.netPerMonth)} />
             <Stat label="Cost vs 5%, per month" value={usd(cashCostMo)} tone={cashCostMo > 0 ? 'bad' : 'default'} hint="less take-home" />
             <Stat label="Tax saved vs 5%" tone="good" value={usd(Math.max(0, taxSaved))} hint="federal, per year" />

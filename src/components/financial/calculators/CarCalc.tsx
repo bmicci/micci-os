@@ -17,7 +17,7 @@ export default function CarCalc({ plan }: Pick<CalculatorProps, 'plan'>) {
   const [term, setTerm] = useState(60)
   const [resale, setResale] = useState(num(a.car_value_after_3y_pct, 55))
   const [strategy, setStrategy] = useState<'A' | 'B' | 'C'>('A')
-  const [takeHome, setTakeHome] = useState(num(a.take_home_month_max_401k, 11835))
+  const [takeHome, setTakeHome] = useState(num(a.take_home_month_max_401k, 12400))
 
   // insurance rises with price: interpolate between the plan's tiers
   const insurance = useMemo(() => {
@@ -83,7 +83,7 @@ export default function CarCalc({ plan }: Pick<CalculatorProps, 'plan'>) {
         <Card title="Can the budget carry it?" subtitle="Monthly take-home minus living costs from the plan, property-tax set-aside, HELOC interest and family loan.">
           <Segmented label="Spending strategy" value={strategy} onChange={setStrategy}
             options={[{ value: 'A', label: 'A Balanced' }, { value: 'B', label: 'B Aggressive' }, { value: 'C', label: 'C Today' }]} />
-          <NumberField label="Take-home per month" prefix="$" value={takeHome} onChange={setTakeHome} step={50} hint="Plan v5: $11,835 at the max 401(k), $12,514 at 5%" />
+          <NumberField label="Take-home per month" prefix="$" value={takeHome} onChange={setTakeHome} step={50} hint={`Plan: ${usd(num(a.take_home_month_max_401k, 12400))} at the max 401(k), ${usd(num(a.take_home_month_5pct, 13200))} at 5%`} />
           <div className="grid grid-cols-2 gap-2">
             <Stat label="Left for debt, no car" value={usd(leftBefore)} tone={leftBefore >= 0 ? 'good' : 'bad'} />
             <Stat label="Left with this car" value={usd(leftAfter)} tone={leftAfter >= 0 ? 'good' : 'bad'}

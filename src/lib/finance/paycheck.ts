@@ -151,14 +151,13 @@ export function calculateNetPay(inputs: PaycheckInputs): PaycheckResult {
  * FALLBACK paycheck inputs, used only when neither saved settings nor an
  * accepted job offer can be loaded (the API derives defaults from the accepted
  * offer in financial_settings.job_offers). Mirrors the Schwab offer: $240K
- * base, no bonus in paychecks (first payout ~Mar 2028), biweekly, 5% 401(k)
- * with a 5% match, $78 of medical/dental/vision on 24 of 26 checks
- * (≈ $72 averaged per check).
+ * base, no bonus in paychecks (first payout ~Mar 2028), semi-monthly (24),
+ * 5% 401(k) with a 5% match, $405.70 of benefits every check (Workday).
  */
 export const DEFAULT_PAYCHECK_INPUTS: PaycheckInputs = {
   salary: 240_000,
   bonusPercent: 0,
-  payFrequency: 26,
+  payFrequency: 24,
   filingStatus: 'single',
   state: 'TX',
   taxMethod: 'bracket_calc',
@@ -167,6 +166,6 @@ export const DEFAULT_PAYCHECK_INPUTS: PaycheckInputs = {
   employerMatchPct: 5,
   employerMatchCap: 5,
   hsaContribution: 0,
-  healthPremium: 72,
+  healthPremium: 405.70,
   otherPreTax: 0,
 }
