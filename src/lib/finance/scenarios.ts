@@ -33,12 +33,14 @@ export function calculateScenarioMetrics(scenario: Scenario): ScenarioMetrics {
 
   // Extract debt service and living expenses from cashflow inputs
   const cashflowInputs = scenario.cashflowInputs as {
+    monthlyDebtPayments?: number
     helocMonthlyInterest?: number
     promoMinimums?: number
     deferredPayments?: number
     totalLivingExpenses?: number
   }
-  const monthlyDebtService = (cashflowInputs.helocMonthlyInterest ?? 0) +
+  // Current saves store the live debt minimums; older saves stored the pieces
+  const monthlyDebtService = cashflowInputs.monthlyDebtPayments ?? (cashflowInputs.helocMonthlyInterest ?? 0) +
     (cashflowInputs.promoMinimums ?? 0) +
     (cashflowInputs.deferredPayments ?? 0)
 

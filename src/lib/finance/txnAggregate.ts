@@ -186,6 +186,31 @@ export function monthlyTrend(rows: TxnRow[]): {
   return { months, categories: [...cats].sort() }
 }
 
+/**
+ * Rows to leave out of the forward-looking spend average (stored in
+ * financial_settings.spend_exclusions) — one-off charges, or bills that have
+ * ended. The transactions themselves are kept; only the burn/runway average
+ * skips them. `dates` limits a rule to those transaction dates; without it,
+ * every row whose merchant contains `match` is skipped.
+ */
+export interface SpendExclusion { match: string; dates?: string[]; reason?: string }
+
+export function parseSpendExclusions(raw: unknown): SpendExclusion[] {
+  if (!Array.isArray(raw)) return []
+  return raw.filter((e): e is SpendExclusion =>
+    !!e && typeof e === 'object' && typeof (e as SpendExclusion).match === 'string' && (e as SpendExclusion).match.trim().length > 1)
+}
+
+export function applySpendExclusions<T extends TxnRow>(rows: T[], rules: SpendExclusion[]): T[] {
+  if (rules.length === 0) return rows
+  const norm = rules.map(r => ({ match: r.match.toLowerCase(), dates: r.dates && r.dates.length ? new Set(r.dates) : null }))
+  return rows.filter(row => {
+    const m = String(row.merchant ?? '').toLowerCase()
+    const d = String(row.transaction_date ?? '').slice(0, 10)
+    return !norm.some(r => m.includes(r.match) && (!r.dates || r.dates.has(d)))
+  })
+}
+
 export interface BurnCategory { cat: string; monthly: number; color: string }
 
 export interface BurnAnalysis {

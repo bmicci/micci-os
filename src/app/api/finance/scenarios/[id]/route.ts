@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireUser } from '@/lib/supabase/require-user'
 import { createServiceClient } from '@/lib/supabase/service'
+import { pickScenarioFields } from '@/lib/finance/scenarioFields'
 
 // PUT /api/finance/scenarios/:id
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -13,11 +14,15 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 })
   }
 
-  const body = await req.json()
+  const row = pickScenarioFields(await req.json().catch(() => null))
+  // Only one baseline at a time
+  if (row.is_baseline === true) {
+    await supabase.from('financial_scenarios').update({ is_baseline: false }).neq('id', id)
+  }
 
   const { data, error } = await supabase
     .from('financial_scenarios')
-    .update({ ...body, updated_at: new Date().toISOString() })
+    .update({ ...row, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select()
     .single()

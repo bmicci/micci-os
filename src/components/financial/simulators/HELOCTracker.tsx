@@ -6,6 +6,7 @@ import {
   projectBalance,
   calculateConsolidationSavings,
   HELOC_LIMIT,
+  HELOC_RATE,
 } from '@/lib/finance/heloc'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -18,7 +19,7 @@ const STATUS_COLORS: Record<HELOCDebtAccount['status'], { bg: string; text: stri
   promo_hold: { bg: 'rgba(251,191,36,0.15)', text: '#fbbf24', label: '0% Promo' },
   deferred: { bg: 'rgba(239,68,68,0.15)', text: '#ef4444', label: 'Deferred ⚠' },
   keep: { bg: 'rgba(96,165,250,0.15)', text: '#60a5fa', label: 'Keep' },
-  paid_off: { bg: 'rgba(100,100,100,0.15)', text: '#6b7280', label: 'Paid Off via HELOC' },
+  paid_off: { bg: 'rgba(100,100,100,0.15)', text: '#9ca3af', label: 'Paid off' },
 }
 
 type Tab = 'overview' | 'timeline' | 'deadlines' | 'savings'
@@ -37,26 +38,6 @@ function daysUntil(dateStr: string | null): number | null {
   const now = new Date()
   return Math.ceil((d.getTime() - now.getTime()) / 86_400_000)
 }
-
-const SEED_ACCOUNTS: HELOCDebtAccount[] = [
-  { id: '1', userId: '', accountName: 'SoFi Personal Loan', accountType: 'personal_loan', originalBalance: 56958.92, currentBalance: 56246.68, interestRate: 12.41, monthlyPayment: 1464.07, status: 'rolled', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null, notes: 'High-rate, roll to HELOC' },
-  { id: '2', userId: '', accountName: 'Wells Fargo (Dad)', accountType: 'personal_loan', originalBalance: 21420, currentBalance: 21420, interestRate: 0, monthlyPayment: 1100, status: 'rolled', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null, notes: '$1,100/mo interest-free' },
-  { id: '3', userId: '', accountName: 'Virginia FCU Auto (Dad)', accountType: 'auto_loan', originalBalance: 18600, currentBalance: 18600, interestRate: 9.25, monthlyPayment: 350, status: 'rolled', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null, notes: null },
-  { id: '4', userId: '', accountName: 'LightStream Auto Loan', accountType: 'auto_loan', originalBalance: 44018.42, currentBalance: 44018.42, interestRate: 5.87, monthlyPayment: 577.47, status: 'rolled', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null, notes: null },
-  { id: '5', userId: '', accountName: 'AmEx Personal Loan', accountType: 'personal_loan', originalBalance: 3942.57, currentBalance: 3558.53, interestRate: 7.33, monthlyPayment: 407.01, status: 'rolled', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null, notes: null },
-  { id: '6', userId: '', accountName: 'AmEx Gold Pay Over Time', accountType: 'credit_card', originalBalance: 1930.25, currentBalance: 1930.25, interestRate: 27.49, monthlyPayment: 40, status: 'rolled', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null, notes: null },
-  { id: '7', userId: '', accountName: 'AmEx Plat Pay Over Time', accountType: 'credit_card', originalBalance: 513.11, currentBalance: 513.11, interestRate: 27.49, monthlyPayment: 15, status: 'rolled', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null, notes: null },
-  { id: '8', userId: '', accountName: 'AmEx Gold Plan It', accountType: 'charge_plan', originalBalance: 1754.20, currentBalance: 1754.20, interestRate: 15.51, monthlyPayment: 182.18, status: 'rolled', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null, notes: null },
-  { id: '9', userId: '', accountName: 'AmEx Plat Plan It #1', accountType: 'charge_plan', originalBalance: 2021.80, currentBalance: 2021.80, interestRate: 17.09, monthlyPayment: 230.97, status: 'rolled', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null, notes: null },
-  { id: '10', userId: '', accountName: 'AmEx Plat Plan It #2', accountType: 'charge_plan', originalBalance: 2835.58, currentBalance: 2835.58, interestRate: 14.31, monthlyPayment: 270.12, status: 'rolled', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null, notes: null },
-  { id: '11', userId: '', accountName: 'Nordstrom', accountType: 'credit_card', originalBalance: 653.43, currentBalance: 653.43, interestRate: 29.40, monthlyPayment: 40, status: 'rolled', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null, notes: null },
-  { id: '12', userId: '', accountName: 'Chase Freedom Unlimited (7117)', accountType: 'credit_card', originalBalance: 22531, currentBalance: 22306, interestRate: 0, monthlyPayment: 200, status: 'promo_hold', rollDate: null, promoExpiry: '2026-12-01', deferredExpiry: null, notes: '0% promo — pay from HELOC Jul–Dec 2026' },
-  { id: '13', userId: '', accountName: 'Chase Freedom (4628)', accountType: 'credit_card', originalBalance: 13269, currentBalance: 13137, interestRate: 0, monthlyPayment: 150, status: 'promo_hold', rollDate: null, promoExpiry: '2026-12-01', deferredExpiry: null, notes: '0% promo — pay from HELOC Aug–Dec 2026' },
-  { id: '14', userId: '', accountName: 'Chase Prime Visa (9313)', accountType: 'credit_card', originalBalance: 980.45, currentBalance: 980.45, interestRate: 0, monthlyPayment: 50, status: 'promo_hold', rollDate: null, promoExpiry: '2026-07-22', deferredExpiry: null, notes: '0% promo expires 07/22/2026' },
-  { id: '15', userId: '', accountName: 'Citi Diamond (4205)', accountType: 'credit_card', originalBalance: 12475.53, currentBalance: 12242, interestRate: 0, monthlyPayment: 100, status: 'promo_hold', rollDate: null, promoExpiry: '2027-06-18', deferredExpiry: null, notes: 'Longest runway — expires Jun 18, 2027' },
-  { id: '16', userId: '', accountName: 'Best Buy Promo 1', accountType: 'deferred_interest', originalBalance: 1312.44, currentBalance: 1312.44, interestRate: 29.99, monthlyPayment: 0, status: 'deferred', rollDate: null, promoExpiry: null, deferredExpiry: '2026-06-27', notes: '⚠ Pay before Jun 27 or owe deferred interest' },
-  { id: '17', userId: '', accountName: 'Best Buy Promo 2', accountType: 'deferred_interest', originalBalance: 917.96, currentBalance: 917.96, interestRate: 29.99, monthlyPayment: 0, status: 'deferred', rollDate: null, promoExpiry: null, deferredExpiry: '2026-12-27', notes: '⚠ Pay before Dec 27 or owe deferred interest' },
-]
 
 // ── Bug 4: Historical accounts paid off via the initial HELOC draw ──────────
 // These are permanently paid-off and won't appear in the debt_accounts table,
@@ -87,13 +68,6 @@ const HISTORICAL_PAID_OFF_VIA_HELOC: HELOCDebtAccount[] = [
     id: 'hist-4', userId: '', accountName: 'AmEx Personal Loan',
     accountType: 'personal_loan', originalBalance: 3707, currentBalance: 0,
     interestRate: 7.33, monthlyPayment: 407,
-    status: 'paid_off', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null,
-    notes: 'Paid off via HELOC draw Mar 2026',
-  },
-  {
-    id: 'hist-5', userId: '', accountName: 'Virginia FCU Auto (Dad)',
-    accountType: 'auto_loan', originalBalance: 18600, currentBalance: 0,
-    interestRate: 9.25, monthlyPayment: 350,
     status: 'paid_off', rollDate: '2026-03-19', promoExpiry: null, deferredExpiry: null,
     notes: 'Paid off via HELOC draw Mar 2026',
   },
@@ -156,14 +130,13 @@ export default function HELOCTracker({ initialAccounts }: { initialAccounts?: HE
   const [editId, setEditId] = useState<string | null>(null)
   const [editVal, setEditVal] = useState('')
 
-  // Hydrate store on first render:
-  // 1. Use server-fetched Supabase data if available (initialAccounts)
-  // 2. Fall back to SEED_ACCOUNTS if Supabase returned nothing
+  const [extra, setExtra] = useState(0)
+
+  // Hydrate the store from the server-fetched accounts (no sample-data fallback:
+  // an empty table shows an empty state instead of made-up balances).
   useMemo(() => {
-    if (!store.hydrated && store.accounts.length === 0) {
-      const source =
-        initialAccounts && initialAccounts.length > 0 ? initialAccounts : SEED_ACCOUNTS
-      store.hydrate(source)
+    if (!store.hydrated && store.accounts.length === 0 && initialAccounts && initialAccounts.length > 0) {
+      store.hydrate(initialAccounts)
     }
   }, [store, initialAccounts])
 
@@ -172,10 +145,7 @@ export default function HELOCTracker({ initialAccounts }: { initialAccounts?: HE
   const usingLiveData = !!(initialAccounts && initialAccounts.length > 0)
 
   // Use store accounts (always populated after hydration above)
-  const rawAccounts =
-    store.accounts.length > 0
-      ? store.accounts
-      : (initialAccounts && initialAccounts.length > 0 ? initialAccounts : SEED_ACCOUNTS)
+  const rawAccounts = store.accounts.length > 0 ? store.accounts : (initialAccounts ?? [])
 
   // Bug 4: In live mode, filter out any zero-balance duplicates that might exist
   // in Supabase, then append the canonical hardcoded historical accounts.
@@ -195,7 +165,10 @@ export default function HELOCTracker({ initialAccounts }: { initialAccounts?: HE
     ? helocLine.currentBalance
     : rolledFallback.reduce((s, a) => s + a.currentBalance, 0)
   const remaining = HELOC_LIMIT - totalDraw
-  const monthlyInterest = (totalDraw * 0.0685) / 12
+  // Variable rate: use the HELOC row's current rate (stored as a percent)
+  const rate = helocLine && helocLine.interestRate > 0 ? helocLine.interestRate / 100 : HELOC_RATE
+  const monthlyInterest = (totalDraw * rate) / 12
+  const helocPayment = helocLine?.monthlyPayment && helocLine.monthlyPayment > 0 ? helocLine.monthlyPayment : monthlyInterest
 
   // Bug 3: Cash-flow relief = what we used to pay on all rolled-in accounts
   // minus the current HELOC monthly interest-only payment.
@@ -209,17 +182,16 @@ export default function HELOCTracker({ initialAccounts }: { initialAccounts?: HE
       monthlyPayment: a.monthlyPayment,
       rate: a.interestRate,
     })),
-    0.0685,
+    rate,
   )
 
-  const projData = useMemo(() => {
-    const promoDraws = promoHold.map(a => ({
-      monthOffset: 4, // ~Jul 2026
-      amount: a.currentBalance,
-      label: a.accountName,
-    }))
-    return projectBalance(totalDraw, 0.0685, monthlyInterest + 500, 15, promoDraws)
-  }, [totalDraw, monthlyInterest, promoHold])
+  // Plan v5: promos are paid from cash (the line has little room left), so the
+  // timeline is the HELOC itself paid down at the current payment + any extra.
+  const projData = useMemo(
+    () => projectBalance(totalDraw, rate, helocPayment + extra, 36),
+    [totalDraw, rate, helocPayment, extra],
+  )
+  const payoffIdx = projData.findIndex((p, i) => i > 0 && p.balance <= 0)
 
   function handleBalanceSave(id: string) {
     const v = parseFloat(editVal.replace(/[^0-9.]/g, ''))
@@ -229,14 +201,25 @@ export default function HELOCTracker({ initialAccounts }: { initialAccounts?: HE
     setEditId(null)
   }
 
+  if (accounts.length === 0) {
+    return (
+      <div className="p-6 text-sm text-center" style={{ color: 'var(--text-muted)' }}>
+        No debt accounts loaded. Check the Supabase connection — this page no longer falls back to sample data.
+      </div>
+    )
+  }
+
   return (
-    <div className="flex flex-col min-h-full p-6 gap-6">
+    <div className="flex flex-col min-h-full p-4 md:p-6 gap-6">
       {/* KPI Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <KpiCard label="Total HELOC Draw" value={fmt(totalDraw)} accent />
         <KpiCard label="Remaining Availability" value={fmt(remaining)} />
         <KpiCard label="Monthly Interest" value={fmt(monthlyInterest)} />
         <KpiCard label="Monthly Cash Flow Relief" value={fmt(cashFlowRelief)} positive />
+      </div>
+      <div className="text-[11px] -mt-3" style={{ color: 'var(--text-muted)' }}>
+        Rate {(rate * 100).toFixed(2)}% (variable — update the HELOC row when it changes) · payment {fmt(helocPayment)}/mo
       </div>
 
       {/* Tab nav */}
@@ -271,7 +254,8 @@ export default function HELOCTracker({ initialAccounts }: { initialAccounts?: HE
       )}
 
       {tab === 'timeline' && (
-        <BalanceTimeline data={projData} limit={HELOC_LIMIT} />
+        <BalanceTimeline data={projData} limit={HELOC_LIMIT} payment={helocPayment} extra={extra}
+          onExtra={setExtra} payoffLabel={payoffIdx > 0 ? projData[payoffIdx].label : null} />
       )}
 
       {tab === 'deadlines' && (
@@ -279,7 +263,7 @@ export default function HELOCTracker({ initialAccounts }: { initialAccounts?: HE
       )}
 
       {tab === 'savings' && (
-        <SavingsAnalysisView savings={savings} helocRate={0.0685} />
+        <SavingsAnalysisView savings={savings} helocRate={rate} />
       )}
     </div>
   )
@@ -433,12 +417,23 @@ function AccountTable({
   )
 }
 
-function BalanceTimeline({ data, limit }: { data: { label: string; balance: number }[]; limit: number }) {
+function BalanceTimeline({ data, limit, payment, extra, onExtra, payoffLabel }: {
+  data: { label: string; balance: number }[]; limit: number; payment: number; extra: number
+  onExtra: (v: number) => void; payoffLabel: string | null
+}) {
+  const end = data[data.length - 1]?.balance ?? 0
   return (
     <div className="p-4 rounded-xl" style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}>
-      <h3 className="text-xs font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-muted)' }}>
-        HELOC Balance Projection (15 months)
-      </h3>
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+          HELOC balance — next 3 years
+        </h3>
+        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          Extra principal / mo
+          <input type="range" min={0} max={5000} step={100} value={extra} onChange={e => onExtra(Number(e.target.value))} aria-label="Extra principal per month" />
+          <span className="font-mono w-14 text-right" style={{ color: 'var(--text-primary)' }}>{fmt(extra)}</span>
+        </label>
+      </div>
       <ResponsiveContainer width="100%" height={280}>
         <AreaChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
           <defs>
@@ -454,12 +449,14 @@ function BalanceTimeline({ data, limit }: { data: { label: string; balance: numb
             formatter={(v: unknown) => [fmt(Number(v)), 'Balance']}
             contentStyle={{ background: 'rgba(10,14,39,0.95)', border: '1px solid rgba(var(--accent-rgb), 0.3)', borderRadius: 8, fontSize: 12 }}
           />
-          <ReferenceLine y={limit} stroke="#ef4444" strokeDasharray="4 2" label={{ value: '$190K Limit', fill: '#ef4444', fontSize: 10 }} />
+          <ReferenceLine y={limit} stroke="#ef4444" strokeDasharray="4 2" label={{ value: `${fmtK(limit)} limit`, fill: '#ef4444', fontSize: 10 }} />
           <Area type="monotone" dataKey="balance" stroke="#5ee6ff" fill="url(#helocGrad)" strokeWidth={2} dot={false} />
         </AreaChart>
       </ResponsiveContainer>
       <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
-        Promo card balances roll in ~Jul 2026. Balance rises before paydown accelerates.
+        Paying {fmt(payment + extra)}/mo{extra > 0 ? ` (${fmt(payment)} payment + ${fmt(extra)} extra)` : ''}:{' '}
+        {payoffLabel ? `paid off by ${payoffLabel}.` : `${fmt(end)} left after 3 years.`}{' '}
+        Promo cards are paid from cash under plan v5, not rolled onto the line.
       </p>
     </div>
   )
