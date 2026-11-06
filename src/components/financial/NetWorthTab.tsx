@@ -1,5 +1,6 @@
 'use client'
 
+import type { NetWorthGrowth } from '@/lib/finance/netWorth'
 import { useMemo } from 'react'
 import {
   AreaChart,
@@ -22,6 +23,7 @@ import DebtSourceTag from './DebtSourceTag'
 
 // ── Props ────────────────────────────────────────────
 interface NetWorthTabProps {
+  growth: NetWorthGrowth
   debts: DebtAccount[]
   helocKPIs: HelocKPIs
   assets: Assets
@@ -49,7 +51,7 @@ function calculateNetWorthData(debts: DebtAccount[], assets: Assets) {
   }
 }
 
-function generateNetWorthProjection(startNetWorth: number, monthlyImprovement: number = 2000) {
+function generateNetWorthProjection(startNetWorth: number, monthlyImprovement: number) {
   const data = []
   const now = new Date()
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -82,9 +84,9 @@ function getDebtByCategory(debts: DebtAccount[]) {
   }))
 }
 
-export default function NetWorthTab({ debts, helocKPIs, assets }: NetWorthTabProps) {
+export default function NetWorthTab({ debts, helocKPIs, assets, growth }: NetWorthTabProps) {
   const nwData = useMemo(() => calculateNetWorthData(debts, assets), [debts, assets])
-  const projectionData = useMemo(() => generateNetWorthProjection(nwData.netWorth), [nwData.netWorth])
+  const projectionData = useMemo(() => generateNetWorthProjection(nwData.netWorth, growth.monthly), [nwData.netWorth, growth.monthly])
   const debtByCategory = useMemo(() => getDebtByCategory(debts), [debts])
 
   const oneMillionProgress = (nwData.netWorth / 1000000) * 100
@@ -130,8 +132,8 @@ export default function NetWorthTab({ debts, helocKPIs, assets }: NetWorthTabPro
         />
         <KPICard
           label="Monthly NW Growth"
-          value={fmtK(2000)}
-          note="Projected based on paydown"
+          value={fmtK(growth.monthly)}
+          note={`${fmtK(growth.principal)} principal + ${fmtK(growth.surplus)} left over · steady state`}
           accent="cyan"
         />
       </div>
@@ -142,7 +144,8 @@ export default function NetWorthTab({ debts, helocKPIs, assets }: NetWorthTabPro
           Net Worth Projection (12 Months)
         </h3>
         <p className="text-[11px] mb-4" style={{ color: 'var(--text-muted)' }}>
-          Assumes $2,000/month improvement from debt paydown and savings
+          Assumes {fmtK(growth.monthly)}/month: {fmtK(growth.principal)} of principal inside your debt minimums + {fmtK(growth.surplus)} left over
+          ({fmtK(growth.takeHome)} take-home − {fmtK(growth.outflow)} cash out). Steady state once paychecks start; one-time payments like the property tax aren&apos;t included.
         </p>
         <div style={{ width: '100%', height: 300 }}>
           <ResponsiveContainer>

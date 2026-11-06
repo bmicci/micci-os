@@ -6,7 +6,32 @@ data. Three categories:
 - 🔁 **ROUTINE** — recurring refresh, with cadence and method
 - ⚙️ **AUTO** — refreshes itself; listed so nobody re-builds it
 
-_Last updated: Oct 15, 2026_
+_Last updated: Nov 6, 2026_
+
+---
+
+## ⚡ Nov 6, 2026 — audit Phases 1–3
+
+- **Cash out / runway basis changed:** monthly outflow = living spend
+  (transaction categories, Debt Service swapped out) + every debt minimum
+  from the debt list (cards paid in full excluded). HELOC, family loan and
+  card minimums are paid by transfer and were missing from the old
+  "real spend" runway. Same basis on the dashboard, `/financial`, Cash Flow
+  page (`/finance/cashflow`) and the MCP.
+- **Spend exclusions:** `financial_settings.spend_exclusions` (merchant
+  match, optional dates) drops ended bills / one-offs from the forward
+  average only — BCBS (ends Nov, Schwab benefits replace it) and the
+  Aug 13 BMW service. Add a row when a bill ends or a big one-off skews it.
+- **Schwab pay:** semi-monthly, $205.70 benefits/check ($105.70 premiums +
+  $100 HSA) in `job_offers`; confirm the first payday (assumed Nov 30).
+- **New tables/settings:** `paycheck_settings`, `financial_scenarios`,
+  `tax_plan_2026`, `investment_targets` (year-end target moved out of code).
+- **Bills table refreshed Nov 6** to live minimums; RH, Apple, UTSW and
+  BofA 1205 rows added. 🔁 Refresh when a minimum changes.
+- 🔴 **Owed:** Freedom Unlimited per-promo split (Nov 9 statement); BofA
+  cash advance posting (fee/end date unverified); KBB car value.
+- ℹ️ `top_actions`, `spending_summary`, `subscription_summary` settings are
+  from Apr 10 and are not displayed anywhere — safe to ignore.
 
 ---
 

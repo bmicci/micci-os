@@ -64,19 +64,19 @@ function getBannerState(runway: RunwayProjection) {
       badgeColor: 'rgba(34,197,94,0.2)',
       badgeText: '#22c55e',
       days: null,
-      daysLabel: `${fmt$(emp.netPerCheck)} net every 2 weeks · ${surplus >= 0 ? 'surplus' : 'shortfall'} ${fmt$(surplus)}/mo vs real spend`,
+      daysLabel: `${fmt$(emp.netPerCheck)} net per check · ${surplus >= 0 ? 'surplus' : 'shortfall'} ${fmt$(surplus)}/mo vs real spend`,
       daysColor: surplus >= 0 ? '#22c55e' : '#ef4444',
     }
   }
 
-  // Stabilization mode: the number that matters from every tab is the cash
+  // Back-to-green mode: the number that matters from every tab is the cash
   // runway, so it lives in the header (not buried in the Cash Flow tab).
   if (runway.cashOutDate) {
     const days = Math.ceil((new Date(runway.cashOutDate + 'T00:00:00').getTime() - now.getTime()) / 86400000)
     const cashOutLabel = new Date(runway.cashOutDate + 'T00:00:00')
       .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     return {
-      badge: 'POST-JPMC · STABILIZATION MODE',
+      badge: 'BACK TO GREEN',
       badgeColor: 'rgba(59,130,246,0.2)',
       badgeText: '#3b82f6',
       days: Math.max(days, 0),
@@ -86,7 +86,7 @@ function getBannerState(runway: RunwayProjection) {
   }
 
   return {
-    badge: 'POST-JPMC · STABILIZATION MODE',
+    badge: 'BACK TO GREEN',
     badgeColor: 'rgba(59,130,246,0.2)',
     badgeText: '#3b82f6',
     days: null,

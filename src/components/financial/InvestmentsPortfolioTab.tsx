@@ -14,8 +14,10 @@ import { createClient } from '@supabase/supabase-js'
 
 // ── Constants ─────────────────────────────────────────────────────
 
-const YEAR_END_TARGET = 189053
-const CURRENT_YEAR_START_VALUE = 143000 // approximate Jan 1 value for YTD calc
+// Fallbacks only — the page passes financial_settings.investment_targets and
+// the first portfolio_history snapshot of the year.
+const DEFAULT_YEAR_END_TARGET = 189053
+const DEFAULT_YEAR_START_VALUE = 143000
 
 const THEME_COLORS: Record<string, string> = {
   'Tech/Growth':     '#5ee6ff',
@@ -121,7 +123,11 @@ export default function InvestmentsPortfolioTab({
   totalCost,
   totalGL,
   totalGLPct,
-}: Props) {
+  yearEndTarget = DEFAULT_YEAR_END_TARGET,
+  yearStartValue = DEFAULT_YEAR_START_VALUE,
+}: Props & { yearEndTarget?: number; yearStartValue?: number }) {
+  const YEAR_END_TARGET = yearEndTarget
+  const CURRENT_YEAR_START_VALUE = yearStartValue
   const [updatingTicker, setUpdatingTicker] = useState('')
   const [updatePrice, setUpdatePrice]       = useState('')
   const [updateMsg, setUpdateMsg]           = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
@@ -706,7 +712,7 @@ export default function InvestmentsPortfolioTab({
                 <p style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 12 }}>+{sc.pct}% return</p>
                 <p style={{ color: '#fff', fontWeight: 700, fontSize: 22 }}>{fmt(projected)}</p>
                 <p style={{ color: hitsTarget ? '#22c55e' : '#f59e0b', fontSize: 11, marginTop: 4, marginBottom: 12 }}>
-                  {hitsTarget ? '✓ Hits $189K target' : `${fmt(YEAR_END_TARGET - projected)} short`}
+                  {hitsTarget ? `✓ Hits ${fmt(YEAR_END_TARGET)} target` : `${fmt(YEAR_END_TARGET - projected)} short`}
                 </p>
                 <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3 }}>
                   <div style={{

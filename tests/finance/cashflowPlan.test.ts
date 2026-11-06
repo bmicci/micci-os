@@ -89,3 +89,17 @@ describe('spend exclusions', () => {
       .toEqual(['BMW 2026-09-02', 'Cafe 2026-10-02'])
   })
 })
+
+import { estimateNetWorthGrowth } from '@/lib/finance/netWorth'
+describe('net-worth growth', () => {
+  it('is left-over cash plus principal inside amortizing minimums', () => {
+    const debts = [
+      { name: 'Mortgage', balance: 480000, rate: 3, min: 2400, decision: 'keep', category: 'Mortgage' },  // 1,200 interest → 1,200 principal
+      { name: 'HELOC', balance: 186000, rate: 6.85, min: 974, decision: 'keep', category: 'HELOC' },      // payment < interest → 0
+      { name: 'Gold', balance: 4000, rate: 27, min: 115, decision: 'keep', category: 'Credit Card', payInFull: true },
+    ] as Parameters<typeof estimateNetWorthGrowth>[0]
+    const burn = { hasData: true, monthlyOutflow: 11000 } as Parameters<typeof estimateNetWorthGrowth>[1]
+    const offers = [{ offer: { status: 'accepted' }, monthlyNetAvg: 13758 }] as Parameters<typeof estimateNetWorthGrowth>[2]
+    expect(estimateNetWorthGrowth(debts, burn, offers)).toEqual({ monthly: 3958, surplus: 2758, principal: 1200, takeHome: 13758, outflow: 11000 })
+  })
+})

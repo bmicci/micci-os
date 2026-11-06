@@ -4,12 +4,12 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import type { WealthScenario } from '@/lib/financial-data'
 import { calcWealth } from '@/lib/financial-data'
 
-export default function WealthProjectionChart({ scenarios }: { scenarios: WealthScenario[] }) {
+export default function WealthProjectionChart({ scenarios, start }: { scenarios: WealthScenario[]; start: number }) {
   // Generate data points for ages 40-60 (years 0-20)
   const data = Array.from({ length: 21 }, (_, i) => {
     const point: Record<string, number | string> = { age: 40 + i }
     scenarios.forEach(s => {
-      point[s.name] = Math.round(calcWealth(410000, s.pmt, s.r, i))
+      point[s.name] = Math.round(calcWealth(start, s.pmt, s.r, i))
     })
     return point
   })
