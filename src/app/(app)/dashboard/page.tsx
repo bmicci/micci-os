@@ -120,7 +120,11 @@ export default async function DashboardPage() {
           <h1 className="text-3xl font-bold gradient-text mb-1">Command Center</h1>
           <p className="text-[var(--text-secondary)] text-sm">
             {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-            {' · '}Post-JPMC · Stabilization
+            {' · '}{runwayProjection.employment
+              ? (runwayProjection.employment.daysUntilFirstCheck > 0
+                  ? `${runwayProjection.employment.employer} · first check ${new Date(runwayProjection.employment.firstPayday + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                  : `${runwayProjection.employment.employer} · back to green`)
+              : 'Back to green'}
           </p>
         </div>
         {portfolio && (

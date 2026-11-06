@@ -1,6 +1,8 @@
 'use client'
 
-import type { SpendingCategory, BurnRateItem, WealthScenario, TaxSnapshot, IncomeBridge } from '@/lib/financial-data'
+import type { SpendingCategory, BurnRateItem, WealthScenario, TaxSnapshot, OfferPaycheck } from '@/lib/financial-data'
+import type { BurnAnalysis } from '@/lib/finance/txnAggregate'
+import Link from 'next/link'
 import { fmt, calcWealth } from '@/lib/financial-data'
 import KPICard from './KPICard'
 import WealthProjectionChart from './WealthProjectionChart'
@@ -30,13 +32,18 @@ export default function BudgetActualTab({
   burnRate,
   wealthScenarios,
   taxSnapshot,
-  incomeBridge,
+  burnAnalysis,
+  offers,
+  invested,
 }: {
   spendingCategories: SpendingCategory[]
   burnRate: BurnRateItem[]
   wealthScenarios: WealthScenario[]
   taxSnapshot: TaxSnapshot
-  incomeBridge: IncomeBridge
+  burnAnalysis: BurnAnalysis
+  offers: OfferPaycheck[]
+  /** Retirement + brokerage today — the wealth projection's starting point */
+  invested: number
 }) {
   // KPI Calculations
   const totalBudget = spendingCategories.reduce((s, c) => s + c.survival, 0)
@@ -44,18 +51,23 @@ export default function BudgetActualTab({
   const overUnder = totalActual - totalBudget
   const savingsPotential = spendingCategories.reduce((s, c) => s + (c.monthly - c.survival), 0)
 
-  // Burn Rate totals
-  const totalCurrent = burnRate.reduce((s, b) => s + b.current, 0)
-  const totalSurvival = burnRate.reduce((s, b) => s + b.survival, 0)
-  const monthlySaved = totalCurrent - totalSurvival
+  // Cash out per month, live: living spend by category (Debt Service swapped
+  // for the debt list) + debt minimums. Survival targets where a category has one.
+  const survivalByCat = new Map(spendingCategories.map(c => [c.cat, c.survival]))
+  const cashOutRows = burnAnalysis.hasData
+    ? [
+        ...burnAnalysis.byCategory.filter(c => c.cat !== 'Debt Service' && c.monthly > 0)
+          .map(c => ({ label: c.cat, current: c.monthly, survival: survivalByCat.get(c.cat) ?? null })),
+        { label: 'Debt minimums (all debts, incl. mortgage)', current: burnAnalysis.debtPayments ?? 0, survival: null as number | null },
+      ]
+    : burnRate.map(b => ({ label: b.label, current: b.current, survival: b.survival as number | null }))
+  const totalCurrent = burnAnalysis.hasData ? burnAnalysis.monthlyOutflow : cashOutRows.reduce((s, b) => s + b.current, 0)
 
-  // Income Bridge computed values
-  const ib = incomeBridge
-  const totalLiquid = ib.liquidCash + ib.marchPaychecks + ib.severanceEstimate + ib.familyBridge
-  const runwayNoIncome = ib.monthlyOutflow > 0 ? totalLiquid / ib.monthlyOutflow : 0
-  const consultingDeficit = ib.monthlyOutflow - ib.consultingMonthlyNet
-  const runwayConsulting = consultingDeficit > 0 ? totalLiquid / consultingDeficit : 99
-  const newJobSurplus = ib.newJobMonthlyNet - ib.monthlyOutflow
+  // Income vs cash out (accepted job)
+  const job = offers.find(o => o.offer.status === 'accepted') ?? null
+  const takeHome = job?.monthlyNetAvg ?? 0
+  const leftOver = takeHome - totalCurrent
+  const bonusPct = job?.offer.kind === 'salary' ? job.offer.bonusPct ?? 0 : 0
 
   // Chart Data
   const budgetVsActualData = spendingCategories.map(c => ({
@@ -153,27 +165,27 @@ export default function BudgetActualTab({
       {/* 4. Burn Rate */}
       <div className="glass-card p-5">
         <h3 className="text-[13px] font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-          Burn Rate Comparison — Current vs. Survival Budget
+          Cash Out per Month{burnAnalysis.hasData ? ` — last ${burnAnalysis.windowDays} days, ${burnAnalysis.txnCount.toLocaleString()} transactions` : ' (manual estimate — no transactions)'}
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-[13px]" style={{ borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
-                {['Category', 'Current /mo', 'Survival /mo', 'Delta'].map(h => (
+                {['Category', 'Actual /mo', 'Survival target', 'Gap'].map(h => (
                   <th key={h} className="text-left py-2 px-3 text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {burnRate.map((b, i) => {
-                const delta = b.survival - b.current
+              {cashOutRows.map((b, i) => {
+                const gap = b.survival == null ? null : b.current - b.survival
                 return (
-                  <tr key={b.label} style={{ borderBottom: i < burnRate.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                  <tr key={b.label} style={{ borderBottom: i < cashOutRows.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
                     <td className="py-2 px-3 text-[12px]" style={{ color: 'var(--text-primary)' }}>{b.label}</td>
                     <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>{fmt(b.current)}</td>
-                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>{fmt(b.survival)}</td>
-                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: delta < 0 ? '#22c55e' : delta > 0 ? '#ef4444' : 'var(--text-muted)' }}>
-                      {delta === 0 ? '—' : (delta > 0 ? '+' : '') + fmt(delta)}
+                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>{b.survival == null ? '—' : fmt(b.survival)}</td>
+                    <td className="py-2 px-3 text-[12px] font-mono" style={{ color: gap == null || gap === 0 ? 'var(--text-muted)' : gap > 0 ? '#ef4444' : '#22c55e' }}>
+                      {gap == null || gap === 0 ? '—' : (gap > 0 ? '+' : '−') + fmt(Math.abs(gap))}
                     </td>
                   </tr>
                 )
@@ -183,85 +195,46 @@ export default function BudgetActualTab({
               <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)' }}>
                 <td className="py-3 px-3 text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>TOTAL</td>
                 <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: '#ef4444' }}>{fmt(totalCurrent)}</td>
-                <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: '#22c55e' }}>{fmt(totalSurvival)}</td>
-                <td className="py-3 px-3 text-[12px] font-mono font-bold" style={{ color: '#22c55e' }}>−{fmt(monthlySaved)}/mo</td>
+                <td className="py-3 px-3 text-[12px]" colSpan={2} style={{ color: 'var(--text-muted)' }}>what leaves checking each month — the runway uses this</td>
               </tr>
             </tfoot>
           </table>
         </div>
       </div>
 
-      {/* 5. Income Bridge */}
+      {/* 5. Income vs cash out */}
       <div className="glass-card p-5">
         <h3 className="text-[13px] font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-          Income Bridge &amp; Runway (Post-JPMC Exit)
+          Income vs. Cash Out
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 rounded-lg" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
-            <div className="font-bold text-[13px] mb-3" style={{ color: '#ef4444' }}>Scenario A — No Income</div>
-            <div className="space-y-2 text-[12px]">
-              <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
-                <span>Monthly outflow</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(ib.monthlyOutflow)}</span>
+        {job ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-line)' }}>
+              <div className="text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>{job.offer.employer} take-home</div>
+              <div className="text-xl font-bold font-mono" style={{ color: '#22c55e' }}>{fmtWhole(takeHome)}/mo</div>
+              <div className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                {fmtWhole(job.netPerCheckEarly)}/check × {job.offer.payFrequency}/yr, average incl. the Social Security cap · first check {job.offer.firstPayday}
               </div>
-              <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
-                <span>Liquid (cash+sev est.)</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(totalLiquid)}</span>
+            </div>
+            <div className="p-4 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-line)' }}>
+              <div className="text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Cash out</div>
+              <div className="text-xl font-bold font-mono" style={{ color: '#f87171' }}>{fmtWhole(totalCurrent)}/mo</div>
+              <div className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>living spend + every debt minimum</div>
+            </div>
+            <div className="p-4 rounded-lg" style={{ background: 'rgba(var(--accent-rgb), 0.06)', border: '1px solid var(--glass-line)' }}>
+              <div className="text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Left over</div>
+              <div className="text-xl font-bold font-mono" style={{ color: leftOver >= 0 ? 'var(--accent-cyan)' : '#f87171' }}>
+                {leftOver >= 0 ? '+' : '−'}{fmtWhole(Math.abs(leftOver))}/mo
               </div>
-              <div className="flex justify-between pt-2" style={{ borderTop: '1px solid rgba(239,68,68,0.25)' }}>
-                <span className="font-bold" style={{ color: '#ef4444' }}>Runway</span>
-                <span className="font-bold" style={{ color: '#ef4444' }}>~{runwayNoIncome.toFixed(1)} months</span>
+              <div className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                before one-time payments (property tax, promo payoffs) — see the{' '}
+                <Link href="/finance/cashflow" style={{ color: 'var(--accent-cyan)' }}>Cash Flow page</Link> for month by month
               </div>
             </div>
           </div>
-
-          <div className="p-4 rounded-lg" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)' }}>
-            <div className="font-bold text-[13px] mb-3" style={{ color: '#f59e0b' }}>Scenario B — Consulting</div>
-            <div className="space-y-2 text-[12px]">
-              <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
-                <span>Monthly income</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(ib.consultingMonthlyNet)} net</span>
-              </div>
-              <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
-                <span>Monthly outflow</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(ib.monthlyOutflow)}</span>
-              </div>
-              <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
-                <span>Monthly deficit</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>−{fmtWhole(consultingDeficit)}</span>
-              </div>
-              <div className="flex justify-between pt-2" style={{ borderTop: '1px solid rgba(245,158,11,0.25)' }}>
-                <span className="font-bold" style={{ color: '#f59e0b' }}>Extended runway</span>
-                <span className="font-bold" style={{ color: '#f59e0b' }}>~{runwayConsulting.toFixed(1)} months</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-lg" style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)' }}>
-            <div className="font-bold text-[13px] mb-3" style={{ color: '#22c55e' }}>Scenario C — New Job ({fmtK(ib.targetSalary)})</div>
-            <div className="space-y-2 text-[12px]">
-              <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
-                <span>Monthly income net</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(ib.newJobMonthlyNet)}</span>
-              </div>
-              <div className="flex justify-between" style={{ color: 'var(--text-muted)' }}>
-                <span>Monthly outflow</span><span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtWhole(ib.monthlyOutflow)}</span>
-              </div>
-              <div className="flex justify-between pt-2" style={{ borderTop: '1px solid rgba(34,197,94,0.25)' }}>
-                <span className="font-bold" style={{ color: '#22c55e' }}>Monthly surplus</span>
-                <span className="font-bold" style={{ color: '#22c55e' }}>+{fmtWhole(newJobSurplus)}/mo</span>
-              </div>
-            </div>
-            <div className="text-[11px] mt-3" style={{ color: '#22c55e' }}>Target: {fmtK(ib.targetSalary)} base / {fmtK(ib.targetTotalComp)} total comp</div>
-          </div>
-        </div>
-
-        <div
-          className="mt-4 p-3 rounded-lg text-[12px]"
-          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}
-        >
-          <strong style={{ color: 'var(--text-primary)' }}>Liquid Cash Breakdown:</strong>{' '}
-          <span style={{ color: 'var(--text-muted)' }}>
-            Checking ~{fmtWhole(ib.liquidCash)} + Mar paychecks ~{fmtWhole(ib.marchPaychecks)} + Severance est. {fmtWhole(ib.severanceEstimate)} + Family bridge ~{fmtWhole(ib.familyBridge)}
-            = <strong style={{ color: 'var(--text-primary)' }}>{fmtWhole(totalLiquid)} total</strong>
-            {' '}|{' '}
-            <span style={{ color: '#f59e0b' }}>⚠️ Confirm exact JPMC severance with HR</span>
-          </span>
-        </div>
+        ) : (
+          <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>No accepted job offer saved — add one in financial_settings.job_offers.</p>
+        )}
       </div>
 
       {/* 6. Wealth Projection */}
@@ -271,9 +244,9 @@ export default function BudgetActualTab({
         </h3>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4" style={{ alignItems: 'start' }}>
           <div className="lg:col-span-2">
-            <WealthProjectionChart scenarios={wealthScenarios} />
+            <WealthProjectionChart scenarios={wealthScenarios} start={invested} />
             <div className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>
-              ★ Based on {fmtK(ib.targetTotalComp)} total comp ({fmtK(ib.targetSalary)} base + 30% bonus) · Texas 0% state tax
+              ★ Starts from {fmtK(invested)} invested today (retirement + brokerage){job ? ` · ${job.offer.employer} ${fmtK(job.annualGross)} base${bonusPct ? ` + ${bonusPct}% target bonus` : ''}` : ''} · Texas 0% state tax
             </div>
           </div>
           <div className="space-y-3">
@@ -292,7 +265,7 @@ export default function BudgetActualTab({
                       <td className="py-2 px-2 font-semibold" style={{ color: s.color }}>{s.name}</td>
                       {[5, 10, 15, 20].map(n => (
                         <td key={n} className="py-2 px-2 font-mono" style={{ color: 'var(--text-secondary)' }}>
-                          ${(calcWealth(410000, s.pmt, s.r, n) / 1e6).toFixed(1)}M
+                          ${(calcWealth(invested, s.pmt, s.r, n) / 1e6).toFixed(1)}M
                         </td>
                       ))}
                     </tr>

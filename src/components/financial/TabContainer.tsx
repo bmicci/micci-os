@@ -1,5 +1,6 @@
 'use client'
 
+import { estimateNetWorthGrowth, investedAssets } from '@/lib/finance/netWorth'
 import { useState, useRef, useEffect } from 'react'
 import { Hexagon, Waves, BarChart3, PiggyBank, TrendingUp, Landmark, CreditCard, Package } from 'lucide-react'
 import type { FinancialData } from '@/lib/financial-data'
@@ -158,7 +159,9 @@ export default function TabContainer({ data, positions = [], targets = [] }: {
             burnRate={data.burnRate}
             wealthScenarios={data.wealthScenarios}
             taxSnapshot={data.taxSnapshot}
-            incomeBridge={data.incomeBridge}
+            burnAnalysis={data.burnAnalysis}
+            offers={data.offers}
+            invested={investedAssets(data.assets)}
           />
         )}
         {activeTab === 'networth' && (
@@ -166,6 +169,7 @@ export default function TabContainer({ data, positions = [], targets = [] }: {
             debts={data.debts}
             helocKPIs={data.helocKPIs}
             assets={data.assets}
+            growth={estimateNetWorthGrowth(data.debts, data.burnAnalysis, data.offers)}
           />
         )}
         {activeTab === 'debtpayoff' && (
