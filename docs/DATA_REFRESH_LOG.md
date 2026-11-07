@@ -18,8 +18,8 @@ _Last updated: Nov 7, 2026_
   `bills`, `car_tiers`, `car_apr` kept). `master_plan` inside it holds the
   workbook's month-end projection for strategies A/B/C (Dec 2026–Dec 2029),
   deadlines, milestones, trade-offs and the accounts the plan names.
-  🔴 **Owed:** apply the migration (Supabase SQL editor) after the PR merges;
-  until then the page says the projection isn't loaded.
+  ✅ Applied to Supabase Nov 7, 2026 (checksums of the A/B/C projection
+  verified against the file).
 - **Plan vs actual is live:** `/finance/plan` matches live debts (Plaid where
   linked) to the plan's accounts by last 4 digits / name and compares them
   with the plan's latest month-end. Amex Gold/Platinum and Chase Prime ···9313
