@@ -20,7 +20,7 @@ This is NOT a greenfield build. Every section below is built and live. Do not sc
 |---|---|---|
 | `/dashboard` | Command center summary | ✅ live |
 | `/financial` | 8-tab financial dashboard (Overview · Cash Flow · Spending · HELOC Plan · Debt Payoff · Subscriptions · Investments · Net Worth) | ✅ live from Supabase |
-| `/finance/*` | Simulators: paycheck, heloc, cashflow, scenarios, investments, tax | ✅ live |
+| `/finance/*` | Master Plan (plan vs actual), simulators: paycheck, heloc, cashflow, scenarios, investments, tax, calculators | ✅ live |
 | `/perks` | Amex credits + MR points tracker (auto-rolling periods) | ✅ live |
 | `/goals` | Goals + Vision (480 goals, Foundation tab, in-place editing) | ✅ live |
 | `/planner` | Live date-driven week + archived Battle Plan | ✅ live |
@@ -48,10 +48,10 @@ This is NOT a greenfield build. Every section below is built and live. Do not sc
 **Aurora glass** (Oct 2026 redesign). Tokens in `globals.css`: `--bg-base #070b1a` (ink), `--bg-elevated #0d1330`, `--accent-cyan #5ee6ff` (+ `--accent-rgb` for `rgba(var(--accent-rgb), a)`), `--accent-violet #a78bfa` (second data color), `--accent-gradient` cyan→violet, glass `--glass-bg` white 7% / `--glass-line` white 14% / `--glass-highlight` / `--glass-blur 24px`, text `#f2f5ff` / 74% / 62% (muted must stay ≥4.5:1).
 Color ratio: ~60% ink base, ~30% glass, <10% accent. Cyan is for actions and headline numbers only; borders use `--glass-line`, not cyan. Glass card: `.glass-card` (16px radius, blur + saturate, inset top highlight). The `.ambient-glow` layer in `(app)/layout.tsx` sits behind content so the blur has something to frost; keep `<main>` and page wrappers transparent. Use the tokens for new code; literal `#5ee6ff` remains only where a component appends hex-alpha suffixes or feeds a chart prop. Font: Geist Sans. Mobile: single column < 768px, bottom tab bar.
 
-## FINANCIAL CONTEXT (July 2026)
+## FINANCIAL CONTEXT (Nov 2026)
 
-- Brandon left JPMC March 19, 2026; HELOC closed in time (Texas CU, $190K limit @ 6.85%). Now in **stabilization mode**: unemployment income bridge (TWC benefits end Oct 2026), job search active.
-- High-rate debt rolled to HELOC; remaining 0% promos paid from HELOC as they expire. Mortgage: BofA ~$498K @ 3.375% (hold).
+- Brandon left JPMC March 19, 2026; HELOC closed in time (Texas CU, $190K limit @ 6.85%). Started at **Charles Schwab Nov 16, 2026** ($240K base, 25% bonus target first paid Mar 2028, semi-monthly pay); job details live in `financial_settings.job_offers`.
+- The plan of record is **Strategic Financial Plan v8** (`financial_settings.strategic_plan`, loaded by `supabase/migrations/20261107_strategic_plan_v8.sql`): roll expiring promos to 0%, nothing above 7–8%, cards cleared by Mar 2028, HELOC on a 20-year payment from Apr 2028. `/finance/plan` (Master Plan) compares its month-by-month projection with live balances (`src/lib/finance/masterPlan.ts`). Mortgage: BofA ~$490K @ 3.375% (hold).
 - The runway projection (cash-out date) is the number that matters — it lives in the `/financial` page header.
 - Current balances, statuses, and what data is owed/stale: **`docs/DATA_REFRESH_LOG.md`** — read it before touching data, update it after changing how a section gets data.
 

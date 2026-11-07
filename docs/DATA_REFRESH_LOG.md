@@ -6,7 +6,32 @@ data. Three categories:
 - 🔁 **ROUTINE** — recurring refresh, with cadence and method
 - ⚙️ **AUTO** — refreshes itself; listed so nobody re-builds it
 
-_Last updated: Nov 6, 2026_
+_Last updated: Nov 7, 2026_
+
+---
+
+## ⚡ Nov 7, 2026 — Master Plan (`/finance/plan`), plan v8
+
+- **Plan v8 as data:** `supabase/migrations/20261107_strategic_plan_v8.sql`
+  merges Strategic Financial Plan v8 + the Master Financial Model workbook
+  into `financial_settings.strategic_plan` (version 8; v5 keys like
+  `bills`, `car_tiers`, `car_apr` kept). `master_plan` inside it holds the
+  workbook's month-end projection for strategies A/B/C (Dec 2026–Dec 2029),
+  deadlines, milestones, trade-offs and the accounts the plan names.
+  🔴 **Owed:** apply the migration (Supabase SQL editor) after the PR merges;
+  until then the page says the projection isn't loaded.
+- **Plan vs actual is live:** `/finance/plan` matches live debts (Plaid where
+  linked) to the plan's accounts by last 4 digits / name and compares them
+  with the plan's latest month-end. Amex Gold/Platinum and Chase Prime ···9313
+  are excluded as paid in full. Nothing is written back.
+- **Reconciled Nov 7:** live Plaid balances match the plan's starting
+  balances (Chase 4628 $2,723.94, 7117 $3,574, Citi Diamond $11,411, BofA
+  1205 $19,653.06, PayPal $480.91 vs the plan's $510.91). The manual
+  `debt_accounts` rows for Chase 7117 / 4628 / Citi Diamond are months stale,
+  but the live overlay replaces them.
+- 🔁 **Routine:** when the workbook changes, re-export the projection into a
+  new migration (same shape) so the page tracks the current plan. Savings
+  milestones aren't tracked live yet (no savings account linked).
 
 ---
 
