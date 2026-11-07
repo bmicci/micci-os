@@ -257,9 +257,9 @@ export const financeTools: AnyMicciTool[] = [
   }),
   defineTool({
     name: 'micci_strategic_plan',
-    title: 'Strategic financial plan (v5)',
+    title: 'Strategic financial plan',
     description:
-      "Brandon's written strategic plan (Nov 2026 to Dec 2029): assumptions, spending strategies A/B/C, car options, 401(k) elections, paydown order, subscription and bill savings, projected debt at the end of 2029 and the open decisions. Use for planning questions like 'which strategy?', 'what does a $75K car do?', 'what's the 401(k) plan?'. Live balances are in micci_debts; this is the plan layered on top and may be marked draft.",
+      "Brandon's written strategic plan (Nov 2026 to Dec 2029): assumptions, spending strategies A/B/C, car options, 401(k) elections, paydown order, subscription and bill savings, projected debt at the end of 2029, the open decisions and (v8+) the base case, trade-offs, deadlines and risks behind the Master Plan page. Use for planning questions like 'which strategy?', 'what does a $75K car do?', 'what's the 401(k) plan?'. Live balances are in micci_debts; this is the plan layered on top and may be marked draft.",
     annotations: READ_ONLY,
     handler: async () => {
       const { data } = await db().from('financial_settings').select('value, updated_at').eq('key', 'strategic_plan').maybeSingle()
@@ -277,8 +277,8 @@ export const financeTools: AnyMicciTool[] = [
         `Source: ${p.source}. Planning information, not advice.`,
         '',
         '## Key assumptions',
-        `- Take-home per biweekly check: ${usd(a.net_per_check_5pct)} at a 5% 401(k); ${usd(a.net_per_check_max_401k)} at the 2027 max. Monthly: ${usd(a.take_home_month_5pct)} / ${usd(a.take_home_month_max_401k)}.`,
-        `- Bonus: 25% target, ${usd(a.bonus_net)} net each March starting ${a.first_bonus}; federal refund ~${usd(a.refund_2026)} in Mar 2027 (${usd(a.refund_2026_if_paid_jan)} if the property tax waits until January).`,
+        `- Take-home per check${a.pay_frequency ? ` (${a.pay_frequency})` : ''}: ${usd(a.net_per_check_5pct)} at a 5% 401(k); ${usd(a.net_per_check_max_401k)} at the 2027 max. Monthly: ${usd(a.take_home_month_5pct)} / ${usd(a.take_home_month_max_401k)}.`,
+        `- Bonus: 25% target, ${usd(a.bonus_net)} net each March starting ${a.first_bonus}; federal refund ~${usd(a.refund_2026)} in Mar 2027.`,
         `- Property tax ~${usd(a.property_tax)} paid by ${a.property_tax_pay_by}; set-aside ${usd(a.property_tax_setaside_monthly)}/mo.`,
         `- Car: ${a.car_apr}% loan, ${usd(a.car_trade_in)} trade-in, ${a.car_sales_tax_pct}% tax on price minus trade-in, ${usd(a.car_fees)} fees; target purchase ${a.car_target_purchase}.`,
         `- 401(k): limit ${usd(a.k401_limit_2026)} (2026), ${usd(a.k401_limit_2027_projected)} projected for 2027; Schwab matches 100% up to ${a.k401_match_pct}% plus ${usd(a.k401_kicker)}.`,
@@ -302,6 +302,7 @@ export const financeTools: AnyMicciTool[] = [
         '',
         '## Not tracked',
         `- ${p.not_tracked?.note ?? ''}`,
+        ...masterPlanLines(p.master_plan),
       ]
       return text(out.join('\n'))
     },
@@ -402,3 +403,20 @@ export const financeTools: AnyMicciTool[] = [
     },
   }),
 ]
+
+/** Base case, trade-offs, deadlines and risks from strategic_plan.master_plan (plan v8+). */
+function masterPlanLines(mp: Record<string, any> | undefined): string[] { // eslint-disable-line @typescript-eslint/no-explicit-any
+  if (!mp || typeof mp !== 'object') return []
+  const today = new Date().toISOString().slice(0, 10)
+  const out = ['', '## Base case', ...Object.entries(mp.base_case ?? {}).map(([k, v]) => `- ${k.replace(/_/g, ' ')}: ${v}`)]
+  if (Array.isArray(mp.tradeoffs) && mp.tradeoffs.length) {
+    out.push('', '## Trade-offs', '| Path | 2027 month | Savings Dec 2029 | Debt Dec 2029 | Debt-free | Interest |', '|---|---|---|---|---|---|')
+    for (const t of mp.tradeoffs) out.push(`| ${t.path} | ${usd(t.month_2027)} | ${usd(t.savings_2029)} | ${usd(t.debt_2029)} | ${t.debt_free} | ${usd(t.interest)} |`)
+  }
+  const upcoming = (mp.deadlines ?? []).filter((d: { date: string }) => d.date >= today)
+  if (upcoming.length) out.push('', '## Upcoming deadlines', ...upcoming.map((d: { date: string; what: string; amount?: number; inflow?: number }) =>
+    `- ${d.date}: ${d.what}${d.amount ? ` (${usd(d.amount)})` : ''}${d.inflow ? ` (+${usd(d.inflow)} in)` : ''}`))
+  if (Array.isArray(mp.risks) && mp.risks.length) out.push('', '## Risks', ...mp.risks.map((r: string) => `- ${r}`))
+  out.push('', 'Month-by-month plan vs live balances: /finance/plan in the app.')
+  return out
+}
