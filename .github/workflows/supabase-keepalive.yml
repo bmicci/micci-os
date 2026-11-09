@@ -1,0 +1,49 @@
+name: supabase-keepalive
+
+# Free-tier Supabase projects are paused after 7 days without activity.
+# This runs a tiny read-only query every ~3 days so that never happens.
+#
+# Project kept alive: brandonmicci-web (updxevgdetmsoznzbkqh).
+# micci-os itself (ptrcyxqybzqwwkridvze) doesn't need this: the daily Plaid
+# cron in vercel.json already queries it every day.
+#
+# Required repo secret: BRANDONMICCI_WEB_SUPABASE_ANON_KEY
+#   (Supabase dashboard -> brandonmicci-web -> Project Settings -> API Keys ->
+#    the publishable key (sb_publishable_...) or the legacy anon key)
+#
+# The query is a SELECT of one row from public.sig_links through PostgREST,
+# using the anon role and its existing read policy. Nothing is written.
+
+on:
+  schedule:
+    - cron: "17 14 */3 * *" # 14:17 UTC on days 1,4,7,...,31 of each month
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: https://updxevgdetmsoznzbkqh.supabase.co
+      SUPABASE_ANON_KEY: ${{ secrets.BRANDONMICCI_WEB_SUPABASE_ANON_KEY }}
+    steps:
+      - name: Query brandonmicci-web
+        run: |
+          if [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Secret BRANDONMICCI_WEB_SUPABASE_ANON_KEY is not set"
+            exit 1
+          fi
+          status=$(curl -sS -o body.json -w '%{http_code}' \
+            --retry 3 --retry-delay 10 --retry-all-errors \
+            "$SUPABASE_URL/rest/v1/sig_links?select=*&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY")
+          echo "HTTP $status"
+          if [ "$status" != "200" ]; then
+            echo "::error::Keep-alive query failed (HTTP $status). If the project is already paused, restore it from the Supabase dashboard."
+            head -c 500 body.json
+            exit 1
+          fi
+          echo "brandonmicci-web is awake."
