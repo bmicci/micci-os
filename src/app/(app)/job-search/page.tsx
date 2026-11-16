@@ -1,6 +1,7 @@
 import { getJobSearchData } from '@/lib/job-search-data-service'
 import { getFinancialData } from '@/lib/financial-data-service'
 import JobSearchApp from '@/components/job-search/JobSearchApp'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Job Search — Micci OS' }
@@ -9,6 +10,7 @@ export const metadata = { title: 'Job Search — Micci OS' }
 // pipeline state + the real cash runway — the number this search is racing.
 
 export default async function JobSearchPage() {
+  await requireOwnerPage()
   const [data, fin] = await Promise.all([getJobSearchData(), getFinancialData()])
 
   const active = data.pipeline.filter(p =>

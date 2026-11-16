@@ -187,6 +187,16 @@ function isTransactionCSV(headers: string[]): boolean {
 
 type DataType = 'debt_accounts' | 'subscriptions' | 'budget_categories' | 'transactions' | 'tax_lots' | 'investment_transactions'
 
+// The commit handler writes through the service client (RLS bypass) to the
+// table named in the request, so that name must come from this list —
+// never straight from the body.
+const IMPORT_TABLES: readonly DataType[] = [
+  'debt_accounts', 'subscriptions', 'budget_categories', 'transactions', 'tax_lots', 'investment_transactions',
+]
+// "Replace all" deletes every row first. Only the small list tables allow
+// it, and only when the caller repeats the table name back (typed in the UI).
+const REPLACEABLE_TABLES: readonly DataType[] = ['debt_accounts', 'subscriptions', 'budget_categories']
+
 // ── Investment CSV detection ──────────────────────────────────────────────
 
 function isTaxLotCSV(headers: string[]): boolean {
@@ -821,15 +831,30 @@ async function handleCommit(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { rows, dataType, mode, accountName } = (await request.json()) as {
+  const { rows, dataType, mode, accountName, confirm } = (await request.json()) as {
     rows: Record<string, unknown>[]
     dataType: DataType
     mode: 'replace' | 'upsert'
     accountName?: string
+    confirm?: string
   }
 
-  if (!rows || !dataType) {
+  if (!Array.isArray(rows) || !dataType) {
     return NextResponse.json({ error: 'rows and dataType are required' }, { status: 400 })
+  }
+  if (!IMPORT_TABLES.includes(dataType)) {
+    return NextResponse.json({ error: 'Unsupported dataType' }, { status: 400 })
+  }
+  if (mode === 'replace' && !['transactions', 'tax_lots', 'investment_transactions'].includes(dataType)) {
+    if (!REPLACEABLE_TABLES.includes(dataType) || confirm !== dataType) {
+      return NextResponse.json(
+        { error: `Replace all deletes every row in ${dataType}. Type the table name to confirm.` },
+        { status: 400 },
+      )
+    }
+    if (rows.length === 0) {
+      return NextResponse.json({ error: 'Refusing to replace a table with zero rows' }, { status: 400 })
+    }
   }
 
   const service = await createServiceClient()

@@ -1,8 +1,10 @@
 import PaycheckSimulator from '@/components/financial/simulators/PaycheckSimulator'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const metadata = { title: 'Paycheck Simulator — Micci OS' }
 
-export default function PaycheckPage() {
+export default async function PaycheckPage() {
+  await requireOwnerPage()
   return (
     <div className="flex flex-col min-h-full">
       <header

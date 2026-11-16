@@ -9,6 +9,7 @@ import {
   BRIEF_TABS, isBriefTab,
   type BriefConfig, type BriefEdition, type BriefRow, type BriefTab, type BriefTweak,
 } from '@/lib/briefs'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Briefs — Micci OS' }
@@ -24,6 +25,7 @@ export default async function BriefsPage({
 }: {
   searchParams: Promise<{ tab?: string; d?: string; t?: string; tests?: string }>
 }) {
+  await requireOwnerPage()
   const params = await searchParams
   const today = chicagoToday()
 

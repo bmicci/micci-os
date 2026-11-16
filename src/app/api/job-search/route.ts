@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { verifiedOwner } from '@/lib/supabase/require-user'
 
 // GET /api/job-search?table=job_pipeline
 export async function GET(req: NextRequest) {
@@ -12,6 +13,8 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = await createClient()
+  const { data: { user } } = await verifiedOwner(supabase)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { data, error } = await supabase.from(table).select('*')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
@@ -28,6 +31,8 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = await createClient()
+  const { data: { user } } = await verifiedOwner(supabase)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { data, error } = await supabase.from(table).insert(row).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
@@ -48,6 +53,8 @@ export async function PATCH(req: NextRequest) {
   }
 
   const supabase = await createClient()
+  const { data: { user } } = await verifiedOwner(supabase)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { data, error } = await supabase
     .from(table)
     .update(updates)
@@ -69,6 +76,8 @@ export async function DELETE(req: NextRequest) {
   }
 
   const supabase = await createClient()
+  const { data: { user } } = await verifiedOwner(supabase)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { error } = await supabase.from(table).delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })

@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { isOwner } from '@/lib/auth/owner'
+import { safeRedirectPath } from '@/lib/auth/redirect'
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -70,9 +71,8 @@ export async function proxy(request: NextRequest) {
   const toLogin = (search: string) =>
     NextResponse.redirect(Object.assign(request.nextUrl.clone(), { pathname: '/login', search }))
   const backTo = () => {
-    const target = request.nextUrl.searchParams.get('redirectTo') || '/financial'
     // Same-origin paths only
-    const safe = target.startsWith('/') && !target.startsWith('//') ? target : '/financial'
+    const safe = safeRedirectPath(request.nextUrl.searchParams.get('redirectTo'))
     return NextResponse.redirect(new URL(safe, request.nextUrl.origin))
   }
 

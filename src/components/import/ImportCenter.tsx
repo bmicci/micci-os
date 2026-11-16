@@ -6,6 +6,7 @@ import { useState, useCallback } from 'react'
 
 type DataType = 'auto' | 'debt_accounts' | 'subscriptions' | 'budget_categories' | 'transactions'
 type ImportMode = 'replace' | 'upsert'
+const REPLACEABLE = ['debt_accounts', 'subscriptions', 'budget_categories'] as const
 type Stage = 'idle' | 'parsing' | 'preview' | 'committing' | 'done' | 'error'
 
 interface ParseResult {
@@ -148,7 +149,9 @@ function getActionColor(action: string): { bg: string; color: string; border: st
 export default function ImportCenter() {
   const [stage, setStage] = useState<Stage>('idle')
   const [dataType, setDataType] = useState<DataType>('auto')
-  const [importMode, setImportMode] = useState<ImportMode>('replace')
+  const [importMode, setImportMode] = useState<ImportMode>('upsert')
+  // Replace wipes the table first — the owner types the table name to confirm.
+  const [replaceConfirm, setReplaceConfirm] = useState('')
   const [isDragging, setIsDragging] = useState(false)
   const [parseResult, setParseResult] = useState<ParseResult | null>(null)
   const [commitResult, setCommitResult] = useState<CommitResult | null>(null)
@@ -219,6 +222,14 @@ export default function ImportCenter() {
     [handleFile]
   )
 
+  // Replace only applies to the list tables; transactions and investment
+  // imports always dedup.
+  const willReplace =
+    importMode === 'replace' &&
+    !!parseResult &&
+    (REPLACEABLE as readonly string[]).includes(parseResult.detectedType)
+  const replaceConfirmed = !!parseResult && replaceConfirm.trim() === parseResult.detectedType
+
   const handleCommit = useCallback(async () => {
     if (!parseResult) return
 
@@ -233,6 +244,7 @@ export default function ImportCenter() {
           rows: parseResult.rows,
           dataType: parseResult.detectedType,
           mode: parseResult.detectedType === 'transactions' ? 'upsert' : importMode,
+          confirm: replaceConfirm.trim(),
           accountName: parseResult.accountName || accountName,
         }),
       })
@@ -249,7 +261,7 @@ export default function ImportCenter() {
       setErrorMsg(err instanceof Error ? err.message : 'Unknown error')
       setStage('error')
     }
-  }, [parseResult, importMode, accountName])
+  }, [parseResult, importMode, accountName, replaceConfirm])
 
   const reset = () => {
     setStage('idle')
@@ -257,6 +269,7 @@ export default function ImportCenter() {
     setCommitResult(null)
     setErrorMsg(null)
     setFileName(null)
+    setReplaceConfirm('')
   }
 
   return (
@@ -329,7 +342,7 @@ export default function ImportCenter() {
             >
               Mode:
             </span>
-            {(['replace', 'upsert'] as ImportMode[]).map((m) => (
+            {(['upsert', 'replace'] as ImportMode[]).map((m) => (
               <button
                 key={m}
                 onClick={() => setImportMode(m)}
@@ -581,7 +594,25 @@ export default function ImportCenter() {
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 items-center flex-wrap">
+                {willReplace && (
+                  <input
+                    value={replaceConfirm}
+                    onChange={(e) => setReplaceConfirm(e.target.value)}
+                    placeholder={`Type ${parseResult.detectedType} to replace all`}
+                    aria-label={`Type ${parseResult.detectedType} to confirm replacing every existing row`}
+                    autoComplete="off"
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      border: '1px solid rgba(248,113,113,0.5)',
+                      background: 'rgba(248,113,113,0.06)',
+                      color: 'var(--text-primary)',
+                      fontSize: 13,
+                      minWidth: 240,
+                    }}
+                  />
+                )}
                 <button
                   onClick={reset}
                   style={{
@@ -598,7 +629,9 @@ export default function ImportCenter() {
                 </button>
                 <button
                   onClick={handleCommit}
+                  disabled={willReplace && !replaceConfirmed}
                   style={{
+                    opacity: willReplace && !replaceConfirmed ? 0.45 : 1,
                     padding: '8px 20px',
                     borderRadius: 8,
                     border: 'none',
@@ -606,11 +639,11 @@ export default function ImportCenter() {
                     color: '#050505',
                     fontSize: 13,
                     fontWeight: 700,
-                    cursor: 'pointer',
+                    cursor: willReplace && !replaceConfirmed ? 'not-allowed' : 'pointer',
                     letterSpacing: '0.02em',
                   }}
                 >
-                  Import {parseResult.totalParsed} rows →
+                  {willReplace ? 'Replace all with' : 'Import'} {parseResult.totalParsed} rows →
                 </button>
               </div>
             </div>

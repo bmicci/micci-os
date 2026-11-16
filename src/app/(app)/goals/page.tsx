@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import LifePlanClient, { type DBSection, type DBGoal } from '@/components/life-plan/LifePlanClient'
 import type { FoundationData, RitualsData } from '@/lib/life-plan-data'
 import { SECTIONS } from '@/lib/life-plan-data'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 // ── Static fallback builders ───────────────────────────────────
 
@@ -112,6 +113,7 @@ function buildStaticGoals(): DBGoal[] {
 // ── Page ───────────────────────────────────────────────────────
 
 export default async function GoalsPage() {
+  await requireOwnerPage()
   let sections: DBSection[] = []
   let goals: DBGoal[] = []
   let foundation: FoundationData | null = null

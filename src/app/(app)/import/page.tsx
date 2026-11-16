@@ -2,12 +2,14 @@ import { Upload } from 'lucide-react'
 import ImportCenter from '@/components/import/ImportCenter'
 import BankSyncCard from '@/components/import/BankSyncCard'
 import StatementFindingsCard from '@/components/import/StatementFindingsCard'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const metadata = {
   title: 'Import Center — micci-os',
 }
 
-export default function ImportPage() {
+export default async function ImportPage() {
+  await requireOwnerPage()
   return (
     <div
       className="flex flex-col gap-6 p-6 md:p-8 max-w-5xl mx-auto w-full"

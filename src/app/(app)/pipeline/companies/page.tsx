@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getPipelineData } from '@/lib/pipeline-data'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Companies — Micci OS' }
@@ -10,6 +11,7 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default async function CompaniesPage() {
+  await requireOwnerPage()
   const { companies, reqs, contacts } = await getPipelineData()
   const reqCount = new Map<string, number>()
   reqs.forEach(r => reqCount.set(r.company_id, (reqCount.get(r.company_id) ?? 0) + 1))

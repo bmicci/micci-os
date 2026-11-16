@@ -1,10 +1,12 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getPipelineData } from '@/lib/pipeline-data'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 
 export default async function CompanyDetail({ params }: { params: Promise<{ id: string }> }) {
+  await requireOwnerPage()
   const { id } = await params
   const { companies, contacts, reqs, recentTouches } = await getPipelineData()
   const company = companies.find(c => c.id === id)

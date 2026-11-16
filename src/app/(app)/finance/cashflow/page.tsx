@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { plannedCashEvents, type PropertyTaxPlan } from '@/lib/finance/cashEvents'
 import { debtPaymentLines, livingLines } from '@/lib/finance/cashflowPlan'
 import { SS_RATE } from '@/lib/tax/brackets'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Cash Flow Model — Micci OS' }
@@ -16,6 +17,7 @@ async function loadPropertyTax(): Promise<PropertyTaxPlan | null> {
 }
 
 export default async function CashFlowPage() {
+  await requireOwnerPage()
   const [data, propertyTax] = await Promise.all([getFinancialData(), loadPropertyTax()])
   const todayIso = new Date().toISOString().slice(0, 10)
   const accepted = data.offers.find(o => o.offer.status === 'accepted') ?? null

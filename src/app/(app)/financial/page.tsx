@@ -7,6 +7,7 @@ import TabContainer from '@/components/financial/TabContainer'
 import BriefHeadlineCard from '@/components/briefs/BriefHeadlineCard'
 import { createClient } from '@/lib/supabase/server'
 import { chicagoToday, loadBriefHeadlines } from '@/lib/briefsOverview'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Financial — Micci OS' }
@@ -116,6 +117,7 @@ async function fetchPortfolio() {
 }
 
 export default async function FinancialPage() {
+  await requireOwnerPage()
   const today = chicagoToday()
   const [data, portfolioData, briefs] = await Promise.all([
     getFinancialData(),

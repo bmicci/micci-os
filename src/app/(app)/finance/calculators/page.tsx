@@ -2,6 +2,7 @@ import CalculatorsClient from '@/components/financial/calculators/CalculatorsCli
 import type { PlanData } from '@/components/financial/calculators/types'
 import { getFinancialData } from '@/lib/financial-data-service'
 import { createServiceClient } from '@/lib/supabase/server'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const metadata = { title: 'Calculators — Micci OS' }
 export const dynamic = 'force-dynamic'
@@ -27,6 +28,7 @@ async function loadPlan(): Promise<PlanData> {
 }
 
 export default async function CalculatorsPage() {
+  await requireOwnerPage()
   const [data, plan] = await Promise.all([getFinancialData(), loadPlan()])
   const debts = data.debts
     .filter(d => d.category !== 'Mortgage' && d.balance > 0)

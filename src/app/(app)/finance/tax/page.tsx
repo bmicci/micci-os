@@ -1,6 +1,7 @@
 import TaxCenterTab from '@/components/financial/TaxCenterTab'
 import type { TaxPlan2026 } from '@/lib/tax/estimate'
 import { createServiceClient } from '@/lib/supabase/server'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const metadata = { title: 'Tax Center — Micci OS' }
 export const dynamic = 'force-dynamic'
@@ -16,6 +17,7 @@ async function loadTaxPlan(): Promise<TaxPlan2026 | null> {
 }
 
 export default async function TaxPage() {
+  await requireOwnerPage()
   const plan2026 = await loadTaxPlan()
   return (
     <div className="flex flex-col min-h-full">
