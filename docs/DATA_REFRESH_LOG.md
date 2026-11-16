@@ -10,6 +10,29 @@ _Last updated: Nov 15, 2026_
 
 ---
 
+## ⚡ Nov 16, 2026 — Master Plan (`/finance/plan`), plan v16
+
+- **What it is:** the plan against live balances: headline numbers, the
+  dated cash ledger (Nov 15 to Jan 31, both gift cases), a card payoff
+  tracker, deadlines, milestones, month by month, trade-offs.
+- **Where the plan comes from:** `financial_settings.strategic_plan`
+  (`master_plan` holds the workbook's CF_A/B/C month ends and the Cash
+  Ledger sheet). It is generated, never hand-edited:
+  `python3 scripts/export-strategic-plan.py <workbook.xlsx>
+  scripts/strategic-plan-v16.meta.json <out.sql>` writes the migration.
+  The meta file carries what the workbook doesn't (trade-offs, deadlines,
+  next steps, risks from the plan document).
+- 🔁 **When the plan changes:** re-run the export on the new workbook with
+  a new meta file, review the SQL, apply it with Brandon's approval.
+- **Live side:** debts from `debt_accounts` (bank-synced where linked),
+  checking from Plaid, savings from `financial_settings.assets` (manual).
+- 🔴 **Owed for the page to tie:** manual balances for the HELOC,
+  Virginia FCU, RH, UT Southwestern, Apple installments and Best Buy
+  (last edited Nov 4 or earlier). The plan's start has the HELOC at
+  $189,150, which includes a $3,200 bridge draw that may not be taken.
+- **Status:** `20261116_strategic_plan_v16.sql` is in the repo. The
+  database holds v8 until Brandon approves applying it.
+
 ## ⚡ Nov 15, 2026 — audit Phase 2
 
 - **Runway: cash gap vs cash-out.** With an accepted job whose pay covers

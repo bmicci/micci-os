@@ -20,7 +20,7 @@ This is NOT a greenfield build. Every section below is built and live. Do not sc
 |---|---|---|
 | `/dashboard` | Command center summary | ✅ live |
 | `/financial` | 8-tab financial dashboard (Overview · Cash Flow · Spending · HELOC Plan · Debt Payoff · Subscriptions · Investments · Net Worth) | ✅ live from Supabase |
-| `/finance/*` | Simulators: paycheck, heloc, cashflow, scenarios, investments, tax, calculators | ✅ live |
+| `/finance/*` | Simulators: paycheck, heloc, cashflow, scenarios, investments, tax, calculators; `/finance/plan` Master Plan (plan vs live balances, cash ledger, card payoff tracker) | ✅ live |
 | `/perks` | Amex credits + MR points tracker (auto-rolling periods) | ✅ live |
 | `/goals` | Goals + Vision (480 goals, Foundation tab, in-place editing) | ✅ live |
 | `/planner` | Live date-driven week + archived Battle Plan | ✅ live |
@@ -54,7 +54,7 @@ Color ratio: ~60% ink base, ~30% glass, <10% accent. Cyan is for actions and hea
 - Brandon left JPMC March 19, 2026. Unemployment benefits ended Oct 2026. He accepted a job at **Schwab**, starting Nov 16, 2026 (semi-monthly pay; first payday assumed Nov 30, to confirm; details in `financial_settings.job_offers`). The Southwest contract fell through. The app is moving from stabilization to rebuild.
 - High-rate debt rolled to the HELOC (Texas CU, $190K limit @ 6.85%); remaining 0% promos are paid from the HELOC as they expire. Mortgage: BofA ~$498K @ 3.375% (hold).
 - The runway projection lives in the `/financial` header and the dashboard. With a job whose pay covers spend it reports a **cash gap** (days below $0 before pay catches up) instead of a cash-out date; see `computeRunwayProjection`.
-- **Strategic plan:** the database holds plan **v8** (`financial_settings.strategic_plan`). Plan v9 has been reviewed but is NOT loaded; do not load it without Brandon's explicit approval.
+- **Strategic plan:** the agreed plan is **v16** (Nov 16, 2026). `/finance/plan` (Master Plan) compares it with live balances. The plan is data in `financial_settings.strategic_plan`, generated from the workbook by `scripts/export-strategic-plan.py` into `supabase/migrations/20261116_strategic_plan_v16.sql`. The database holds **v8** until that migration is applied; do not apply it, or any later plan, without Brandon's explicit approval.
 - Vercel previews use the **real** database. Never mutate data from a preview or a script without approval.
 - Current balances, statuses, and what data is owed/stale: **`docs/DATA_REFRESH_LOG.md`** — read it before touching data, update it after changing how a section gets data.
 

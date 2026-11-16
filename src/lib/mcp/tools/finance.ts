@@ -263,7 +263,7 @@ export const financeTools: AnyMicciTool[] = [
     name: 'micci_strategic_plan',
     title: 'Strategic financial plan',
     description:
-      "Brandon's written strategic plan (Nov 2026 to Dec 2029): assumptions, spending strategies A/B/C, car options, 401(k) elections, paydown order, subscription and bill savings, projected debt at the end of 2029, the open decisions and (v8+) the base case, trade-offs, deadlines and risks behind the Master Plan page. Use for planning questions like 'which strategy?', 'what does a $75K car do?', 'what's the 401(k) plan?'. Live balances are in micci_debts; this is the plan layered on top and may be marked draft.",
+      "Brandon's written strategic plan (Nov 2026 to Dec 2029): assumptions, spending strategies A/B/C, car options, 401(k) elections, paydown order, subscription and bill savings, projected debt at the end of 2029, the open decisions and (v8+) the base case, trade-offs, deadlines, risks and (v16+) the dated cash ledger behind the Master Plan page. Use for planning questions like 'which strategy?', 'what does a $75K car do?', 'what's the 401(k) plan?'. Live balances are in micci_debts; this is the plan layered on top and may be marked draft.",
     annotations: READ_ONLY,
     handler: async () => {
       const { data } = await db().from('financial_settings').select('value, updated_at').eq('key', 'strategic_plan').maybeSingle()
@@ -276,6 +276,9 @@ export const financeTools: AnyMicciTool[] = [
       const subTotal = subs.reduce((s, x) => s + x.monthly, 0)
       const subSave = subs.reduce((s, x) => s + (x.action === 'cancel' ? x.monthly : x.action === 'switch' ? Math.max(0, x.monthly - (x.replacement ?? 0)) : 0), 0)
       const res = (p.results_debt_end_2029 ?? {}) as Record<string, Record<string, number>>
+      // Columns follow the stored plan (v5: no car / $50K / $75K / $100K; v16: keep the car / lease / $50K / $75K).
+      const carCols = Object.keys(Object.values(res)[0] ?? {})
+      const carLabel = (c: string) => c === 'no_car' ? 'No car' : c.startsWith('lease_') ? `Lease $${c.slice(6)}/mo` : c.startsWith('car_') ? `$${c.slice(4).toUpperCase()} car` : c
       const out = [
         `# Strategic plan v${p.version} — ${p.status} (as of ${p.as_of})`,
         `Source: ${p.source}. Planning information, not advice.`,
@@ -291,9 +294,9 @@ export const financeTools: AnyMicciTool[] = [
         `- Today / C: ${usd(total('today'))} · A Balanced: ${usd(total('A'))} (cuts ~${usd(p.strategies?.A?.cut_per_month ?? 0)}/mo) · B Aggressive: ${usd(total('B'))} (cuts ~${usd(p.strategies?.B?.cut_per_month ?? 0)}/mo)`,
         '',
         '## Projected non-mortgage debt, Dec 2029 (plan simulation)',
-        '| Strategy | No car | $50K car | $75K car | $100K car |',
-        '|---|---|---|---|---|',
-        ...Object.entries(res).map(([k, v]) => `| ${k} | ${usd(v.no_car)} | ${usd(v.car_50k)} | ${usd(v.car_75k)} | ${usd(v.car_100k)} |`),
+        `| Strategy | ${carCols.map(carLabel).join(' | ')} |`,
+        `|---|${carCols.map(() => '---').join('|')}|`,
+        ...Object.entries(res).map(([k, v]) => `| ${k} | ${carCols.map(c => (v[c] != null ? usd(v[c]) : '—')).join(' | ')} |`),
         '',
         '## Savings levers',
         `- Subscriptions: ${subs.length} tracked, ${usd(subTotal)}/mo; cancelling/switching the flagged ones saves ~${usd(subSave)}/mo.`,
@@ -420,6 +423,13 @@ function masterPlanLines(mp: Record<string, any> | undefined): string[] { // esl
   const upcoming = (mp.deadlines ?? []).filter((d: { date: string }) => d.date >= today)
   if (upcoming.length) out.push('', '## Upcoming deadlines', ...upcoming.map((d: { date: string; what: string; amount?: number; inflow?: number }) =>
     `- ${d.date}: ${d.what}${d.amount ? ` (${usd(d.amount)})` : ''}${d.inflow ? ` (+${usd(d.inflow)} in)` : ''}`))
+  const led = mp.cash_ledger
+  if (led && Array.isArray(led.rows)) {
+    const ahead = led.rows.filter((r: { date: string }) => r.date >= today).slice(0, 12)
+    if (ahead.length) out.push('', `## Cash ledger, next lines (A: ${led.cases?.a ?? 'case A'})`,
+      ...ahead.filter((r: { a: number | null }) => r.a).map((r: { date: string; item: string; a: number; a_balance: number }) =>
+        `- ${r.date}: ${r.item} ${r.a > 0 ? '+' : ''}${usd(r.a, true)} (balance ${usd(r.a_balance, true)})`))
+  }
   if (Array.isArray(mp.risks) && mp.risks.length) out.push('', '## Risks', ...mp.risks.map((r: string) => `- ${r}`))
   out.push('', 'Month-by-month plan vs live balances: /finance/plan in the app.')
   return out
