@@ -1,9 +1,10 @@
 import SimulatorProvider from '@/components/financial/SimulatorProvider'
 import FinancialHydrator from '@/components/financial/FinancialHydrator'
 import Link from 'next/link'
-import { Banknote, Landmark, Waves, Scale, TrendingUp, Receipt, Calculator } from 'lucide-react'
+import { Banknote, Landmark, Waves, Scale, TrendingUp, Receipt, Calculator, Compass } from 'lucide-react'
 
 const SIMULATOR_NAV = [
+  { href: '/finance/plan',         label: 'Master Plan', icon: Compass },
   { href: '/finance/paycheck',     label: 'Paycheck',    icon: Banknote },
   { href: '/finance/heloc',        label: 'HELOC',       icon: Landmark },
   { href: '/finance/cashflow',     label: 'Cash Flow',   icon: Waves },

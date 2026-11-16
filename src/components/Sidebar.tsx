@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Receipt,
   Calculator,
+  Compass,
   Newspaper,
   LayoutGrid,
   X,
@@ -42,6 +43,7 @@ const NAV_ITEMS: { href: string; label: string; icon: LucideIcon; exact: boolean
 ];
 
 const SIMULATOR_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/finance/plan", label: "Master Plan", icon: Compass },
   { href: "/finance/paycheck", label: "Paycheck", icon: Banknote },
   { href: "/finance/heloc", label: "HELOC", icon: Landmark },
   { href: "/finance/cashflow", label: "Cash Flow", icon: Waves },
