@@ -61,7 +61,7 @@ src/
 
 ## Current Build Phase
 
-**Refinement mode (Jul 2026).** Phases 0–3 of `docs/IMPLEMENTATION_PLAN.md` are built: all sections live, Supabase-first data layer, calculation engine in `lib/finance/`, live transaction-derived spend/burn/runway/subscriptions. Remaining backlog: Plaid/auto-sync (Phase 4), advanced viz + polish (Phase 5), and whatever `docs/DATA_REFRESH_LOG.md` marks as owed.
+**Refinement mode (Jul 2026).** Phases 0–3 of `docs/archive/IMPLEMENTATION_PLAN.md` are built: all sections live, Supabase-first data layer, calculation engine in `lib/finance/`, live transaction-derived spend/burn/runway/subscriptions. Remaining backlog: Plaid/auto-sync (Phase 4), advanced viz + polish (Phase 5), and whatever `docs/DATA_REFRESH_LOG.md` marks as owed.
 
 ## PRD Documents
 
@@ -76,7 +76,7 @@ Read the relevant PRD before building any module:
 | Phase 3C: Career | Job Search KPIs, Networking CRM | `docs/prds/04-CAREER-MODULES.md` |
 | Phase 0B: Document Import System | Structured + AI-assisted data ingestion from uploaded documents | `docs/prds/05-DOCUMENT-IMPORT-SYSTEM.md` |
 | Daily Briefs (Micci Daily) | Briefs hub replacing Cowork scheduled briefs | `docs/prds/06-DAILY-BRIEFS.md` |
-| Implementation Plan | Phase dependencies, build order, timeline | `docs/IMPLEMENTATION_PLAN.md` |
+| Implementation Plan | Phase dependencies, build order, timeline | `docs/archive/IMPLEMENTATION_PLAN.md` |
 
 ## Supabase Connection
 

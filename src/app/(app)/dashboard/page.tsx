@@ -202,6 +202,16 @@ export default async function DashboardPage() {
             </>
           )
         })()}
+        {runwayProjection.shortfall && (
+          <div>
+            <div className="font-mono text-[22px] font-bold" style={{ color: '#fbbf24' }}>
+              −{fmtRound(Math.abs(runwayProjection.shortfall.deepestCash))}
+            </div>
+            <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+              Cash gap · {runwayProjection.shortfall.days}d from {new Date(runwayProjection.shortfall.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </div>
+          </div>
+        )}
         {cashOut && (
           <div>
             <div className="font-mono text-[22px] font-bold text-[var(--text-primary)]">
@@ -228,7 +238,7 @@ export default async function DashboardPage() {
             </div>
           </div>
         )}
-        <Link href="/job-search" className="btn btn-primary ml-auto">
+        <Link href="/pipeline" className="btn btn-primary ml-auto">
           Job pipeline →
         </Link>
       </div>
@@ -257,7 +267,7 @@ export default async function DashboardPage() {
               </Link>
             ))}
             {jobToday.map((p, i) => (
-              <Link key={`job-${i}`} href="/job-search"
+              <Link key={`job-${i}`} href="/pipeline"
                 className="flex items-center gap-3 py-2 text-[12.5px] hover:bg-white/[0.02] transition-colors"
                 style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                 {dot('#8b5cf6')}
@@ -385,7 +395,7 @@ export default async function DashboardPage() {
           style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)' }}>
           <Wallet size={12} strokeWidth={2} className="inline mr-1 -mt-0.5" /> Financial · <b className="text-[var(--text-primary)]">live</b>
         </Link>
-        <Link href="/job-search" className="text-[11.5px] px-3 py-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
+        <Link href="/pipeline" className="text-[11.5px] px-3 py-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
           style={{
             border: `1px solid ${activePipeline.length === 0 ? 'rgba(239,68,68,0.45)' : 'rgba(255,255,255,0.1)'}`,
             background: activePipeline.length === 0 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.03)',

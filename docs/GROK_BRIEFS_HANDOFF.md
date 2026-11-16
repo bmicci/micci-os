@@ -18,7 +18,7 @@
 - **One table, one save call.** Every Grok brief saves into the same `briefs` table the Claude Routines use, through the same `upsert_brief()` function. That means `/briefs` renders Grok's briefs with no new code, and the Note button, the Inputs box and the `micci_briefs` MCP tool all keep working.
 - **Side by side, then cut over.** Grok saves under `doc_key = <date>-grok`. That key sorts after Claude's `<date>`, so `/briefs` shows Grok's edition by default, and Claude's edition for the same day stays one click away in the history picker. When a Grok brief has beaten Claude's for a few days, pause that Claude Routine (claude.ai → Claude Code → Routines). Grok needs no change at cutover.
 - **Markets stays where it is.** The Stocks & ETFs bot already writes `markets_bot_briefs`, shown in the Markets tab of `/briefs` (`/markets` redirects there). Leave it alone. The Claude Markets Routine's rows are no longer displayed, so it can be paused.
-- **Edge-function pilot is parked.** Its `grok_briefs` and `brief_schedules` migration (`supabase/migrations/20261101_micci_daily_grok.sql`) has not been applied, and its `/daily` page has been removed. Bots need no deploys or secrets and can already reach Gmail and Calendar, so they're the faster path. If the pilot comes back, see "Edge-function notes" at the bottom.
+- **Edge-function pilot removed (Nov 15, 2026).** Its code and unapplied migration were deleted from the repo; bots need no deploys or secrets and can already reach Gmail and Calendar. The code is in git history if it is ever wanted, with the caveats under "Edge-function notes".
 
 ## What each bot needs connected in Grok
 
@@ -245,7 +245,7 @@ The Stocks & ETFs bot keeps writing `markets_bot_briefs` (pre-market and close) 
 4. When Grok wins, pause that Claude Routine (trigger ids are in `docs/prds/06-DAILY-BRIEFS-PROMPTS.md`).
 5. Leave a Note on anything wrong. The next Grok run applies it.
 
-## Edge-function notes (only if the parked pilot is revived)
+## Edge-function notes (only if the removed pilot is revived from git history)
 - `dispatch` marks `last_run_date` before invoking each function, and the invokes are fire-and-forget `fetch()` calls. If the dispatcher returns before those requests leave, the brief is marked as run but never runs. Await them (`Promise.allSettled`) or use `EdgeRuntime.waitUntil`.
 - The xAI API alone has no Gmail or Calendar. The Morning Brief and Home briefs would need a Google OAuth client with `gmail.readonly` and `calendar.readonly` scopes and a stored refresh token. Publish the OAuth app "In production": in Testing status, Google expires refresh tokens after 7 days.
 - Write through `upsert_brief()` rather than a new table, so `/briefs`, Notes and the MCP keep working.

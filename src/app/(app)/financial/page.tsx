@@ -50,13 +50,26 @@ function getBannerState(runway: RunwayProjection) {
     const fmtDay = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     const surplus = emp.monthlySurplus
     const surplusTxt = `${surplus >= 0 ? '+' : '−'}${fmt$(surplus)}/mo after`
+    const signed$ = (n: number) => `${n < 0 ? '−' : ''}${fmt$(n)}`
+    // A few days below $0 before pay catches up: a gap to bridge, not a cash-out.
+    const gap = runway.shortfall
+    if (gap) {
+      return {
+        badge: `${emp.employer.toUpperCase()} · CASH GAP ${fmtDay(gap.startDate).toUpperCase()}`,
+        badgeColor: 'rgba(245,158,11,0.2)',
+        badgeText: '#f59e0b',
+        days: gap.days,
+        daysLabel: `days short · lowest ${signed$(gap.deepestCash)} on ${fmtDay(gap.deepestDate)} · back above $0 ${fmtDay(gap.recoveredDate)} · ${surplusTxt}`,
+        daysColor: '#f59e0b',
+      }
+    }
     if (emp.daysUntilFirstCheck > 0) {
       return {
         badge: `${emp.employer.toUpperCase()} · FIRST CHECK ${fmtDay(emp.firstPayday).toUpperCase()}`,
         badgeColor: 'rgba(34,197,94,0.2)',
         badgeText: '#22c55e',
         days: emp.daysUntilFirstCheck,
-        daysLabel: `days to first check (${fmt$(emp.netPerCheck)} net) · low point ≈ ${fmt$(emp.lowPointCash)} on ${fmtDay(emp.lowPointDate)} · ${surplusTxt}`,
+        daysLabel: `days to first check (${fmt$(emp.netPerCheck)} net) · low point ≈ ${signed$(emp.lowPointCash)} on ${fmtDay(emp.lowPointDate)} · ${surplusTxt}`,
         daysColor: emp.lowPointCash < 2000 ? '#ef4444' : emp.lowPointCash < 5000 ? '#f59e0b' : '#22c55e',
       }
     }

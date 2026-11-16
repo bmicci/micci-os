@@ -352,6 +352,22 @@ export interface RunwayProjection {
   employment: RunwayEmployment | null  // set when an accepted job's paychecks are modeled
   /** Dated one-time outflows included in the walk (property tax, promo payoffs). */
   events?: { date: string; amount: number; label: string }[]
+  /**
+   * A temporary gap, not a cash-out: with an accepted job whose pay covers
+   * spend, cash can dip below $0 for a few days before a paycheck lands (or
+   * after a dated payment) and then recover. That needs bridging (HELOC,
+   * moving a payment), but it is not "out of money", so `cashOutDate` stays
+   * null and the gap is reported here.
+   */
+  shortfall?: RunwayShortfall | null
+}
+
+export interface RunwayShortfall {
+  startDate: string                // first day cash is at or below $0
+  recoveredDate: string            // first day cash is back above $0
+  days: number                     // days spent at or below $0
+  deepestCash: number              // most negative balance (≤ 0)
+  deepestDate: string
 }
 
 /** Discrete paycheck schedule for an accepted job (see finance/jobIncome.ts). */
@@ -422,7 +438,7 @@ export function computeRunwayProjection(
 
   // Cash-flow positive with no cliff and no job ahead → never runs out.
   if (!cliff && !paychecks && preCliffMonthlyBurn <= 0 && evs.length === 0) {
-    return { ...base, cashOutDate: null, employment: null }
+    return { ...base, cashOutDate: null, employment: null, shortfall: null }
   }
 
   const dailySpend = monthlySpend / DAYS_PER_MONTH
@@ -433,6 +449,9 @@ export function computeRunwayProjection(
 
   const firstPay = paychecks ? parseLocalDate(paychecks.firstPayday) : null
   let nextPayMs = firstPay ? firstPay.getTime() : Infinity
+  // Paydays before today are already in `liquidCash` — skip them rather than
+  // paying them again on day one.
+  if (paychecks) while (nextPayMs < cursor.getTime()) nextPayMs += paychecks.periodDays * 86400000
   // Track the trough through one full pay period after the first check.
   // …and through any dated one-time outflow (property tax, promo payoffs).
   const troughHorizonMs = Math.max(firstPay ? firstPay.getTime() + paychecks!.periodDays * 86400000 : -Infinity, lastEventMs)
@@ -449,30 +468,56 @@ export function computeRunwayProjection(
     lowPointDate: lowDate,
   } : null
 
+  // Pay that covers spend means a dip below $0 recovers on its own: walk
+  // through it and report it as a shortfall instead of a cash-out.
+  const bridgeable = !!paychecks && paychecks.monthlyNet >= monthlySpend
+  let gapStart: string | null = null
+  let gapEnd: string | null = null
+  let gapDays = 0
+  const shortfall = (): RunwayShortfall | null => gapStart && gapEnd ? {
+    startDate: gapStart,
+    recoveredDate: gapEnd,
+    days: gapDays,
+    deepestCash: Math.round(lowCash),
+    deepestDate: lowDate,
+  } : null
+
   for (let i = 0; i < MAX_DAYS; i++) {
     const pastCliff = cliff ? walker >= cliff : false
     let dailyNet = pastCliff ? -dailySpend : dailyIncome - dailySpend
-    // Paychecks catch every payday up to and including today (handles a
-    // projection that starts after the first payday).
+    // A check lands on its payday (today's included).
     while (walker.getTime() >= nextPayMs) {
       dailyNet += paychecks!.netPerCheck
       nextPayMs += paychecks!.periodDays * 86400000
     }
     dailyNet += eventsByDay.get(isoDate(walker)) ?? 0
-    if (dailyNet < 0 && cash + dailyNet <= 0) {
-      return { ...base, cashOutDate: isoDate(walker), employment: employment() }
+    if (dailyNet < 0 && cash + dailyNet <= 0 && !bridgeable) {
+      return { ...base, cashOutDate: isoDate(walker), employment: employment(), shortfall: null }
     }
     cash += dailyNet
-    if (walker.getTime() <= troughHorizonMs && cash < lowCash) {
+    if (bridgeable) {
+      if (cash <= 0 && !gapStart) gapStart = isoDate(walker)
+      if (gapStart && !gapEnd) {
+        if (cash > 0) gapEnd = isoDate(walker)
+        else gapDays++
+      }
+    }
+    if ((walker.getTime() <= troughHorizonMs || (gapStart && !gapEnd)) && cash < lowCash) {
       lowCash = cash
       lowDate = isoDate(walker)
     }
-    // Employed and cash-flow positive past the trough window → it never runs out.
-    if (paychecks && walker.getTime() > troughHorizonMs && paychecks.monthlyNet >= monthlySpend) {
-      return { ...base, cashOutDate: null, employment: employment() }
+    // Employed and cash-flow positive past the trough window (and out of any
+    // temporary gap) → it never runs out.
+    if (bridgeable && walker.getTime() > troughHorizonMs && (!gapStart || gapEnd)) {
+      return { ...base, cashOutDate: null, employment: employment(), shortfall: shortfall() }
     }
     walker.setDate(walker.getDate() + 1)
   }
 
-  return { ...base, cashOutDate: null, employment: employment() }
+  // Pay only just covers spend and the gap never closed within 10 years:
+  // that is a real cash-out, on the day it first hit zero.
+  if (gapStart && !gapEnd) {
+    return { ...base, cashOutDate: gapStart, employment: employment(), shortfall: null }
+  }
+  return { ...base, cashOutDate: null, employment: employment(), shortfall: null }
 }
