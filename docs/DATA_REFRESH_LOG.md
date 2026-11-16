@@ -6,7 +6,23 @@ data. Three categories:
 - 🔁 **ROUTINE** — recurring refresh, with cadence and method
 - ⚙️ **AUTO** — refreshes itself; listed so nobody re-builds it
 
-_Last updated: Nov 6, 2026_
+_Last updated: Nov 15, 2026_
+
+---
+
+## ⚡ Nov 15, 2026 — audit Phase 2
+
+- **Runway: cash gap vs cash-out.** With an accepted job whose pay covers
+  spend, a dip below $0 before a paycheck (or after a dated payment) is now
+  reported as a **cash gap** (`runwayProjection.shortfall`: days short,
+  deepest balance, recovery date) instead of a cash-out date. A cash-out
+  date still shows when pay does not cover spend. Paydays before today are
+  no longer added again on day one. Shown on `/financial` header, dashboard
+  and the MCP runway tool.
+- **Import:** Merge is the default; Replace all needs the table name typed
+  and only works on debts, subscriptions and budget categories (PR #69).
+- `/job-search` redirects to `/pipeline`. The `job_*` tables are untouched.
+- Grok edge-function pilot removed from the repo (never deployed to the DB).
 
 ---
 
@@ -162,7 +178,7 @@ _Last updated: Nov 6, 2026_
 | Markets briefs (`markets_bot_briefs`) | ⚙️ AUTO | Stocks & ETFs **Grok bot** upserts one row per `(brief_type, brief_date)`: `pre_market` ~7:00 AM CT and `close` ~3:30 PM CT, weekdays. The Markets tab in `/briefs` is read-only on this table (session client, RLS authenticated SELECT) and never reads portfolio/plaid/finance tables. Rows titled `Test…` or `status = 'failed'` are hidden unless `?tests=1` |
 | `portfolio_snapshot` JSON | ⚙️ AUTO | Loose by design: tickers live under `prices` keys, so holdings rotate without migrations. UI tolerates both documented keys and the bot's early variants (bare-number prices, `vs_cost_pct`, `fri_change_pct`) |
 
-Overlap to resolve: the claude.ai Markets Routine still writes `briefs` tab `markets` (shown in `/briefs`), and the Grok edge-function pilot (`supabase/functions/markets` → `grok_briefs`) is a separate path; its `/daily` page was removed Nov 1 (migration never applied). The Claude Markets Routine's `briefs` rows are no longer shown — pause it.
+Overlap to resolve: the claude.ai Markets Routine still writes `briefs` tab `markets`; those rows are no longer shown — pause it. The Grok edge-function pilot (`supabase/functions`, `grok_briefs`) was removed from the repo Nov 15, 2026 (its migration was never applied; the code is in git history before that date).
 
 **Morning hub (Nov 1, 2026):** `/briefs` opens on an Overview (one headline card per brief, freshness + flag counts, `src/lib/briefsOverview.ts`). The dashboard shows a compact "This morning" strip; `/financial` (money), `/pipeline` (jobs) and `/health` show their own headline linking into `/briefs`.
 

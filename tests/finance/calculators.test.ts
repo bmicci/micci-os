@@ -149,12 +149,18 @@ describe('runway: dated one-time outflows', () => {
       { date: '2026-12-31', amount: -15000, label: 'Property tax (planned payment)' },
     ])
   })
-  it('a big dated payment can push the cash-out date even with a job', () => {
+  // Nov 15, 2026: with pay that covers spend this is a cash gap to bridge
+  // (it recovers), not a cash-out date. It is still flagged, with its size.
+  it('a big dated payment opens a cash gap even with a job', () => {
     const pay = { employer: 'Schwab', firstPayday: '2026-11-30', periodDays: 14, netPerCheck: 6257, monthlyNet: 13557 }
     const today = new Date(2026, 10, 5)
     const without = computeRunwayProjection(9000, 9800, 0, null, today, pay)
     const withTax = computeRunwayProjection(9000, 9800, 0, null, today, pay, [{ date: '2026-12-31', amount: -15000, label: 'Property tax' }])
     expect(without.cashOutDate).toBeNull()
-    expect(withTax.cashOutDate).toBe('2026-12-31')
+    expect(without.shortfall).toBeNull()
+    expect(withTax.cashOutDate).toBeNull()
+    expect(withTax.shortfall?.startDate).toBe('2026-12-31')
+    expect(withTax.shortfall!.deepestCash).toBeLessThan(0)
+    expect(withTax.shortfall!.recoveredDate > '2026-12-31').toBe(true)
   })
 })
