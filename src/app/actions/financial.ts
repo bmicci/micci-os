@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/service'
+import { requireUser } from '@/lib/supabase/require-user'
 
 type ModuleStatus = 'complete' | 'in_progress' | 'not_started'
 
@@ -20,6 +21,8 @@ export async function updateModuleProgress(
   status: string,
   pct: number,
 ): Promise<{ error?: string }> {
+  // Server actions are public POST endpoints: check the owner here too.
+  if (!(await requireUser())) return { error: 'Unauthorized' }
   const supabase = createServiceClient()
   if (!supabase) return { error: 'No Supabase client' }
 

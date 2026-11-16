@@ -1,11 +1,13 @@
 import Link from 'next/link'
 import { getPipelineData } from '@/lib/pipeline-data'
 import QuickLog from '@/components/pipeline/QuickLog'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Log a Touch — Micci OS' }
 
 export default async function LogPage() {
+  await requireOwnerPage()
   const { companies, contacts } = await getPipelineData()
   return (
     <div className="px-6 md:px-10 py-8 space-y-4 max-w-[1200px]">

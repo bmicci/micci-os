@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import PerksTab from '@/components/perks/PerksTab'
 import type { DbPerkCredit } from '@/types/database'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Perks & Points — Micci OS' }
@@ -53,6 +54,7 @@ async function rollStalePeriods(supabase: any, credits: DbPerkCredit[]): Promise
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 export default async function PerksPage() {
+  await requireOwnerPage()
   const supabase = createServiceClient()
 
   let credits: DbPerkCredit[] = []

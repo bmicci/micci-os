@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import type { DbPortfolioPosition, DbPortfolioTarget } from '@/types/database'
 import InvestmentsPortfolioTab from '@/components/financial/InvestmentsPortfolioTab'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Investment Portfolio — Micci OS' }
@@ -49,6 +50,7 @@ async function fetchGoal(): Promise<{ yearEndTarget?: number; yearStartValue?: n
 }
 
 export default async function InvestmentsPage() {
+  await requireOwnerPage()
   const [positions, targets, goal] = await Promise.all([fetchPositions(), fetchTargets(), fetchGoal()])
 
   const totalValue = positions.reduce((s, p) => s + Number(p.current_value ?? 0), 0)

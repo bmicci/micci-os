@@ -1,10 +1,12 @@
 import Link from 'next/link'
 import { getPipelineData } from '@/lib/pipeline-data'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Contacts — Micci OS' }
 
 export default async function ContactsPage() {
+  await requireOwnerPage()
   const { contacts } = await getPipelineData()
   const today = new Date().toISOString().slice(0, 10)
 

@@ -4,6 +4,7 @@ import { getPipelineData, WEEKLY_TARGETS } from '@/lib/pipeline-data'
 import { createServiceClient } from '@/lib/supabase/service'
 import BriefHeadlineCard from '@/components/briefs/BriefHeadlineCard'
 import { chicagoToday, loadBriefHeadlines } from '@/lib/briefsOverview'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Pipeline — Micci OS' }
@@ -30,6 +31,7 @@ function statusChip(status: string) {
 }
 
 export default async function PipelinePage() {
+  await requireOwnerPage()
   const today = chicagoToday()
   const [data, briefs] = await Promise.all([
     getPipelineData(),

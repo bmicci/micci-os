@@ -1,11 +1,13 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import PlannerApp from '@/components/planner/PlannerApp'
 import { ScheduleBlock } from '@/lib/supabase/types'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Planner — Micci OS' }
 
 export default async function PlannerPage() {
+  await requireOwnerPage()
   const supabase = createServiceClient()
   const completions: string[] = []
   const customBlocks: ScheduleBlock[] = []

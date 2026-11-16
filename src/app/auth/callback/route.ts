@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { safeRedirectPath } from '@/lib/auth/redirect'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const requested = searchParams.get('next') ?? '/financial'
   // Same-origin paths only ("@evil.com" or "//evil.com" would leave the site)
-  const next = requested.startsWith('/') && !requested.startsWith('//') ? requested : '/financial'
+  const next = safeRedirectPath(searchParams.get('next'))
 
   if (code) {
     const supabase = await createClient()

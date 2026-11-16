@@ -5,11 +5,13 @@ import type { HealthData } from '@/components/health/types'
 import type { ScheduleBlock } from '@/lib/supabase/types'
 import { computeHealthOverview, type HealthDailyRow, type BodyMetricRow } from '@/lib/health/overview'
 import { chicagoToday, shiftDay } from '@/lib/health/dates'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Health — Micci OS' }
 
 export default async function HealthPage() {
+  await requireOwnerPage()
   const supabase = await createClient()
 
   const [

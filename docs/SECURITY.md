@@ -19,6 +19,22 @@ in every API route (`verifiedOwner` / `requireUser` in
 **Lost phone:** delete the factor in Supabase → Authentication → Users →
 brandon@brandonmicci.com → MFA factors, then sign in and re-enroll.
 
+## Defense in depth (Nov 2026 audit)
+
+`src/proxy.ts` is the front gate, but nothing may rely on it alone:
+
+- **Every server page** under `src/app/(app)` calls `await requireOwnerPage()`
+  first (owner + Google SSO + aal2, else redirect to `/login`).
+  `tests/auth/pages.test.ts` fails when a page forgets.
+- **Every API route and server action** that touches data calls
+  `verifiedOwner` / `requireUser` and 401s.
+- **Import** (`/api/import`): the target table must be on the allowlist;
+  "Replace all" is limited to the small list tables and needs the table name
+  typed back. Merge is the default.
+- Post-login redirects go through `safeRedirectPath` (`lib/auth/redirect.ts`).
+- Keep `next` on a current patch release: proxy-bypass advisories are the
+  reason the page-level check exists.
+
 ## Machine endpoints (no browser session)
 | Path | Auth |
 |---|---|

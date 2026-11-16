@@ -6,12 +6,12 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { safeRedirectPath } from '@/lib/auth/redirect'
 
 type Mode = 'loading' | 'enroll' | 'verify' | 'error'
 
 function safeRedirect(): string {
-  const target = new URLSearchParams(window.location.search).get('redirectTo') || '/financial'
-  return target.startsWith('/') && !target.startsWith('//') ? target : '/financial'
+  return safeRedirectPath(new URLSearchParams(window.location.search).get('redirectTo'))
 }
 
 export default function MfaPage() {

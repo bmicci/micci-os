@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import ActionHub from '@/components/tasks/ActionHub'
 import type { ActionItem } from '@/lib/financial-data'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Actions — Micci OS' }
@@ -9,6 +10,7 @@ export const metadata = { title: 'Actions — Micci OS' }
 // and the dashboard Today feed read. One list, every life area.
 
 export default async function TasksPage() {
+  await requireOwnerPage()
   const supabase = createServiceClient()
   let items: ActionItem[] = []
 

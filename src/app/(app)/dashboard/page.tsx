@@ -9,6 +9,7 @@ import MorningOverview from '@/components/briefs/MorningOverview'
 import { createClient } from '@/lib/supabase/server'
 import { chicagoToday, loadBriefHeadlines } from '@/lib/briefsOverview'
 import { daysUntil, dueLabel } from '@/lib/finance/due'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Command Center — Micci OS' }
@@ -30,6 +31,7 @@ const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export default async function DashboardPage() {
+  await requireOwnerPage()
   const supabase = createServiceClient()
 
   const todayCT = chicagoToday()

@@ -1,9 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
+import { verifiedOwner } from '@/lib/supabase/require-user'
 import { NextRequest, NextResponse } from 'next/server'
 
 // GET /api/goals?timeframe=weekly&section=career&page=1&limit=10
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
+  const { data: { user } } = await verifiedOwner(supabase)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { searchParams } = new URL(req.url)
 
   const timeframe = searchParams.get('timeframe')
@@ -30,6 +33,8 @@ export async function GET(req: NextRequest) {
 // POST /api/goals
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
+  const { data: { user } } = await verifiedOwner(supabase)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await req.json()
 
   const { title, description, section, timeframe } = body

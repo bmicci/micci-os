@@ -4,6 +4,7 @@ import type { HELOCDebtAccount, AccountType } from '@/types/finance'
 import { getFinancialData } from '@/lib/financial-data-service'
 import type { DebtAccount } from '@/lib/financial-data'
 import { HELOC_LIMIT } from '@/lib/finance/heloc'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'HELOC Tracker — Micci OS' }
@@ -163,6 +164,7 @@ async function fetchDebtAccounts(live: DebtAccount[]): Promise<HELOCDebtAccount[
 }
 
 export default async function HELOCPage() {
+  await requireOwnerPage()
   const data = await getFinancialData()
   const initialAccounts = await fetchDebtAccounts(data.debts)
   const heloc = initialAccounts?.find(a => a.accountType === 'heloc')

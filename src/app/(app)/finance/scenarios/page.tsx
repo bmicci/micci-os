@@ -1,11 +1,13 @@
 import ScenarioEngine from '@/components/financial/simulators/ScenarioEngine'
 import { getFinancialData } from '@/lib/financial-data-service'
 import { debtPaymentLines, livingLines } from '@/lib/finance/cashflowPlan'
+import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Scenario Engine — Micci OS' }
 
 export default async function ScenariosPage() {
+  await requireOwnerPage()
   const data = await getFinancialData()
   // Fallback totals for a save made without visiting Cash Flow first
   const live = {
