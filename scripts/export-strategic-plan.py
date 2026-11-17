@@ -163,6 +163,8 @@ def main():
                          **({'note': r[7]} if r[7] else {})})
 
     pay = wb['Paycheck']
+    expect(pay, 20, 'Net per check')
+    expect(pay, 22, 'Average month')
     inp = {r[0]: r[1] for r in wb['Inputs'].iter_rows(values_only=True) if r[0] is not None and r[1] is not None}
     summ = wb['Summary']
 
@@ -217,18 +219,26 @@ def main():
         'master_plan': master,
     }
 
+    checks = int(pay['B5'].value or 24)
+    w4_per_check = inp.get('Take-home added per paycheck by the W-4 change') or 0
     assumptions = {
-        'pay_frequency': 'semi-monthly (24 checks: 15th and last day)',
+        'pay_frequency': 'semi-monthly (24 checks: 15th and last day)' if checks == 24 else f'every two weeks ({checks} checks, Fridays)',
+        'checks_per_year': checks,
+        'first_paycheck_net': inp.get('First paycheck, net (no 401(k) yet)'),
         'base_salary': inp.get('Base salary'),
         'net_per_check_5pct': int(round(pay['C20'].value)),
         'net_per_check_10pct': int(round(pay['D20'].value)),
         'net_per_check_max_401k': int(round(pay['E20'].value)),
         'net_per_check_2028': int(round(pay['G20'].value)),
-        'take_home_month_5pct': int(round(pay['C21'].value)),
-        'take_home_month_10pct': int(round(pay['D21'].value)),
-        'take_home_month_max_401k': int(round(pay['E21'].value)),
-        'take_home_month_plan': int(round(pay['F21'].value)),
-        'w4_itemizing_monthly': 0,
+        'take_home_month_5pct': int(round(pay['C22'].value)),
+        'take_home_month_10pct': int(round(pay['D22'].value)),
+        'take_home_month_max_401k': int(round(pay['E22'].value)),
+        'take_home_month_plan': int(round(pay['F22'].value)),
+        # Row 21 is a month with two checks; with 26 checks a year ten months have two and two have three.
+        'take_home_two_check_month_plan': int(round(pay['F21'].value)),
+        'w4_added_per_check': round(w4_per_check, 2),
+        'w4_itemizing_monthly': int(round(w4_per_check * checks / 12)),
+        'w4_step4b_deductions': inp.get('W-4 Step 4(b) deductions'),
         'bonus_net': int(round(pay['B35'].value)),
         'bonus_net_in_march': meta.get('bonus_net_in_march'),
         'first_bonus': '2028-03',

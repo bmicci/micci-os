@@ -276,7 +276,7 @@ export const financeTools: AnyMicciTool[] = [
       const subTotal = subs.reduce((s, x) => s + x.monthly, 0)
       const subSave = subs.reduce((s, x) => s + (x.action === 'cancel' ? x.monthly : x.action === 'switch' ? Math.max(0, x.monthly - (x.replacement ?? 0)) : 0), 0)
       const res = (p.results_debt_end_2029 ?? {}) as Record<string, Record<string, number>>
-      // Columns follow the stored plan (v5: no car / $50K / $75K / $100K; v16: keep the car / lease / $50K / $75K).
+      // Columns follow the stored plan (v5: no car / $50K / $75K / $100K; v16+: keep the car / lease / $50K / $75K).
       const carCols = Object.keys(Object.values(res)[0] ?? {})
       const carLabel = (c: string) => c === 'no_car' ? 'No car' : c.startsWith('lease_') ? `Lease $${c.slice(6)}/mo` : c.startsWith('car_') ? `$${c.slice(4).toUpperCase()} car` : c
       const out = [

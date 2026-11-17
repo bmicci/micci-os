@@ -29,7 +29,7 @@ daily log at `/today`; Phase 4 is hardening, then the feature queue below.
 |---|---|
 | **Supabase → Authentication:** turn off "Allow new users to sign up", disable the Email provider if unused, delete the unused email login (created Mar 8), turn on leaked-password protection | Closes the open-RLS risk from the audit |
 | Add repo secret `BRANDONMICCI_WEB_SUPABASE_ANON_KEY`, then merge **PR #68** (keep-alive) | Stops brandonmicci-web pause warnings |
-| Approve loading **plan v16** (`20261116_strategic_plan_v16.sql`) and refreshing the manual balances (HELOC about $186K, Virginia FCU, RH, UT Southwestern, Apple, Best Buy); close **PR #67**, which the v16 pull request replaces | Master Plan page (`/finance/plan`) shows the agreed plan |
+| Merge **PR #71** (`/finance/plan` on plan v17) and close **PR #67**, which it replaces | Master Plan page shows the agreed plan |
 | `/financial` → Debt Payoff → **✓ Mark paid** on Chase Freedom Unlim BT3 (expired Oct 9) and any other paid promo; update or mark paid the 14 manual debts last edited May–Jul | Accurate debt list and runway |
 | `/tasks`: clear the 4 overdue action items (26 open) | Clean Action Center |
 | Confirm the first Schwab payday (assumed Nov 30) | Runway and cash-gap dates |

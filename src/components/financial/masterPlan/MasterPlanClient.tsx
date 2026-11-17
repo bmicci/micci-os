@@ -100,7 +100,7 @@ export default function MasterPlanClient({ plan, version, asOf, debts, cash, tod
           hint={nextCard ? `${nextCard.label}: ${usd(nextCard.actual)} now` : 'every promo card is at $0'} />
         <Stat label="Next deadline" value={next ? `${next.daysLeft} days` : '—'} tone={next?.status === 'urgent' ? 'bad' : 'default'}
           hint={next ? `${day(next.date)}: ${next.what}` : undefined} />
-        <Stat label="Spare cash, normal 2027 month" value={head.spareMonth != null ? usd(head.spareMonth) : '—'}
+        <Stat label="Spare cash, average 2027 month" value={head.spareMonth != null ? usd(head.spareMonth) : '—'}
           tone={head.spareMonth != null && head.spareMonth < 0 ? 'bad' : 'default'} hint={`planned for strategy ${strategy}, after every bill`} />
         <Stat label="Savings" value={head.savingsNow != null ? usd(head.savingsNow) : '—'}
           hint={head.savingsTarget != null ? `target ${usd(head.savingsTarget)}; manual entry` : 'manual entry'} />

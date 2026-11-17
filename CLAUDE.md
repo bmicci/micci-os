@@ -51,10 +51,10 @@ Color ratio: ~60% ink base, ~30% glass, <10% accent. Cyan is for actions and hea
 
 ## FINANCIAL CONTEXT (November 2026)
 
-- Brandon left JPMC March 19, 2026. Unemployment benefits ended Oct 2026. He accepted a job at **Schwab**, starting Nov 16, 2026 (semi-monthly pay; first payday assumed Nov 30, to confirm; details in `financial_settings.job_offers`). The Southwest contract fell through. The app is moving from stabilization to rebuild.
+- Brandon left JPMC March 19, 2026. Unemployment benefits ended Oct 2026. He accepted a job at **Schwab**, starting Nov 16, 2026 (paid every other Friday, first check Dec 4 per plan v17; details in `financial_settings.job_offers`). The Southwest contract fell through. The app is moving from stabilization to rebuild.
 - High-rate debt rolled to the HELOC (Texas CU, $190K limit @ 6.85%); remaining 0% promos are paid from the HELOC as they expire. Mortgage: BofA ~$498K @ 3.375% (hold).
 - The runway projection lives in the `/financial` header and the dashboard. With a job whose pay covers spend it reports a **cash gap** (days below $0 before pay catches up) instead of a cash-out date; see `computeRunwayProjection`.
-- **Strategic plan:** the agreed plan is **v16** (Nov 16, 2026). `/finance/plan` (Master Plan) compares it with live balances. The plan is data in `financial_settings.strategic_plan`, generated from the workbook by `scripts/export-strategic-plan.py` into `supabase/migrations/20261116_strategic_plan_v16.sql`. The database holds **v8** until that migration is applied; do not apply it, or any later plan, without Brandon's explicit approval.
+- **Strategic plan:** the agreed plan is **v17** (Nov 16, 2026; pay every other Friday). `/finance/plan` (Master Plan) compares it with live balances. The plan is data in `financial_settings.strategic_plan`, generated from the workbook by `scripts/export-strategic-plan.py` into `supabase/migrations/20261117_strategic_plan_v17.sql` (Brandon approved loading it on Nov 17; check `financial_settings.strategic_plan.version` for what is live). Do not apply any later plan without Brandon's explicit approval.
 - Vercel previews use the **real** database. Never mutate data from a preview or a script without approval.
 - Current balances, statuses, and what data is owed/stale: **`docs/DATA_REFRESH_LOG.md`** — read it before touching data, update it after changing how a section gets data.
 
