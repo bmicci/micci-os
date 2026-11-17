@@ -122,7 +122,7 @@
     {
       "key": "emergency_5k",
       "label": "Savings $5,000",
-      "target": "2027-10",
+      "target": "2027-12",
       "savings": 5000
     },
     {
@@ -142,9 +142,9 @@
     },
     {
       "key": "debt_2029",
-      "label": "Non-mortgage debt $61,548",
+      "label": "Non-mortgage debt $61,541",
       "target": "2029-12",
-      "debt": 61548
+      "debt": 61541
     },
     {
       "key": "heloc_paid",
@@ -240,7 +240,7 @@
     },
     {
       "date": "2027-10-18",
-      "what": "BofA ···1205 promo ends; pay the last of it from October's first paycheck",
+      "what": "BofA ···1205 promo ends; pay it off first from October's pay (only about $325 to savings that month)",
       "amount": 800,
       "account": "bofa_1205",
       "kind": "promo"
@@ -261,7 +261,7 @@
       "path": "Agreed: 5% in 2027, $10,000 cushion, rest to HELOC",
       "month_2027": 1158,
       "savings_2029": 10000,
-      "debt_2029": 61548,
+      "debt_2029": 61541,
       "debt_free": "2030-10",
       "interest": 34957,
       "recommended": true
