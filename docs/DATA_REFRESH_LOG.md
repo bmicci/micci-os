@@ -37,6 +37,9 @@ _Last updated: Nov 15, 2026_
   from statements monthly.
 - **Undo:** `financial_settings.strategic_plan_backup_2026_11_17` holds the
   v8 plan and the six balances as they were.
+- **Reloaded Nov 17 from Brandon's fixed workbook:** CFU paid off in January,
+  BofA and all cards clear Oct 2027, Strategy A ends 2029 at $61,541. The
+  first v17 load is backed up as `strategic_plan_backup_2026_11_17b`.
 
 ## ⚡ Nov 15, 2026 — audit Phase 2
 
