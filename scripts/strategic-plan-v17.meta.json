@@ -1,0 +1,336 @@
+{
+  "version": 17,
+  "as_of": "2026-11-16",
+  "status": "base case (agreed plan)",
+  "source": "Strategic_Financial_Plan_2026-2029_v17.docx + Micci_Master_Financial_Model.xlsx (v17)",
+  "base_car_key": "lease_850",
+  "travel_on_points_2027": 200,
+  "heloc_limit": 190000,
+  "bonus_net_in_march": 39330,
+  "account_overrides": {
+    "paypal_0646": {
+      "promo_ends": "2027-01-04"
+    }
+  },
+  "base_case": {
+    "strategy": "A",
+    "k401": "5% in 2027, then 9.3% of base plus 5% of the bonus",
+    "car": "lease about $850 from Feb 2027",
+    "promos": "Best Buy and Chase Freedom in December, PayPal and Chase Freedom Unlimited in January, Citi by March, BofA by its October 2027 deadline; no balance transfer",
+    "bonus_share_to_debt_2029": 1,
+    "w4_change": true,
+    "mom_gift": true,
+    "irs_2022_refund": false,
+    "heloc_amortize_from": "2028-04",
+    "heloc_term_years": 10,
+    "savings_target": 10000,
+    "checking_floor": 4000,
+    "pay": "every two weeks (26 checks); first check Dec 4",
+    "w4_step4b": "$15,000 from Dec 2026, back to $0 in Jan 2028"
+  },
+  "k401_elections": [
+    {
+      "id": "5pct",
+      "label": "5% (full match)",
+      "base_pct": 5,
+      "bonus_pct": 5
+    },
+    {
+      "id": "ramp",
+      "label": "Agreed: 5% in 2027, then 9.3% of base plus 5% of the bonus from 2028",
+      "base_pct": 5,
+      "bonus_pct": 5,
+      "from_2028_base_pct": 9.3,
+      "recommended": true
+    },
+    {
+      "id": "10pct",
+      "label": "10% of base and bonus",
+      "base_pct": 10,
+      "bonus_pct": 10
+    },
+    {
+      "id": "max",
+      "label": "Max from 2027 (about $307 a month spare on average; two-paycheck months run short)",
+      "base_pct": 10.6,
+      "bonus_pct": 5
+    }
+  ],
+  "paydown_order": [
+    "Citi Best Buy ···4802 (pay in full by Dec 27, 2026 or $312 deferred interest posts)",
+    "Chase Freedom ···4628 (0% ends Dec 12, 2026; paid off Dec 31, or Dec 9 if Mom's gift arrives early)",
+    "PayPal Credit ···0646 (pay in full by Jan 4, 2027)",
+    "Chase Freedom Unlimited ···7117 (0% ends Dec 9, 2026; paid off Jan 29, 2027)",
+    "Citi Diamond ···4205 (0% to Jun 18, 2027; cleared by the $8,000 trade-in check and the March refund)",
+    "BofA ···1205 (0% to Oct 18, 2027; July's third paycheck takes about $7,000 off, the last ~$800 is paid in early October)",
+    "Virginia FCU loan (mostly paid by December 2027's third paycheck, finished by the March 2028 bonus)",
+    "HELOC (10-year payment of $2,191 from Apr 2028; everything above $10,000 of savings goes here)"
+  ],
+  "decisions": {
+    "spending_strategy": "A: Balanced (dining $1,200, personal $750, shopping $400)",
+    "k401_2027": "5% in 2027 (full Schwab match, from the second paycheck), then 9.3% of base plus 5% of the bonus from 2028",
+    "hsa": "About $46 a check in 2027 ($1,200 a year)",
+    "car": "Lease about $850 from Feb 2027; take the $8,000 trade-in as a check. Over $900, buy a $50,000 car at $831 instead",
+    "promos": "Best Buy and Chase Freedom in December, PayPal and Chase Freedom Unlimited in January, Citi by March, BofA by its October 2027 deadline. No balance transfer needed if the estimates hold",
+    "bonus_from_2029": "All of it to the HELOC once savings are at $10,000",
+    "heloc": "10-year payment ($2,191) from Apr 2028; paid off around Oct 2030",
+    "savings": "$500 a month to $5,000, then to $10,000 in high-yield savings; $4,000 kept in checking",
+    "travel_2027": "Amex points; cash travel $100 a month",
+    "w4": "Step 4(b) deductions $15,000 from December 2026 (about $161 a check); back to $0 in January 2028",
+    "property_tax": "Pay Dec 31, 2026 with Mom's $15,000",
+    "pay": "Every other Friday: Dec 4, Dec 18, Dec 31, then every two weeks. Two-paycheck months run tight; July and December 2027 have three",
+    "bridge": "$4,000 HELOC draw on Nov 27 if Mom's gift is late (Dec 9 if it arrives early); Dad's Virginia FCU line is the backup"
+  },
+  "not_tracked": {
+    "note": "IRS 2022 refund ($5,000) is off until confirmed. Amex Gold/Platinum, Chase Prime ···9313 and the Apple Card balance are paid in full monthly and are not plan debt. The plan's HELOC start ($189,950) includes the $4,000 bridge draw."
+  },
+  "milestones": [
+    {
+      "key": "deferred_safe",
+      "label": "Best Buy and PayPal paid before deferred interest posts",
+      "target": "2027-01",
+      "kind": "accounts",
+      "accounts": [
+        "citi_bestbuy_4802",
+        "paypal_0646"
+      ]
+    },
+    {
+      "key": "chase_cleared",
+      "label": "Both Chase Freedom cards paid off",
+      "target": "2027-01",
+      "kind": "accounts",
+      "accounts": [
+        "chase_4628",
+        "chase_7117"
+      ]
+    },
+    {
+      "key": "citi_cleared",
+      "label": "Citi Diamond cleared (trade-in check and refund)",
+      "target": "2027-03",
+      "kind": "accounts",
+      "accounts": [
+        "citi_diamond_4205"
+      ]
+    },
+    {
+      "key": "cards_cleared",
+      "label": "All promo cards cleared",
+      "target": "2027-10"
+    },
+    {
+      "key": "emergency_5k",
+      "label": "Savings $5,000",
+      "target": "2027-10",
+      "savings": 5000
+    },
+    {
+      "key": "vfcu_paid",
+      "label": "Virginia FCU loan paid off (first bonus)",
+      "target": "2028-03",
+      "kind": "accounts",
+      "accounts": [
+        "virginia_fcu"
+      ]
+    },
+    {
+      "key": "savings_10k",
+      "label": "Savings $10,000",
+      "target": "2029-03",
+      "savings": 10000
+    },
+    {
+      "key": "debt_2029",
+      "label": "Non-mortgage debt $61,548",
+      "target": "2029-12",
+      "debt": 61548
+    },
+    {
+      "key": "heloc_paid",
+      "label": "HELOC paid off",
+      "target": "2030-10"
+    }
+  ],
+  "deadlines": [
+    {
+      "date": "2026-11-27",
+      "what": "HELOC bridge draw if Mom's gift is not here",
+      "inflow": 4000
+    },
+    {
+      "date": "2026-11-28",
+      "what": "Amex Platinum statement (includes the $895 fee)",
+      "amount": 4531.43
+    },
+    {
+      "date": "2026-12-04",
+      "what": "First Schwab paycheck (Nov 16 to 29, no 401(k) yet)",
+      "inflow": 6540
+    },
+    {
+      "date": "2026-12-09",
+      "what": "Chase Freedom Unlimited ···7117 promo ends (26.24% after; paid off Jan 29)",
+      "amount": 3534,
+      "account": "chase_7117",
+      "kind": "promo"
+    },
+    {
+      "date": "2026-12-12",
+      "what": "Chase Freedom ···4628 promo ends (about 25% after; paid off Dec 31)",
+      "amount": 2684,
+      "account": "chase_4628",
+      "kind": "promo"
+    },
+    {
+      "date": "2026-12-15",
+      "what": "Mortgage",
+      "amount": 2486.79
+    },
+    {
+      "date": "2026-12-18",
+      "what": "Paycheck; 401(k) and the W-4 change start",
+      "inflow": 6387
+    },
+    {
+      "date": "2026-12-27",
+      "what": "Citi Best Buy ···4802: pay in full ($312 deferred interest if not)",
+      "amount": 610,
+      "account": "citi_bestbuy_4802",
+      "kind": "promo"
+    },
+    {
+      "date": "2026-12-31",
+      "what": "Paycheck (Jan 1 holiday); property tax with Mom's gift; Chase Freedom paid off",
+      "amount": 17680,
+      "inflow": 21387
+    },
+    {
+      "date": "2027-01-04",
+      "what": "PayPal Credit ···0646: pay in full",
+      "amount": 451,
+      "account": "paypal_0646",
+      "kind": "promo"
+    },
+    {
+      "date": "2027-01-29",
+      "what": "Chase Freedom Unlimited paid off",
+      "amount": 3510
+    },
+    {
+      "date": "2027-02-28",
+      "what": "Trade-in check, to Citi Diamond",
+      "inflow": 8000
+    },
+    {
+      "date": "2027-03-31",
+      "what": "Tax refund: finishes Citi, the rest to BofA",
+      "inflow": 9800
+    },
+    {
+      "date": "2027-06-18",
+      "what": "Citi Diamond ···4205 promo ends (plan has it cleared in March)",
+      "account": "citi_diamond_4205",
+      "kind": "promo"
+    },
+    {
+      "date": "2027-07-31",
+      "what": "Three-paycheck month: the extra goes to BofA",
+      "amount": 7000
+    },
+    {
+      "date": "2027-10-18",
+      "what": "BofA ···1205 promo ends; pay the last of it from October's first paycheck",
+      "amount": 800,
+      "account": "bofa_1205",
+      "kind": "promo"
+    },
+    {
+      "date": "2027-12-31",
+      "what": "Three-paycheck month: most of the Virginia FCU loan is paid",
+      "amount": 9400
+    },
+    {
+      "date": "2028-03-31",
+      "what": "First bonus (after Social Security): Virginia FCU, then the HELOC",
+      "inflow": 39330
+    }
+  ],
+  "tradeoffs": [
+    {
+      "path": "Agreed: 5% in 2027, $10,000 cushion, rest to HELOC",
+      "month_2027": 1158,
+      "savings_2029": 10000,
+      "debt_2029": 61548,
+      "debt_free": "2030-10",
+      "interest": 34957,
+      "recommended": true
+    },
+    {
+      "path": "Max 401(k) from 2027",
+      "month_2027": 307,
+      "savings_2029": 10000,
+      "debt_2029": 72949,
+      "debt_free": "2030-12",
+      "interest": 37204
+    },
+    {
+      "path": "Bigger cushion: $20,000 savings, bonus 50/50",
+      "month_2027": 1158,
+      "savings_2029": 31704,
+      "debt_2029": 84393,
+      "debt_free": "2031-07",
+      "interest": 39467
+    },
+    {
+      "path": "Live now (C spending), consolidate, windfalls to cash",
+      "month_2027": 604,
+      "savings_2029": 97466,
+      "debt_2029": 202850,
+      "debt_free": "2038-03",
+      "interest": 109411
+    }
+  ],
+  "next_60_days": [
+    "Follow the cash ledger: Best Buy by Dec 27, Chase Freedom on Dec 31, PayPal by Jan 4, Chase Freedom Unlimited on Jan 29.",
+    "Call Credit Union of Texas: when the HELOC draw period ends, whether paid-down principal can be redrawn, and whether the interest is deductible.",
+    "Find PayPal's deferred-interest amount on the statement (it is not on file).",
+    "Ask Schwab whether the 5% match and the $250 kicker apply to the bonus; the 2028 match of $15,250 assumes they do.",
+    "Use Mom's $15,000 for the Dec 31 property tax.",
+    "Elect 5% 401(k) and about $46 HSA per check for 2027; name beneficiaries.",
+    "Submit a new W-4 in Workday: Single, Step 4(b) deductions $15,000, everything else blank. Set Step 4(b) back to $0 in January 2028.",
+    "Shop the car: $800 to $900 with Texas tax, 36 months, $0 down, 15,000 miles, or buy at $50,000.",
+    "Enroll in the Amex credits that need it (Resy, digital entertainment, Gold dining, lululemon) and add both cards to Uber.",
+    "Cancel flagged subscriptions; Sonic; electricity plan; State Farm quote; IRS transcripts; TWC appeal.",
+    "September 2027: check that BofA is under $1,000 and pay it off in early October. Line up a 0% transfer only if much more is left."
+  ],
+  "risks": [
+    "Amex bills run $700 a month above plan: pause the $500 savings transfer first; BofA would not be cleared in October (each $700 a month leaves about $5,000 more for a 0% card).",
+    "First paycheck later than Dec 4: Dad's line covers about $6,000 for two weeks.",
+    "Bonus below target: each 10% is about $4,300 net.",
+    "Trade-in below $8,000 or refund below $9,800: BofA would need a 0% card for what is left.",
+    "Property tax bill above $15,000.",
+    "HELOC rate rises above 6.85%.",
+    "2027 401(k) limit at $25,000 instead of $25,500."
+  ],
+  "excluded_accounts": [
+    {
+      "match": {
+        "last4": "5007"
+      },
+      "reason": "Amex Gold: paid in full monthly"
+    },
+    {
+      "match": {
+        "last4": "3002"
+      },
+      "reason": "Amex Platinum: paid in full monthly"
+    },
+    {
+      "match": {
+        "last4": "9313"
+      },
+      "reason": "Chase Prime Visa: statement balance paid in full (Equal Pay plans inside)"
+    }
+  ]
+}

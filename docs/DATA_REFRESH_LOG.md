@@ -10,6 +10,34 @@ _Last updated: Nov 15, 2026_
 
 ---
 
+## ⚡ Nov 17, 2026 — Master Plan (`/finance/plan`), plan v17
+
+- **What it is:** the plan against live balances: headline numbers, the
+  dated cash ledger (Nov 15 to Jan 31, both gift cases), a card payoff
+  tracker, deadlines, milestones, month by month, trade-offs.
+- **Where the plan comes from:** `financial_settings.strategic_plan`
+  (`master_plan` holds the workbook's CF_A/B/C month ends and the Cash
+  Ledger sheet). It is generated, never hand-edited:
+  `python3 scripts/export-strategic-plan.py <workbook.xlsx>
+  scripts/strategic-plan-v17.meta.json <out.sql> --scenario no_car=… car_50k=…
+  car_75k=…` writes the migration (the scenario files are the workbook
+  recalculated with LibreOffice for each car choice).
+  The meta file carries what the workbook doesn't (trade-offs, deadlines,
+  next steps, risks from the plan document).
+- 🔁 **When the plan changes:** re-run the export on the new workbook with
+  a new meta file, review the SQL, apply it with Brandon's approval.
+- **Live side:** debts from `debt_accounts` (bank-synced where linked),
+  checking from Plaid, savings from `financial_settings.assets` (manual).
+- **Pay is every other Friday** from v17 (first check Dec 4; three-paycheck
+  months July and December 2027). The ledger and month table reflect it.
+- **Manual balances set Nov 17 to the plan's Nov 30 start** (Brandon's
+  call): HELOC $185,950 (the plan's $189,950 adds the $4,000 bridge draw if
+  it is taken), Virginia FCU $17,280, RH $13,542.18, UT Southwestern
+  $1,112.04, Apple installments $733.19, Citi Best Buy $610.40. 🔁 Update
+  from statements monthly.
+- **Undo:** `financial_settings.strategic_plan_backup_2026_11_17` holds the
+  v8 plan and the six balances as they were.
+
 ## ⚡ Nov 15, 2026 — audit Phase 2
 
 - **Runway: cash gap vs cash-out.** With an accepted job whose pay covers
