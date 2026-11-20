@@ -50,8 +50,8 @@ check-in, Health Overview, lab + InBody uploads, Labs tab.
 
 Automated coverage: `npm test` (Vitest, `tests/`, 182 tests in 14 files as
 of Nov 20) and `tsc --noEmit` run on every PR via GitHub Actions. It covers
-the logic behind #32 (debt overlay tags, statement → promo findings, SSO/MFA gate, check-in upsert, Overview,
-lab grouping + dates), plus runway, reconcile, cash flow plan, Master
+the logic behind #32 (debt overlay tags, statement → promo findings,
+SSO/MFA gate, check-in upsert, Overview, lab grouping + dates), plus runway, reconcile, cash flow plan, Master
 Plan, calculators and the import guard. Paycheck, HELOC, tax and
 subscription detection have **no tests** yet (build queue). What still
 needs a live click-through is listed in #32.
