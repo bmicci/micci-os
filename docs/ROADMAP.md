@@ -4,12 +4,14 @@ Living list of what's next. **Start every new session here**, then read the
 linked issue. One session per workstream; close the issue (and update this
 file) when it ships. Detailed context lives in each GitHub issue.
 
-Last updated: Nov 15, 2026 · Live at https://os.brandonmicci.com
+Last updated: Nov 20, 2026 · Live at https://os.brandonmicci.com
 
 **Current plan:** the Nov 2026 audit and four-phase game plan
 (https://claude.ai/artifact/9qum9yf3PeqAtsXmd3DSZs). Phase 1 (lock down)
-shipped in PR #69; Phase 2 (clean slate) is in progress; Phase 3 is the
-daily log at `/today`; Phase 4 is hardening, then the feature queue below.
+shipped in PR #69; Phase 2 (clean slate) shipped in PR #70; Phase 3 is the
+daily log at `/today` (not started); Phase 4 is hardening, then the feature
+queue below. The money plan is strategic plan v17, live at `/finance/plan`
+(PRs #71–72).
 
 ## How we work
 - **One repo, one session per feature.** Open a fresh Claude Code session,
@@ -27,12 +29,11 @@ daily log at `/today`; Phase 4 is hardening, then the feature queue below.
 ## 1 · Waiting on Brandon
 | Item | Unblocks |
 |---|---|
-| **Supabase → Authentication:** turn off "Allow new users to sign up", disable the Email provider if unused, delete the unused email login (created Mar 8), turn on leaked-password protection | Closes the open-RLS risk from the audit |
+| **Supabase → Authentication:** turn off "Allow new users to sign up", disable the Email provider if unused, delete the unused email login (created Mar 8), turn on leaked-password protection (still off in the Nov 20 security advisor) | Closes the open-RLS risk from the audit |
 | Add repo secret `BRANDONMICCI_WEB_SUPABASE_ANON_KEY`, then merge **PR #68** (keep-alive) | Stops brandonmicci-web pause warnings |
-| Merge **PR #71** (`/finance/plan` on plan v17) and close **PR #67**, which it replaces | Master Plan page shows the agreed plan |
 | `/financial` → Debt Payoff → **✓ Mark paid** on Chase Freedom Unlim BT3 (expired Oct 9) and any other paid promo; update or mark paid the 14 manual debts last edited May–Jul | Accurate debt list and runway |
 | `/tasks`: clear the 4 overdue action items (26 open) | Clean Action Center |
-| Confirm the first Schwab payday (assumed Nov 30) | Runway and cash-gap dates |
+| Approve updating the accepted Schwab offer in `financial_settings.job_offers` to plan v17's pay: every other Friday (26 checks), first check **Dec 4**. It still says semi-monthly (24), first check Nov 30 | Runway, cash-gap, Cash Flow and dashboard paydays match the plan |
 | Pause the claude.ai **Markets** Routine (replaced by the Grok bot); say whether the **Home** (last Oct 31) and **Health** (last Nov 2) briefs are moving to Grok or should be hidden | Briefs hub shows only live tabs |
 | Connect **CUTX** (HELOC), **Wealthfront**, **401k provider** in `/import`; Plaid → *Add details* on **Amex** and **BofA** | Live HELOC/savings/retirement balances, statement findings (#32) |
 | Send **dad loan** details (balance, rate, payment, pay day) and explain the **BofA −$13,000** deposit on Sep 9 | Debt list, #39 |
@@ -47,21 +48,23 @@ Tracked in **#32 — Post-deploy verification checklist**: statements pipeline,
 live debt overlay, SSO + MFA, os.brandonmicci.com bank linking, daily
 check-in, Health Overview, lab + InBody uploads, Labs tab.
 
-Automated coverage: `npm test` (Vitest, `tests/`) runs on every PR via
-GitHub Actions. It covers the logic behind #32 (debt overlay tags,
-statement → promo findings, SSO/MFA gate, check-in upsert, Overview,
-lab grouping + dates). What still needs a live click-through is listed
-in #32.
+Automated coverage: `npm test` (Vitest, `tests/`, 182 tests in 14 files as
+of Nov 20) and `tsc --noEmit` run on every PR via GitHub Actions. It covers
+the logic behind #32 (debt overlay tags, statement → promo findings, SSO/MFA gate, check-in upsert, Overview,
+lab grouping + dates), plus runway, reconcile, cash flow plan, Master
+Plan, calculators and the import guard. Paycheck, HELOC, tax and
+subscription detection have **no tests** yet (build queue). What still
+needs a live click-through is listed in #32.
 
 ## 3 · Build queue
 Suggested order — top first. Audit items have no issue number yet.
 
 | # | Item | Area | Blocked on |
 |---|---|---|---|
-| audit | Phase 2: runway cash-gap fix, docs refresh, `/job-search` redirect, Grok pilot removal | platform | **PR in review** |
 | audit | Phase 3: `/today` daily log (top 3 actions, evening check-in, streak), dashboard freshness dots, weekly KPIs from daily rows | platform | the "full MD" helps |
 | audit | Dashboard job feed and Job Search pulse read the old `job_pipeline` table; move them to `/pipeline` data | platform | — |
-| audit | Tests for `txnAggregate` (burn, categories), `recurring`, HELOC, paycheck, tax; CI lint + build + coverage | platform | — |
+| audit | Tests for paycheck, HELOC, tax and subscription detection (`recurring`), none today; also `txnAggregate` (burn, categories). CI runs tests + type check only: add lint, build, coverage | platform | — |
+| plan v17 | Pay frequency from the offer, not hardcoded: `CashFlowTab` assumes 24 checks, Schwab 401(k) defaults (`k401.ts`) assume semi-monthly | finance | the `job_offers` update above |
 | audit | Supabase cleanup migration: per-user RLS, merge duplicate policies, index foreign keys | platform | Brandon's approval to apply |
 | audit | Replace `xlsx` (no patched npm release); vitest 3 → 5 | platform | — |
 | audit | Encrypt Plaid access tokens (Vault) | platform | — |
@@ -82,6 +85,8 @@ Suggested order — top first. Audit items have no issue number yet.
 ## 4 · Shipped (recent)
 | PR | What |
 |---|---|
+| #71–72 | Master Plan at `/finance/plan` on strategic plan v17 (plan vs live balances, cash ledger, card payoff tracker), reloaded from the fixed workbook. Replaced PR #67 (closed) |
+| #70 | Audit Phase 2: runway cash-gap fix, November docs, `/job-search` redirect, Grok pilot removed |
 | #69 | Security: Next.js 16.4.6, owner check in every server page, guarded import (allowlist, typed Replace confirm) |
 | #63–66 | Calculators (debt payoff, car, 401(k), bills, lease vs buy), plan as data, 2026 Tax Center, live Cash Flow plan, HELOC tracker fixes, working Scenarios |
 | #47–50 | Vitest suite + CI, overdue promos (#44), MCP tool registry, single briefs hub at `/briefs` |
