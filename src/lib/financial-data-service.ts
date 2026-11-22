@@ -724,6 +724,7 @@ export async function getFinancialData(): Promise<FinancialData> {
         employer: acceptedPay.offer.employer,
         firstPayday: acceptedPay.offer.firstPayday,
         periodDays: acceptedPay.periodDays,
+        payFrequency: acceptedPay.offer.payFrequency,
         netPerCheck: acceptedPay.netPerCheckEarly,
         monthlyNet: acceptedPay.monthlyNetAvg,
       } : null,

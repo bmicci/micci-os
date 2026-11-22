@@ -35,8 +35,9 @@ export interface K401Result {
 
 export const SCHWAB_DEFAULTS: K401Inputs = {
   salary: 240000, bonusPct: 0, basePct: 5, bonusDeferPct: 5, limit: 25500, matchPct: 5, kicker: 250,
-  // Semi-monthly pay; benefits $205.70 every check ($105.70 premiums + $100 HSA)
-  payPeriods: 24, section125PerCheck: 205.70, section125Checks: 24, ltdAnnual: 0, returnPct: 7, years: 3,
+  // Paid every other Friday (26 checks, first Dec 4, 2026); benefits $205.70
+  // a check ($105.70 premiums + $100 HSA), taken from every check like the runway
+  payPeriods: 26, section125PerCheck: 205.70, section125Checks: 26, ltdAnnual: 0, returnPct: 7, years: 3,
 }
 
 export function k401Calc(i: K401Inputs): K401Result {
