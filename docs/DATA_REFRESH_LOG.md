@@ -10,6 +10,18 @@ _Last updated: Nov 15, 2026_
 
 ---
 
+## ⚡ Nov 21, 2026 — Schwab pay every other Friday
+
+- **Data (Brandon's OK, Nov 21):** the accepted Schwab offer in
+  `financial_settings.job_offers` is now `payFrequency` 26 with
+  `firstPayday` 2026-12-04 (was 24 and Nov 30). Undo:
+  `financial_settings.job_offers_backup_2026_11_21`.
+- **Code (PR #74):** Cash Flow and the 401(k) defaults follow the offer's
+  schedule; a payday on a weekend or bank holiday lands the business day
+  before, so the Jan 1, 2027 check counts on Dec 31 (plan v17).
+- 🔴 **Still semi-monthly:** `financial_settings.tax_plan_2026` (three
+  $10,000 Schwab checks in 2026). Update it with the real biweekly checks.
+
 ## ⚡ Nov 17, 2026 — Master Plan (`/finance/plan`), plan v17
 
 - **What it is:** the plan against live balances: headline numbers, the
