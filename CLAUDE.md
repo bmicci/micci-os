@@ -25,7 +25,7 @@ This is NOT a greenfield build. Every section below is built and live. Do not sc
 | `/goals` | Goals + Vision (480 goals, Foundation tab, in-place editing) | ✅ live |
 | `/planner` | Live date-driven week + archived Battle Plan | ✅ live |
 | `/pipeline` | Job search: target companies, contacts, daily log (`/job-search` redirects here; the older `job_*` tracker tables are kept but unused) | ✅ live |
-| `/briefs` | Morning briefs hub, one tab per brief, written by Grok bots (`/markets` redirects to its Markets tab) | ✅ live |
+| `/briefs` | Morning briefs hub: Money, Markets, AI News (weekday routine), Health, Home (`/markets` redirects to its Markets tab) | ✅ live |
 | `/tasks` | Unified Action Center (`action_items` table, all life areas) | ✅ live |
 | `/health` | Protocols, labs, fitness | ✅ live |
 | `/import` | CSV/document import with dedup + Plaid bank auto-sync (Chase, Amex, Citi, PayPal, BofA; daily 11:00 UTC cron + on-demand) — live since Sep 18, 2026 | ✅ live |
@@ -70,7 +70,8 @@ Chase, Amex, Citi, PayPal and BofA transactions and balances sync automatically 
 | `docs/CLAUDE.md` | Full project context, structure, architectural rules |
 | `docs/DATA_REFRESH_LOG.md` | Living log: what data is owed / routine / auto, per section |
 | `docs/SECURITY.md` | Access policy (SSO + MFA), machine endpoints, headers |
-| `docs/GROK_BRIEFS_HANDOFF.md` | How the Grok brief bots write to the briefs hub |
+| `docs/BRIEFS_RUNNER.md` | Weekday briefs routine prompt, the flagged API-key runner, its guard rails and cost model |
+| `docs/GROK_BRIEFS_HANDOFF.md` | Retired Nov 23, 2026 (Grok bots cancelled); kept for history |
 | `docs/MCP_CONNECTOR.md` · `docs/MCP_LAYER_PROPOSAL.md` | Claude connector and the shared tool registry (`src/lib/mcp/`) |
 | `docs/archive/*` | Finished plans (Jul 2026 implementation + weekend plans) — history only |
 | `docs/prds/*` | Per-module PRDs |

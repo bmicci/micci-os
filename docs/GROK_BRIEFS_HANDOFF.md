@@ -1,5 +1,9 @@
 # Grok handoff — Micci Daily briefs
 
+> **Retired Nov 23, 2026.** The Grok bots were cancelled. Money, AI News and
+> Markets now come from a weekday Claude routine; Today and Jobs are retired.
+> See `docs/BRIEFS_RUNNER.md`. Kept for history.
+
 **Status:** Nov 1, 2026 · for Brandon to paste into Grok, one bot per brief
 **Replaces:** the 7 claude.ai Routines in `docs/prds/06-DAILY-BRIEFS-PROMPTS.md` plus the AI & Tech News task
 **Related:** `docs/MCP_CONNECTOR.md` (Micci Finance MCP), `docs/MCP_LAYER_PROPOSAL.md`

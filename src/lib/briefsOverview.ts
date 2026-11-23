@@ -3,14 +3,15 @@
 //
 // Used by /briefs (overview), the dashboard's "This morning" strip and the
 // section pages (/financial, /pipeline, /health). Sources:
-//   · `briefs` (service client; deny-all RLS) — every tab the Routines and
-//     Grok bots write through upsert_brief()
+//   · `briefs` (service client; deny-all RLS) — every tab the routines write
+//     through upsert_brief()
 //   · `markets_bot_briefs` (session client; owner SELECT via RLS) — the
-//     Stocks & ETFs Grok bot, which the Markets tab shows instead of `briefs`
+//     pre-market brief from the weekday briefs routine (the Grok bot wrote it
+//     until Nov 2026), which the Markets tab shows instead of `briefs`
 // ───────────────────────────────────────────────────────────────────────────
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { BRIEF_TABS, type BriefBlock, type BriefTab, type TodayPayload } from '@/lib/briefs'
+import { BRIEF_TABS, type BriefBlock, type BriefTab } from '@/lib/briefs'
 import { BRIEF_TYPE_LABEL, isBriefType, isTestBrief, normalizeHighlights } from '@/lib/marketsBriefs'
 
 export interface BriefHeadline {
@@ -20,10 +21,8 @@ export interface BriefHeadline {
   date: string | null
   /** Latest edition is from today (America/Chicago). */
   fresh: boolean
-  /** Items the brief marked critical (or, for Today, people waiting on Brandon). */
+  /** Items the brief marked critical. */
   flags: number
-  /** Written by a Grok bot rather than a Claude Routine. */
-  grok: boolean
   /** Short context after the date, e.g. "Close · hold". */
   note: string | null
   href: string
@@ -59,12 +58,8 @@ const shiftDay = (iso: string, days: number) => {
   return d.toISOString().slice(0, 10)
 }
 
-/** Critical items in a brief: tone "crit" on any kpi or list item; Today counts who is waiting on him. */
-export function countFlags(tab: string, blocks: BriefBlock[] | null, payload: Record<string, unknown> | null): number {
-  if (tab === 'today') {
-    const counts = (payload as TodayPayload | null)?.sections?.counts
-    return Number(counts?.waiting_on_me ?? 0) || 0
-  }
+/** Critical items in a brief: tone "crit" on any kpi or list item. */
+export function countFlags(blocks: BriefBlock[] | null): number {
   let n = 0
   for (const b of blocks ?? []) {
     if (b.type === 'kpis' || b.type === 'list') {
@@ -118,7 +113,6 @@ export async function loadBriefHeadlines(
         date: bot.brief_date,
         fresh: bot.brief_date === today,
         flags: bot.action_bias === 'trim' ? 1 : 0,
-        grok: true,
         note: [BRIEF_TYPE_LABEL[type], bot.action_bias].filter(Boolean).join(' · '),
       }
     }
@@ -128,8 +122,7 @@ export async function loadBriefHeadlines(
       headline: r?.headline ?? null,
       date: r?.brief_date ?? null,
       fresh: r?.brief_date === today,
-      flags: r ? countFlags(t.id, r.blocks, r.payload) : 0,
-      grok: r ? (r.source === 'grok' || r.doc_key.endsWith('-grok')) : false,
+      flags: r ? countFlags(r.blocks) : 0,
       note: null,
     }
   })
