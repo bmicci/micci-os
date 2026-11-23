@@ -18,14 +18,10 @@ function HeadlineCard({ h, today, compact }: { h: BriefHeadline; today: string; 
       <div className="flex items-center gap-2 mb-1.5">
         <span className="text-[12px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{h.label}</span>
         {h.fresh && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--accent-cyan)' }} />}
-        {h.grok && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full text-[var(--text-muted)]"
-                style={{ border: '1px solid rgba(255,255,255,0.12)' }}>Grok</span>
-        )}
         {h.flags > 0 && (
           <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
                 style={{ background: 'rgba(248,113,113,0.12)', color: CRIT }}>
-            {h.flags} {h.tab === 'today' ? 'waiting' : 'to act on'}
+            {h.flags} to act on
           </span>
         )}
       </div>
