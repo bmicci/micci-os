@@ -1,10 +1,12 @@
 import Link from 'next/link'
-import { Wallet, Briefcase, HeartPulse, Gem, Target, ClipboardList, ArrowLeftRight } from 'lucide-react'
+import { Wallet, HeartPulse, Gem, Target, ClipboardList, ArrowLeftRight } from 'lucide-react'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getFinancialData } from '@/lib/financial-data-service'
-import { getJobSearchData } from '@/lib/job-search-data-service'
 import { fmtK, HELOC_LIMIT } from '@/lib/financial-data'
 import UpNextRail from '@/components/financial/UpNextRail'
+import RoleCard from '@/components/dashboard/RoleCard'
+import { activeOffer } from '@/lib/finance/jobIncome'
+import { roleSummary } from '@/lib/finance/roleSummary'
 import MorningOverview from '@/components/briefs/MorningOverview'
 import { createClient } from '@/lib/supabase/server'
 import { chicagoToday, loadBriefHeadlines } from '@/lib/briefsOverview'
@@ -18,9 +20,10 @@ export const metadata = { title: 'Command Center — Micci OS' }
 // Command Center — the front door. Everything derives from TODAY and live
 // data (rule: time never freezes). No hardcoded dates, no frozen headers.
 //   1. Runway ribbon — the season's headline number
-//   2. Today across everything — money, job search, health in one feed
+//   2. Today across everything — money, tasks, health in one feed
 //   3. Money this month — mini in/out + upcoming deadline pills
-//   4. Section pulses
+//   4. Current role — the accepted offer (Schwab), where the job pipeline was
+//   5. Section pulses
 // ═══════════════════════════════════════════════════════════════════════════
 
 function fmtRound(n: number): string {
@@ -35,9 +38,8 @@ export default async function DashboardPage() {
   const supabase = createServiceClient()
 
   const todayCT = chicagoToday()
-  const [data, jobData, protocolsRes, goalsRes, perksRes, briefHeadlines] = await Promise.all([
+  const [data, protocolsRes, goalsRes, perksRes, briefHeadlines] = await Promise.all([
     getFinancialData(),
-    getJobSearchData(),
     supabase?.from('hormone_protocols').select('name, dosage, day_of_week, time_of_day, is_active').eq('is_active', true) ?? Promise.resolve({ data: null }),
     supabase?.from('goals').select('id', { count: 'exact', head: true }).eq('status', 'active') ?? Promise.resolve({ count: null }),
     supabase?.from('perk_credits').select('amount, used, used_amount') ?? Promise.resolve({ data: null }),
@@ -48,7 +50,7 @@ export default async function DashboardPage() {
   // Cliff-aware: walks day by day so a confirmed income cutoff (e.g. TWC
   // benefits exhausting on a known date) actually moves the cash-out date,
   // instead of assuming today's burn rate holds forever.
-  const { burnAnalysis, runwayProjection, assets, portfolio, actionItems, monthlyFlows, promos, debts, recurring, upcoming } = data
+  const { burnAnalysis, runwayProjection, assets, portfolio, actionItems, monthlyFlows, promos, debts, recurring, upcoming, offers } = data
   const liquid = assets.cash + assets.savings
   const cashOut = runwayProjection.cashOutDate ? new Date(runwayProjection.cashOutDate + 'T00:00:00') : null
   const runwayMonths = cashOut ? Math.max(0, (cashOut.getTime() - Date.now()) / (30.44 * 86400000)) : Infinity
@@ -71,13 +73,10 @@ export default async function DashboardPage() {
     .sort((a, b) => (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999'))
     .slice(0, 4)
 
-  const activePipeline = jobData.pipeline.filter(p => {
-    const st = String(p.status ?? '').toLowerCase()
-    return st === 'active' || st === 'waiting' || st === 'offer'
-  })
-  const jobToday = activePipeline
-    .filter(p => p.next_step)
-    .slice(0, 3)
+  // ── Derived: current role (the accepted offer) ──
+  const accepted = activeOffer(offers.map(o => o.offer))
+  const acceptedPay = accepted ? offers.find(o => o.offer.id === accepted.id) ?? null : null
+  const role = acceptedPay ? roleSummary(acceptedPay, todayCT) : null
 
   const protocolsToday = ((protocolsRes.data ?? []) as any[]).filter(p => {
     const d = p.day_of_week
@@ -238,9 +237,6 @@ export default async function DashboardPage() {
             </div>
           </div>
         )}
-        <Link href="/pipeline" className="btn btn-primary ml-auto">
-          Job pipeline →
-        </Link>
       </div>
 
       {/* ── 2+3. Today feed + Money mini ── */}
@@ -266,17 +262,6 @@ export default async function DashboardPage() {
                 </span>
               </Link>
             ))}
-            {jobToday.map((p, i) => (
-              <Link key={`job-${i}`} href="/pipeline"
-                className="flex items-center gap-3 py-2 text-[12.5px] hover:bg-white/[0.02] transition-colors"
-                style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                {dot('#8b5cf6')}
-                <span className="flex-1 text-[var(--text-primary)] truncate">
-                  {p.company}: {p.next_step}
-                </span>
-                <span className="font-mono text-[11px] text-[var(--text-muted)] shrink-0">job</span>
-              </Link>
-            ))}
             {protocolsToday.map((p, i) => (
               <Link key={`hp-${i}`} href="/health"
                 className="flex items-center gap-3 py-2 text-[12.5px] hover:bg-white/[0.02] transition-colors"
@@ -286,9 +271,9 @@ export default async function DashboardPage() {
                 <span className="font-mono text-[11px] text-[var(--text-muted)] shrink-0">{p.time_of_day ?? 'today'}</span>
               </Link>
             ))}
-            {actionsToday.length + jobToday.length + protocolsToday.length === 0 && (
+            {actionsToday.length + protocolsToday.length === 0 && (
               <div className="py-6 text-center text-[12px] text-[var(--text-muted)]">
-                Clear day — nothing due across money, job search, or health.
+                Clear day — nothing due across money, tasks, or health.
               </div>
             )}
           </div>
@@ -302,10 +287,6 @@ export default async function DashboardPage() {
             <div>
               <div className="font-mono text-[15px] font-bold text-[var(--text-primary)]">{portfolio ? fmtK(portfolio.value + portfolio.employerSupplement) : '—'}</div>
               <div className="text-[9.5px] uppercase tracking-widest text-[var(--text-muted)]">Portfolio</div>
-            </div>
-            <div>
-              <div className="font-mono text-[15px] font-bold text-[var(--text-primary)]">{activePipeline.length}</div>
-              <div className="text-[9.5px] uppercase tracking-widest text-[var(--text-muted)]">Pipeline cos.</div>
             </div>
             <div>
               <div className="font-mono text-[15px] font-bold text-[var(--text-primary)]">{protocolsToday.length}</div>
@@ -384,24 +365,19 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {/* ── 4. Current role — replaces the job-search pipeline ── */}
+      {role && <RoleCard role={role} />}
+
       {/* ── Up Next: bills, promo cliffs, due actions ── */}
       <div className="glass-card p-5">
         <UpNextRail items={upcoming} limit={8} compact />
       </div>
 
-      {/* ── 4. Section pulses ── */}
+      {/* ── 5. Section pulses ── */}
       <div className="flex flex-wrap gap-2.5">
         <Link href="/financial" className="text-[11.5px] px-3 py-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
           style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)' }}>
           <Wallet size={12} strokeWidth={2} className="inline mr-1 -mt-0.5" /> Financial · <b className="text-[var(--text-primary)]">live</b>
-        </Link>
-        <Link href="/pipeline" className="text-[11.5px] px-3 py-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
-          style={{
-            border: `1px solid ${activePipeline.length === 0 ? 'rgba(239,68,68,0.45)' : 'rgba(255,255,255,0.1)'}`,
-            background: activePipeline.length === 0 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.03)',
-            color: activePipeline.length === 0 ? '#f87171' : 'var(--text-secondary)',
-          }}>
-          <Briefcase size={12} strokeWidth={2} className="inline mr-1 -mt-0.5" /> Job Search · <b style={{ color: activePipeline.length === 0 ? '#ef4444' : 'var(--text-primary)' }}>{activePipeline.length === 0 ? 'pipeline empty' : `${activePipeline.length} active`}</b>
         </Link>
         <Link href="/health" className="text-[11.5px] px-3 py-1.5 rounded-full hover:bg-white/[0.06] transition-colors"
           style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)' }}>
