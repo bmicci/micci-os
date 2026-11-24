@@ -1,9 +1,11 @@
 // ───────────────────────────────────────────────────────────────────────────
 // Markets bot briefs — types + pure normalizers for /markets.
 //
-// Writer: the Stocks & ETFs Grok bot, which upserts one row per
-// (brief_type, brief_date) into `public.markets_bot_briefs` (weekdays
-// ~7:00 AM CT pre-market, ~3:30 PM CT close). Micci-OS only READS that table;
+// Writer: the weekday briefs routine (docs/BRIEFS_RUNNER.md), which upserts
+// one pre-market row per (brief_type, brief_date) into
+// `public.markets_bot_briefs` around 6 AM CT. The Stocks & ETFs Grok bot wrote
+// both pre-market and close rows until Nov 2026; nothing writes `close` now,
+// but old close rows still render. Micci-OS only READS that table;
 // this feature never touches the finance/portfolio tables or the shared
 // `briefs` hub.
 //
@@ -23,8 +25,8 @@ export const BRIEF_TYPE_LABEL: Record<MarketsBriefType, string> = {
 }
 
 export const BRIEF_TYPE_SCHEDULE: Record<MarketsBriefType, string> = {
-  pre_market: 'Weekdays ~7:00 AM CT',
-  close: 'Weekdays ~3:30 PM CT',
+  pre_market: 'Weekdays ~6 AM CT',
+  close: 'Not scheduled (history only)',
 }
 
 export type MarketsBriefStatus = 'ok' | 'partial' | 'failed'

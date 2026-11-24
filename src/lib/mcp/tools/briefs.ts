@@ -1,4 +1,4 @@
-// Briefs tool: latest Micci Daily editions written by the claude.ai Routines.
+// Briefs tool: latest Micci Daily editions written by the scheduled routines.
 
 import * as z from 'zod/v4'
 import { BRIEF_TABS, type BriefBlock } from '@/lib/briefs'
@@ -22,7 +22,7 @@ export const briefsTools: AnyMicciTool[] = [
     name: 'micci_briefs',
     title: 'Daily briefs',
     description:
-      "Brandon's Micci Daily briefs (written each morning by scheduled routines): today (calendar, priorities, pipeline), jobs (new roles), markets (pre-market + close, positions vs his ADD/CUT rules), health, home (claims, bills, renewals). Omit tab for the latest headline of every tab; pass a tab for the full latest edition (or a specific date).",
+      "Brandon's Micci Daily briefs (written by scheduled routines): money (bills due, big charges, cash), ai (AI news), health, home (claims, bills, renewals). The markets pre-market brief lives in its own table and is not returned here. Omit tab for the latest headline of every tab; pass a tab for the full latest edition (or a specific date).",
     inputSchema: z.strictObject({
       tab: z.enum(BRIEF_TABS.map(t => t.id) as [string, ...string[]]).optional().describe('Which brief; omit for all headlines'),
       date: z.iso.date().optional().describe('Edition date YYYY-MM-DD (default: latest)'),
@@ -47,18 +47,7 @@ export const briefsTools: AnyMicciTool[] = [
       if (error) return fail(`Query failed: ${error.message}`)
       const b = rows?.[0]
       if (!b) return text(`No ${a.tab} brief${a.date ? ` for ${a.date}` : ''} yet.`)
-      let body: string
-      if (a.tab === 'today') {
-        const p = b.payload as Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
-        body = [
-          ...(p.priorities ?? []).map((x: { rank: number; title: string; why: string }) => `${x.rank}. **${x.title}** — ${x.why}`),
-          p.decision ? `\n**Decision:** ${p.decision.question}\n${p.decision.recommendation}` : '',
-          ...(p.sections?.pipeline?.length ? ['\n### Pipeline', ...p.sections.pipeline.map((x: { company: string; role: string; status: string; next: string }) => `- ${x.company} — ${x.role}: ${x.status}; next: ${x.next}`)] : []),
-          ...(p.sections?.today?.length ? ['\n### Calendar', ...p.sections.today.map((x: { start: string; end: string; title: string }) => `- ${x.start}–${x.end} ${x.title}`)] : []),
-        ].filter(Boolean).join('\n')
-      } else {
-        body = ((b.blocks ?? []) as BriefBlock[]).map(renderBlock).join('\n\n')
-      }
+      const body = ((b.blocks ?? []) as BriefBlock[]).map(renderBlock).join('\n\n')
       return text([`# ${a.tab} brief — ${b.doc_key}${b.period_label ? ` (${b.period_label})` : ''}`, b.headline ?? '', '', body].join('\n').slice(0, CHARACTER_LIMIT))
     },
   }),

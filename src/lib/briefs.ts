@@ -2,20 +2,22 @@
 // Micci Daily briefs — shared types + tab registry.
 //
 // Briefs are written into Supabase (`briefs`, `brief_config`, `brief_tweaks`)
-// by the claude.ai Routines and the Grok bots via `upsert_brief()`; /briefs only
-// reads them. Grok editions use doc_key `<date>-grok` (docs/GROK_BRIEFS_HANDOFF.md).
-// Every tab except `today` uses the generic block list below — the same
-// contract the Routines' prompts emit (see docs/prds/06-DAILY-BRIEFS-PROMPTS.md).
+// by scheduled Claude routines via `upsert_brief()`; /briefs only reads them.
+// Money, AI News and the Markets pre-market brief come from one weekday
+// routine (docs/BRIEFS_RUNNER.md). The Grok bots that used to write them were
+// retired on Nov 23, 2026; their old editions (doc_key `<date>-grok`) stay in
+// the history. Today and Jobs were retired at the same time: the Duet morning
+// brief covers Today, and the job search is over. Their rows stay in the
+// table (the DB check still allows the tab ids) but no tab shows them.
+// Every tab uses the generic block list below (docs/prds/06-DAILY-BRIEFS-PROMPTS.md).
 // ───────────────────────────────────────────────────────────────────────────
 
 export const BRIEF_TABS = [
-  { id: 'today',   label: 'Today',   schedule: 'Weekdays 6:17 AM' },
-  { id: 'jobs',    label: 'Jobs',    schedule: 'Mon/Wed/Fri 7:51 AM' },
-  { id: 'markets', label: 'Markets', schedule: 'Weekdays 7:47 AM + 3:22 PM' },
-  { id: 'money',   label: 'Money',   schedule: 'Weekdays 7:30 AM (Grok)' },
+  { id: 'money',   label: 'Money',   schedule: 'Weekdays ~6 AM CT' },
+  { id: 'markets', label: 'Markets', schedule: 'Weekdays ~6 AM CT (pre-market)' },
+  { id: 'ai',      label: 'AI News', schedule: 'Weekdays ~6 AM CT' },
   { id: 'health',  label: 'Health',  schedule: 'Daily 5:37 AM · Sun 5:47 PM' },
   { id: 'home',    label: 'Home',    schedule: 'Sat 8:57 AM' },
-  { id: 'ai',      label: 'AI News', schedule: 'Weekdays 7:15 AM (Grok)' },
 ] as const
 
 export type BriefTab = (typeof BRIEF_TABS)[number]['id']
@@ -45,21 +47,6 @@ export interface BriefDraft {
   subject: string
   draft: string
   thread_link?: string
-}
-
-/** Morning Brief ("today" tab) — its own shape, kept in `payload`. */
-export interface TodayPayload {
-  day_type?: 'heavy' | 'normal' | 'open'
-  headline?: string
-  priorities?: { rank: number; title: string; why: string; link?: string }[]
-  emails?: BriefDraft[]
-  decision?: { question: string; recommendation: string; context?: string }
-  sections?: {
-    counts?: { interviews_48h?: number; waiting_on_me?: number; noise_filtered?: number }
-    today?: { start: string; end: string; title: string; key?: boolean }[]
-    pipeline?: { company: string; role: string; stage: string; status: string; next: string }[]
-    interview_prep?: { when: string; company: string; role: string; with: string; notes: string[]; link?: string }[]
-  }
 }
 
 export interface BriefRow {

@@ -4,7 +4,7 @@ Living list of what's next. **Start every new session here**, then read the
 linked issue. One session per workstream; close the issue (and update this
 file) when it ships. Detailed context lives in each GitHub issue.
 
-Last updated: Nov 20, 2026 · Live at https://os.brandonmicci.com
+Last updated: Nov 24, 2026 · Live at https://os.brandonmicci.com
 
 **Current plan:** the Nov 2026 audit and four-phase game plan
 (https://claude.ai/artifact/9qum9yf3PeqAtsXmd3DSZs). Phase 1 (lock down)
@@ -33,8 +33,7 @@ queue below. The money plan is strategic plan v17, live at `/finance/plan`
 | Add repo secret `BRANDONMICCI_WEB_SUPABASE_ANON_KEY`, then merge **PR #68** (keep-alive) | Stops brandonmicci-web pause warnings |
 | `/financial` → Debt Payoff → **✓ Mark paid** on Chase Freedom Unlim BT3 (expired Oct 9) and any other paid promo; update or mark paid the 14 manual debts last edited May–Jul | Accurate debt list and runway |
 | `/tasks`: clear the 4 overdue action items (26 open) | Clean Action Center |
-| Update the 2026 Tax Center plan (`financial_settings.tax_plan_2026`): Schwab is still three semi-monthly $10,000 checks; biweekly checks are $9,230.77 | Accurate 2026 tax estimate |
-| Pause the claude.ai **Markets** Routine (replaced by the Grok bot); say whether the **Home** (last Oct 31) and **Health** (last Nov 2) briefs are moving to Grok or should be hidden | Briefs hub shows only live tabs |
+| Say yes to the weekday briefs routine (Money, AI News, Markets; `docs/BRIEFS_RUNNER.md`); later, decide whether to try the API-key runner | Briefs refill after the Grok bots were cancelled |
 | Connect **CUTX** (HELOC), **Wealthfront**, **401k provider** in `/import`; Plaid → *Add details* on **Amex** and **BofA** | Live HELOC/savings/retirement balances, statement findings (#32) |
 | Send **dad loan** details (balance, rate, payment, pay day) and explain the **BofA −$13,000** deposit on Sep 9 | Debt list, #39 |
 | Send the daily-tracking "full MD" | Phase 3 daily log fields |
@@ -85,6 +84,7 @@ Suggested order — top first. Audit items have no issue number yet.
 ## 4 · Shipped (recent)
 | PR | What |
 |---|---|
+| #75 | Grok briefs replaced by a weekday Claude routine (Money, AI News, Markets); API-key runner built but switched off (`docs/BRIEFS_RUNNER.md`) |
 | #71–72 | Master Plan at `/finance/plan` on strategic plan v17 (plan vs live balances, cash ledger, card payoff tracker), reloaded from the fixed workbook. Replaced PR #67 (closed) |
 | #70 | Audit Phase 2: runway cash-gap fix, November docs, `/job-search` redirect, Grok pilot removed |
 | #69 | Security: Next.js 16.4.6, owner check in every server page, guarded import (allowlist, typed Replace confirm) |

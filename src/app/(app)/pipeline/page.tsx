@@ -1,9 +1,6 @@
 import Link from 'next/link'
 import { Briefcase, Zap, Users, Building2 } from 'lucide-react'
 import { getPipelineData, WEEKLY_TARGETS } from '@/lib/pipeline-data'
-import { createServiceClient } from '@/lib/supabase/service'
-import BriefHeadlineCard from '@/components/briefs/BriefHeadlineCard'
-import { chicagoToday, loadBriefHeadlines } from '@/lib/briefsOverview'
 import { requireOwnerPage } from '@/lib/supabase/require-user'
 
 export const dynamic = 'force-dynamic'
@@ -32,12 +29,7 @@ function statusChip(status: string) {
 
 export default async function PipelinePage() {
   await requireOwnerPage()
-  const today = chicagoToday()
-  const [data, briefs] = await Promise.all([
-    getPipelineData(),
-    loadBriefHeadlines(createServiceClient(), null, today).catch(() => []),
-  ])
-  const jobsBrief = briefs.find(b => b.tab === 'jobs')
+  const data = await getPipelineData()
   const active = data.companies.filter(c => c.source === 'active_pipeline' && c.status !== 'dormant' && c.status !== 'closed')
   const dormant = data.companies.filter(c => c.source === 'active_pipeline' && (c.status === 'dormant' || c.status === 'closed'))
   const targets = data.companies.filter(c => c.source === 'target_list')
@@ -69,8 +61,6 @@ export default async function PipelinePage() {
           </Link>
         </div>
       </div>
-
-      {jobsBrief?.headline && <BriefHeadlineCard brief={jobsBrief} today={today} />}
 
       {/* Prong scoreboard — current week vs targets */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

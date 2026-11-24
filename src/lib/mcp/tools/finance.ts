@@ -6,6 +6,8 @@ import * as z from 'zod/v4'
 import { computeRunwayProjection, spendByCategory, type TxnRow, type RunwayProjection } from '@/lib/finance/txnAggregate'
 import { offerPaycheck, type JobOffer } from '@/lib/finance/jobIncome'
 import { formatReconcile, reconcileDebts } from '@/lib/finance/reconcile'
+import { renderMoneyBriefInputs } from '@/lib/finance/moneyBrief'
+import { loadMoneyBriefInputs } from '@/lib/finance/moneyBriefLoader'
 import { CHARACTER_LIMIT, READ_ONLY, day, db, defineTool, fail, isoDaysAgo, isoToday, text, usd, type AnyMicciTool } from '../tool'
 
 function runwayLines(r: RunwayProjection, liquid: number): string[] {
@@ -81,6 +83,18 @@ export const financeTools: AnyMicciTool[] = [
         ...(d.upcoming.length ? d.upcoming.slice(0, 6).map(u => `- ${day(u.date)} · ${u.label}${u.amount != null ? ` · ${usd(u.amount)}` : ''}${u.urgent ? ' ⚠' : ''}`) : ['- Nothing scheduled']),
       ]
       return text(lines.filter(l => l !== '').join('\n').replace(/\n(##)/g, '\n\n$1'))
+    },
+  }),
+  defineTool({
+    name: 'micci_money_brief_inputs',
+    title: 'Money brief inputs',
+    description:
+      "Compact daily money summary for Brandon's Money brief, in one short call: liquid cash, next paycheck and cash low point, bills/promo cliffs/to-dos due in the next 14 days, single charges of $250+ in the last 3 days, last 7 days' spend vs a typical week, 0% promos ending within 45 days, overdue to-dos and stale balances. Use this (not raw transactions) for the morning Money brief.",
+    annotations: READ_ONLY,
+    handler: async (_a, ctx) => {
+      const d = await ctx.data()
+      const inputs = await loadMoneyBriefInputs(d, db(), isoToday())
+      return text(renderMoneyBriefInputs(inputs))
     },
   }),
   defineTool({

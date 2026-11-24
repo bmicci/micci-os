@@ -6,10 +6,9 @@ import { MessageSquarePlus, SlidersHorizontal, X } from 'lucide-react'
 import {
   BRIEF_TABS, TWEAK_KINDS,
   type BriefConfig, type BriefEdition, type BriefRow, type BriefTab, type BriefTweak,
-  type TodayPayload, type TweakKind,
+  type TweakKind,
 } from '@/lib/briefs'
 import { BlockBody, BlockCard, TONE_COLOR } from './blocks'
-import TodayBrief from './TodayBrief'
 import BriefsNav from './BriefsNav'
 
 const KIND_LABEL: Record<TweakKind, string> = {
@@ -24,7 +23,7 @@ function fmtEdition(e: BriefEdition) {
   const d = new Date(e.brief_date + 'T12:00:00')
   const day = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   const label = e.period_label ? `${day} · ${e.period_label}` : day
-  // Grok editions run beside the Claude Routines' until cutover (docs/GROK_BRIEFS_HANDOFF.md)
+  // Editions from the retired Grok bots (Nov 2026) keep their label in the history
   return e.doc_key.endsWith('-grok') ? `${label} · Grok` : label
 }
 
@@ -230,22 +229,18 @@ export default function BriefsHub({
               </div>
             </div>
 
-            {tab === 'today' ? (
-              <TodayBrief payload={brief.payload as TodayPayload} feedback={feedback} />
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {(brief.blocks ?? []).map((b, i) => {
-                  const title = 'title' in b ? b.title : undefined
-                  return (
-                    <div key={i} className={`min-w-0 ${b.wide || b.type === 'table' ? 'lg:col-span-2' : ''}`}>
-                      <BlockCard title={title} action={feedback(title ?? `Block ${i + 1}`)}>
-                        <BlockBody block={b} />
-                      </BlockCard>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {(brief.blocks ?? []).map((b, i) => {
+                const title = 'title' in b ? b.title : undefined
+                return (
+                  <div key={i} className={`min-w-0 ${b.wide || b.type === 'table' ? 'lg:col-span-2' : ''}`}>
+                    <BlockCard title={title} action={feedback(title ?? `Block ${i + 1}`)}>
+                      <BlockBody block={b} />
+                    </BlockCard>
+                  </div>
+                )
+              })}
+            </div>
           </>
         )}
 

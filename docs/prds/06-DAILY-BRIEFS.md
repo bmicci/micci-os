@@ -1,5 +1,7 @@
 # Micci Daily: Briefs Module Spec (for micci-os)
 
+> **Nov 23, 2026:** live tabs are Money, Markets, AI News (weekday routine), Health and Home. Today and Jobs are retired. Current setup: `docs/BRIEFS_RUNNER.md`.
+
 > **Repo reconciliation (Oct 15, 2026, checked against the repo and live DB).**
 > The spec below is kept as written. Where it conflicts with micci-os, follow these notes instead:
 >
