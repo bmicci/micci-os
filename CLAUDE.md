@@ -19,6 +19,7 @@ This is NOT a greenfield build. Every section below is built and live. Do not sc
 | Route | Section | State |
 |---|---|---|
 | `/dashboard` | Command center summary | ✅ live |
+| `/today` | Daily log: top 3 actions, evening check-in + streak, money today (next payday, bills due this week), this morning's briefs. Reads only; logic in `src/lib/today.ts` | ✅ live |
 | `/financial` | 8-tab financial dashboard (Overview · Cash Flow · Spending · HELOC Plan · Debt Payoff · Subscriptions · Investments · Net Worth) | ✅ live from Supabase |
 | `/finance/*` | Simulators: paycheck, heloc, cashflow, scenarios, investments, tax, calculators; `/finance/plan` Master Plan (plan vs live balances, cash ledger, card payoff tracker) | ✅ live |
 | `/perks` | Amex credits + MR points tracker (auto-rolling periods) | ✅ live |
