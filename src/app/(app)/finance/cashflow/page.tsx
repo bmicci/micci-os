@@ -9,16 +9,18 @@ import { requireOwnerPage } from '@/lib/supabase/require-user'
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Cash Flow Model — Micci OS' }
 
-async function loadPropertyTax(): Promise<PropertyTaxPlan | null> {
+async function loadEventSettings(): Promise<{ propertyTax: PropertyTaxPlan | null; manual: unknown }> {
   const supabase = createServiceClient()
-  if (!supabase) return null
-  const { data } = await supabase.from('financial_settings').select('value').eq('key', 'property_tax').maybeSingle()
-  return data?.value && typeof data.value === 'object' ? (data.value as PropertyTaxPlan) : null
+  if (!supabase) return { propertyTax: null, manual: null }
+  const { data } = await supabase.from('financial_settings').select('key, value').in('key', ['property_tax', 'planned_cash_events'])
+  const get = (k: string) => data?.find(r => r.key === k)?.value ?? null
+  const pt = get('property_tax')
+  return { propertyTax: pt && typeof pt === 'object' ? (pt as PropertyTaxPlan) : null, manual: get('planned_cash_events') }
 }
 
 export default async function CashFlowPage() {
   await requireOwnerPage()
-  const [data, propertyTax] = await Promise.all([getFinancialData(), loadPropertyTax()])
+  const [data, { propertyTax, manual }] = await Promise.all([getFinancialData(), loadEventSettings()])
   const todayIso = new Date().toISOString().slice(0, 10)
   const accepted = data.offers.find(o => o.offer.status === 'accepted') ?? null
 
@@ -27,8 +29,8 @@ export default async function CashFlowPage() {
     startingCash: Math.round((data.assets.cash + data.assets.savings) * 100) / 100,
     debtLines: debtPaymentLines(data.debts),
     livingLines: livingLines(data.burnAnalysis.byCategory),
-    // Property tax plus every promo payoff due in the next 12 months
-    events: plannedCashEvents(data.promos, data.debts, propertyTax, todayIso, 366),
+    // Property tax, every promo payoff due in the next 12 months, and hand-entered events
+    events: plannedCashEvents(data.promos, data.debts, propertyTax, todayIso, 366, manual),
     spendWindow: data.burnAnalysis.hasData
       ? { start: data.burnAnalysis.windowStart, end: data.burnAnalysis.windowEnd, txns: data.burnAnalysis.txnCount }
       : null,

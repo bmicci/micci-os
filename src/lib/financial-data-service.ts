@@ -728,8 +728,10 @@ export async function getFinancialData(): Promise<FinancialData> {
         netPerCheck: acceptedPay.netPerCheckEarly,
         monthlyNet: acceptedPay.monthlyNetAvg,
       } : null,
-      // Dated one-time outflows: planned property-tax payment + promo payoffs due soon
-      plannedCashEvents(promos, debts, propertyTaxRaw as PropertyTaxPlan | null, new Date().toISOString().slice(0, 10)),
+      // Dated one-time events: planned property-tax payment, promo payoffs due soon,
+      // and hand-entered events (financial_settings.planned_cash_events)
+      plannedCashEvents(promos, debts, propertyTaxRaw as PropertyTaxPlan | null, new Date().toISOString().slice(0, 10), 90,
+        getSetting(settings, 'planned_cash_events')),
     )
 
     // ── Deadlines (already in Supabase — fetched via API route) ──
