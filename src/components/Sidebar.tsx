@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
+  Sun,
   Wallet,
   Gem,
   Target,
@@ -31,6 +32,7 @@ import {
 // so active items pick up the cyan accent instead of fixed emoji colors.
 const NAV_ITEMS: { href: string; label: string; icon: LucideIcon; exact: boolean }[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/today", label: "Today", icon: Sun, exact: true },
   { href: "/briefs", label: "Briefs", icon: Newspaper, exact: false },
   { href: "/financial", label: "Financial", icon: Wallet, exact: false },
   { href: "/perks", label: "Perks & Points", icon: Gem, exact: false },
