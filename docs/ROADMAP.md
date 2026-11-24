@@ -63,7 +63,6 @@ Suggested order — top first. Audit items have no issue number yet.
 | audit | Phase 3: `/today` daily log (top 3 actions, evening check-in, streak), dashboard freshness dots, weekly KPIs from daily rows | platform | the "full MD" helps |
 | audit | Dashboard job feed and Job Search pulse read the old `job_pipeline` table; move them to `/pipeline` data | platform | — |
 | audit | Tests for paycheck, HELOC, tax and subscription detection (`recurring`), none today; also `txnAggregate` (burn, categories). CI runs tests + type check only: add lint, build, coverage | platform | — |
-| plan v17 | Pay frequency from the offer in Cash Flow and the 401(k) defaults; paydays on business days (Dec 31 check) | finance | **PR #74 in review** |
 | audit | Supabase cleanup migration: per-user RLS, merge duplicate policies, index foreign keys | platform | Brandon's approval to apply |
 | audit | Replace `xlsx` (no patched npm release); vitest 3 → 5 | platform | — |
 | audit | Encrypt Plaid access tokens (Vault) | platform | — |
@@ -84,6 +83,7 @@ Suggested order — top first. Audit items have no issue number yet.
 ## 4 · Shipped (recent)
 | PR | What |
 |---|---|
+| #74 | Schwab pay every other Friday: Cash Flow and 401(k) defaults follow the offer; paydays on business days (Jan 1 check lands Dec 31) |
 | #75 | Grok briefs replaced by a weekday Claude routine (Money, AI News, Markets); API-key runner built but switched off (`docs/BRIEFS_RUNNER.md`) |
 | #71–72 | Master Plan at `/finance/plan` on strategic plan v17 (plan vs live balances, cash ledger, card payoff tracker), reloaded from the fixed workbook. Replaced PR #67 (closed) |
 | #70 | Audit Phase 2: runway cash-gap fix, November docs, `/job-search` redirect, Grok pilot removed |
