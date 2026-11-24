@@ -33,7 +33,7 @@ daily log at `/today`; Phase 4 is hardening, then the feature queue below.
 | `/financial` → Debt Payoff → **✓ Mark paid** on Chase Freedom Unlim BT3 (expired Oct 9) and any other paid promo; update or mark paid the 14 manual debts last edited May–Jul | Accurate debt list and runway |
 | `/tasks`: clear the 4 overdue action items (26 open) | Clean Action Center |
 | Confirm the first Schwab payday (assumed Nov 30) | Runway and cash-gap dates |
-| Pause the claude.ai **Markets** Routine (replaced by the Grok bot); say whether the **Home** (last Oct 31) and **Health** (last Nov 2) briefs are moving to Grok or should be hidden | Briefs hub shows only live tabs |
+| Say yes to the weekday briefs routine (Money, AI News, Markets; `docs/BRIEFS_RUNNER.md`); later, decide whether to try the API-key runner | Briefs refill after the Grok bots were cancelled |
 | Connect **CUTX** (HELOC), **Wealthfront**, **401k provider** in `/import`; Plaid → *Add details* on **Amex** and **BofA** | Live HELOC/savings/retirement balances, statement findings (#32) |
 | Send **dad loan** details (balance, rate, payment, pay day) and explain the **BofA −$13,000** deposit on Sep 9 | Debt list, #39 |
 | Send the daily-tracking "full MD" | Phase 3 daily log fields |

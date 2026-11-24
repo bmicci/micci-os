@@ -6,9 +6,20 @@ data. Three categories:
 - 🔁 **ROUTINE** — recurring refresh, with cadence and method
 - ⚙️ **AUTO** — refreshes itself; listed so nobody re-builds it
 
-_Last updated: Nov 15, 2026_
+_Last updated: Nov 24, 2026_
 
 ---
+
+## ⚡ Nov 23, 2026 — Briefs after Grok (`/briefs`)
+
+- **What changed:** the Grok bots are cancelled. Today and Jobs tabs are
+  retired (old rows stay). Money, AI News and Markets come from one weekday
+  routine at about 6 AM Central (`docs/BRIEFS_RUNNER.md`).
+- 🔁 **ROUTINE:** weekdays ~6 AM CT, Claude routine via the Supabase and
+  Micci Finance connectors. Money reads the new `micci_money_brief_inputs`
+  tool (cash, payday, bills due in 14 days, big charges, spend pace).
+- ⚙️ **Off:** an API-key runner (`/api/briefs/run`) with spend caps, behind
+  `BRIEFS_API_ENABLED`. Needs the `brief_runs` migration before it can run.
 
 ## ⚡ Nov 21, 2026 — Schwab pay every other Friday
 
@@ -19,8 +30,10 @@ _Last updated: Nov 15, 2026_
 - **Code (PR #74):** Cash Flow and the 401(k) defaults follow the offer's
   schedule; a payday on a weekend or bank holiday lands the business day
   before, so the Jan 1, 2027 check counts on Dec 31 (plan v17).
-- 🔴 **Still semi-monthly:** `financial_settings.tax_plan_2026` (three
-  $10,000 Schwab checks in 2026). Update it with the real biweekly checks.
+- **Tax plan (Brandon's OK, Nov 24):** `financial_settings.tax_plan_2026`
+  now has three $9,230.77 Schwab checks in 2026 (taxable $25,691, withheld
+  ~$4,911, was $27,883 and $5,336). Undo:
+  `financial_settings.tax_plan_2026_backup_2026_11_24`.
 
 ## ⚡ Nov 17, 2026 — Master Plan (`/finance/plan`), plan v17
 

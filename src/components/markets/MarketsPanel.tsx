@@ -9,7 +9,8 @@ import {
   type MarketsBriefType, type MarketsBriefView,
 } from '@/lib/marketsBriefs'
 
-// Markets tab of /briefs — briefs written by the Stocks & ETFs Grok bot.
+// Markets tab of /briefs — the pre-market brief from the weekday briefs routine
+// (the Stocks & ETFs Grok bot until Nov 2026).
 //
 // READ-ONLY, and ONLY from `public.markets_bot_briefs` — this page must never
 // read or write the finance/portfolio tables (portfolio_*, plaid_*,
