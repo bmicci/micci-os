@@ -8,6 +8,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import type { DebtAccount } from '@/lib/financial-data'
+import { payOnBusinessDay } from './paydays'
 import type { CashEvent } from './cashEvents'
 
 export interface PlanLine { id: string; label: string; amount: number }
@@ -59,7 +60,8 @@ function iso(y: number, m0: number, d: number) {
 /**
  * Paydays from the first payday through `untilIso`.
  * 24 = semi-monthly (15th and last day), 26 = every 14 days, 52 = weekly,
- * 12 = monthly on the first payday's day of month.
+ * 12 = monthly on the first payday's day of month. A payday on a weekend or
+ * bank holiday lands the business day before (see paydays.ts).
  */
 export function generatePaydays(firstPayday: string, payFrequency: number, untilIso: string): string[] {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(firstPayday) || firstPayday > untilIso) return []
@@ -75,7 +77,7 @@ export function generatePaydays(firstPayday: string, payFrequency: number, until
       for (const d of days) {
         const s = iso(y, m0, d)
         if (s > untilIso) return out
-        if (s >= firstPayday) out.push(s)
+        if (s >= firstPayday) out.push(payOnBusinessDay(s))
       }
     }
     return out
@@ -85,7 +87,7 @@ export function generatePaydays(firstPayday: string, payFrequency: number, until
   for (let i = 0; i < 800; i++) {
     const s = t.toISOString().slice(0, 10)
     if (s > untilIso) break
-    out.push(s)
+    out.push(payOnBusinessDay(s))
     t.setUTCDate(t.getUTCDate() + step)
   }
   return out

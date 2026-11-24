@@ -3,13 +3,19 @@ import { generatePaydays, projectCashFlowPlan, debtPaymentLines, livingLines } f
 import type { DebtAccount } from '@/lib/financial-data'
 
 describe('generatePaydays', () => {
-  it('semi-monthly: 15th and last day, starting at the first payday', () => {
+  it('semi-monthly: 15th and last day, a weekend or holiday paid the business day before', () => {
+    // Jan 31 and Feb 28, 2027 are Sundays; Feb 15 is Presidents Day
     expect(generatePaydays('2026-11-30', 24, '2027-02-28')).toEqual([
-      '2026-11-30', '2026-12-15', '2026-12-31', '2027-01-15', '2027-01-31', '2027-02-15', '2027-02-28',
+      '2026-11-30', '2026-12-15', '2026-12-31', '2027-01-15', '2027-01-29', '2027-02-12', '2027-02-26',
     ])
   })
-  it('biweekly: every 14 days', () => {
-    expect(generatePaydays('2026-11-27', 26, '2026-12-31')).toEqual(['2026-11-27', '2026-12-11', '2026-12-25'])
+  it('biweekly: every 14 days, Christmas paid the day before', () => {
+    expect(generatePaydays('2026-11-27', 26, '2026-12-31')).toEqual(['2026-11-27', '2026-12-11', '2026-12-24'])
+  })
+  it('Schwab (plan v17): every other Friday from Dec 4, the New Year check on Dec 31', () => {
+    expect(generatePaydays('2026-12-04', 26, '2027-01-31')).toEqual([
+      '2026-12-04', '2026-12-18', '2026-12-31', '2027-01-15', '2027-01-29',
+    ])
   })
 })
 

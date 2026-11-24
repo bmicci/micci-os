@@ -68,3 +68,17 @@ describe('computeRunwayProjection', () => {
     expect(started.cashOutDate).toBeNull()
   })
 })
+
+describe('computeRunwayProjection — paydays on business days', () => {
+  it('the Jan 1, 2027 check lands Dec 31, ahead of a Dec 31 property-tax payment', () => {
+    const r = computeRunwayProjection(
+      1000, 0, 0, null, new Date('2026-11-22T00:00:00'),
+      job({ firstPayday: '2026-12-04', payFrequency: 26, netPerCheck: 5000, monthlyNet: 10833 }),
+      [{ date: '2026-12-31', amount: -12000, label: 'Property tax' }],
+    )
+    // Dec 4 + Dec 18 + Dec 31 checks (15,000) cover the 12,000 payment, so cash never dips
+    expect(r.shortfall).toBeNull()
+    expect(r.employment?.lowPointCash).toBe(1000)
+    expect(r.employment?.payFrequency).toBe(26)
+  })
+})
