@@ -423,7 +423,7 @@ export default function TaxCenterTab({ plan2026 }: { plan2026?: TaxPlan2026 | nu
               </p>
               <p className="text-2xl font-extrabold" style={{ color: '#f59e0b' }}>{fmt((plan.income.find(i => /schwab/i.test(i.label))?.withheld ?? 0) / 3)}</p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                per semi-monthly check (est.) — withholding assumes the standard deduction, which is why the refund is large
+                per check, 3 checks in 2026 (est.) — withholding assumes the standard deduction, which is why the refund is large
               </p>
             </div>
 

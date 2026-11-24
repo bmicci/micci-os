@@ -9,6 +9,22 @@ import type {
   AllocationBucket,
   MonthlyProjection,
 } from '@/types/finance'
+import { SS_WAGE_BASE_2026 } from '@/lib/tax'
+
+/** Checks per year for the Cash Flow tab: the accepted offer's schedule, or
+ *  every two weeks (Schwab's schedule) when no offer is loaded. */
+export function cashFlowPayFrequency(offerPayFrequency: number | null | undefined): number {
+  return offerPayFrequency && offerPayFrequency > 0 ? offerPayFrequency : 26
+}
+
+/** The check of the year whose pay reaches the Social Security wage base.
+ *  Null when the salary never reaches it. Unknown salary: the old fixed
+ *  guess (check 18 of 24), scaled to the pay schedule. */
+export function ssCapCheck(annualGross: number, payFrequency: number): number | null {
+  if (!(annualGross > 0)) return Math.round((18 * payFrequency) / 24)
+  if (annualGross <= SS_WAGE_BASE_2026) return null
+  return Math.ceil(SS_WAGE_BASE_2026 / (annualGross / payFrequency))
+}
 
 export interface CashFlowInputs {
   netPayPerPeriod: number

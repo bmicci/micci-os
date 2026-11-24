@@ -94,8 +94,18 @@ describe('401(k) calculator (Schwab rules)', () => {
     expect(cashCost).toBeGreaterThan(0)
     expect(cashCost).toBeLessThan(extra)
   })
-  it('early-year semi-monthly check is ~$6,750 at 5% with $205.70 of benefits', () => {
+  it('Schwab defaults are paid every other Friday: 26 checks with benefits on each', () => {
+    expect(SCHWAB_DEFAULTS.payPeriods).toBe(26)
+    expect(SCHWAB_DEFAULTS.section125Checks).toBe(26)
+  })
+  it('early-year biweekly check is ~$6,210 at 5% with $205.70 of benefits', () => {
     const r = k401Calc({ ...SCHWAB_DEFAULTS, basePct: 5 })
+    expect(r.netPerCheckEarly).toBeGreaterThan(6100)
+    expect(r.netPerCheckEarly).toBeLessThan(6350)
+    expect(r.netPerMonth).toBeCloseTo((r.netPerCheckEarly * 26) / 12, 6)
+  })
+  it('a semi-monthly schedule still works when asked for (24 checks of ~$6,750)', () => {
+    const r = k401Calc({ ...SCHWAB_DEFAULTS, basePct: 5, payPeriods: 24, section125Checks: 24 })
     expect(r.netPerCheckEarly).toBeGreaterThan(6600)
     expect(r.netPerCheckEarly).toBeLessThan(6900)
   })
