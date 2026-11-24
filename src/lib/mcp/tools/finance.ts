@@ -27,8 +27,13 @@ function runwayLines(r: RunwayProjection, liquid: number): string[] {
     const g = r.shortfall
     out.push(`- Temporary cash gap (not a cash-out): below $0 for ${g.days} day${g.days === 1 ? '' : 's'} from ${day(g.startDate)}, lowest **${usd(g.deepestCash)}** on ${day(g.deepestDate)}, back above $0 on ${day(g.recoveredDate)}. Needs a bridge (HELOC draw or moving a payment).`)
   }
-  if (r.events?.length) {
-    out.push(`- Includes dated one-time payments: ${r.events.map(e => `${day(e.date)} ${e.label} ${usd(-e.amount)}`).join('; ')}`)
+  const outs = (r.events ?? []).filter(e => e.amount < 0)
+  const ins = (r.events ?? []).filter(e => e.amount > 0)
+  if (outs.length) {
+    out.push(`- Includes dated one-time payments: ${outs.map(e => `${day(e.date)} ${e.label} ${usd(-e.amount)}`).join('; ')}`)
+  }
+  if (ins.length) {
+    out.push(`- Includes dated one-time money in: ${ins.map(e => `${day(e.date)} ${e.label} +${usd(e.amount)}`).join('; ')}`)
   }
   return out
 }

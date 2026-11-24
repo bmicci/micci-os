@@ -142,7 +142,7 @@ describe('2026 tax estimate (plan v5 section 13)', () => {
   })
 })
 
-import { plannedCashEvents } from '@/lib/finance/cashEvents'
+import { manualCashEvents, plannedCashEvents } from '@/lib/finance/cashEvents'
 import { computeRunwayProjection } from '@/lib/finance/txnAggregate'
 import type { DebtAccount, PromoDeadline } from '@/lib/financial-data'
 describe('runway: dated one-time outflows', () => {
@@ -158,6 +158,35 @@ describe('runway: dated one-time outflows', () => {
       { date: '2026-12-09', amount: -3574, label: 'Pay off FU BT4' },
       { date: '2026-12-31', amount: -15000, label: 'Property tax (planned payment)' },
     ])
+  })
+  // Nov 24, 2026: hand-entered events (a gift) come from financial_settings.planned_cash_events
+  it('adds hand-entered events, money in included, and skips bad or out-of-range ones', () => {
+    const manual = { events: [
+      { date: '2026-12-15', amount: 15000, label: 'Gift (date to confirm)' },
+      { date: '2026-11-01', amount: 500, label: 'Already past' },
+      { date: '2027-06-01', amount: -900, label: 'Past the horizon' },
+      { date: 'soon', amount: 100, label: 'Bad date' },
+      { date: '2026-12-20', amount: 0, label: 'Zero' },
+      { date: '2026-12-21', amount: 50, label: '  ' },
+    ] }
+    const ev = plannedCashEvents([], [], { plan_amount: 15000, pay_by: '2026-12-31', taxes_paid: false }, '2026-11-24', 90, manual)
+    expect(ev).toEqual([
+      { date: '2026-12-15', amount: 15000, label: 'Gift (date to confirm)' },
+      { date: '2026-12-31', amount: -15000, label: 'Property tax (planned payment)' },
+    ])
+    expect(manualCashEvents([{ date: '2026-12-15', amount: '250.555', label: 'Bare array' }], '2026-11-24', '2027-02-22'))
+      .toEqual([{ date: '2026-12-15', amount: 250.56, label: 'Bare array' }])
+    expect(manualCashEvents(null, '2026-11-24', '2027-02-22')).toEqual([])
+  })
+  it('money in on a dated event lifts the low point', () => {
+    const pay = { employer: 'Schwab', firstPayday: '2026-12-04', periodDays: 14, netPerCheck: 6207, monthlyNet: 13735 }
+    const today = new Date(2026, 10, 24)
+    const tax = { date: '2026-12-31', amount: -15000, label: 'Property tax' }
+    const without = computeRunwayProjection(6000, 11000, 0, null, today, pay, [tax])
+    const withGift = computeRunwayProjection(6000, 11000, 0, null, today, pay, [{ date: '2026-12-15', amount: 15000, label: 'Gift' }, tax])
+    expect(without.employment!.lowPointCash).toBeLessThan(0)
+    expect(withGift.employment!.lowPointCash).toBeGreaterThan(0)
+    expect(withGift.shortfall).toBeNull()
   })
   // Nov 15, 2026: with pay that covers spend this is a cash gap to bridge
   // (it recovers), not a cash-out date. It is still flagged, with its size.
