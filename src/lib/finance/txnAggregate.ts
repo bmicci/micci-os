@@ -8,6 +8,8 @@
 // against spend automatically.
 // ───────────────────────────────────────────────────────────────────────────
 
+import { payOnBusinessDay } from './paydays'
+
 /** Categories that are NOT real spend — excluded from all spend rollups. */
 export const NON_SPEND_CATEGORIES = new Set(['Card Payment', 'Transfer', 'Income'])
 
@@ -375,6 +377,7 @@ export interface PaycheckSchedule {
   employer: string
   firstPayday: string              // YYYY-MM-DD
   periodDays: number               // 14 = biweekly
+  payFrequency?: number            // checks per year (26 = biweekly), from the offer
   netPerCheck: number
   monthlyNet: number               // averaged, for the steady-state surplus
 }
@@ -383,6 +386,7 @@ export interface RunwayEmployment {
   employer: string
   firstPayday: string
   daysUntilFirstCheck: number
+  payFrequency?: number
   netPerCheck: number
   monthlyNet: number
   monthlySurplus: number           // monthlyNet − monthlySpend (negative = still burning)
@@ -448,6 +452,7 @@ export function computeRunwayProjection(
   const MAX_DAYS = 3652 // 10-year cap
 
   const firstPay = paychecks ? parseLocalDate(paychecks.firstPayday) : null
+  const landsMs = (ms: number) => ms === Infinity ? ms : parseLocalDate(payOnBusinessDay(isoDate(new Date(ms)))).getTime()
   let nextPayMs = firstPay ? firstPay.getTime() : Infinity
   // Paydays before today are already in `liquidCash` — skip them rather than
   // paying them again on day one.
@@ -461,6 +466,7 @@ export function computeRunwayProjection(
     employer: paychecks.employer,
     firstPayday: paychecks.firstPayday,
     daysUntilFirstCheck: Math.round((firstPay.getTime() - cursor.getTime()) / 86400000),
+    payFrequency: paychecks.payFrequency,
     netPerCheck: paychecks.netPerCheck,
     monthlyNet: paychecks.monthlyNet,
     monthlySurplus: Math.round(paychecks.monthlyNet - monthlySpend),
@@ -485,8 +491,9 @@ export function computeRunwayProjection(
   for (let i = 0; i < MAX_DAYS; i++) {
     const pastCliff = cliff ? walker >= cliff : false
     let dailyNet = pastCliff ? -dailySpend : dailyIncome - dailySpend
-    // A check lands on its payday (today's included).
-    while (walker.getTime() >= nextPayMs) {
+    // A check lands on its payday (today's included), or the business day
+    // before when the payday is a weekend or bank holiday.
+    while (walker.getTime() >= landsMs(nextPayMs)) {
       dailyNet += paychecks!.netPerCheck
       nextPayMs += paychecks!.periodDays * 86400000
     }

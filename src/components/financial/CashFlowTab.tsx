@@ -8,6 +8,8 @@ import {
   project12Months,
   DEFAULT_EXPENSES,
   DEFAULT_ALLOCATIONS,
+  cashFlowPayFrequency,
+  ssCapCheck,
   type CashFlowInputs,
 } from '@/lib/finance/cashflow'
 import KPICard from './KPICard'
@@ -66,7 +68,8 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
     const currentMonthlyNet = onBridge
       ? incomeBridge.consultingMonthlyNet
       : incomeBridge.newJobMonthlyNet
-    const payFrequency = 24 // semi-monthly
+    // The accepted offer's schedule (Schwab: every other Friday, 26 checks)
+    const payFrequency = cashFlowPayFrequency(runwayProjection.employment?.payFrequency)
     const netPayPerPeriod = Math.round(currentMonthlyNet * 12 / payFrequency)
 
     // HELOC monthly interest from live KPIs
@@ -128,7 +131,7 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
 
     const projections = project12Months({
       baseCashFlow: projInputs,
-      ssCapPeriod: onBridge ? null : 18, // no SS cap-out on unemployment income
+      ssCapPeriod: onBridge ? null : ssCapCheck(incomeBridge.targetSalary, payFrequency), // no SS cap-out on unemployment income
       payFrequency,
       grossPayPerPeriod: netPayPerPeriod,
       ssPerPeriodSavings: onBridge ? 0 : 42,
@@ -137,7 +140,7 @@ export default function CashFlowTab({ bills, promos, debts, helocKPIs, burnAnaly
     })
 
     return { monthlyFlow, projections, inputs, onBridge, currentMonthlyNet }
-  }, [debts, promos, helocKPIs, incomeBridge, real, burnAnalysis])
+  }, [debts, promos, helocKPIs, incomeBridge, real, burnAnalysis, runwayProjection.employment?.payFrequency])
 
   const { monthlyFlow, projections, onBridge } = cashFlowData
 
