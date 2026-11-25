@@ -4,7 +4,7 @@ Living list of what's next. **Start every new session here**, then read the
 linked issue. One session per workstream; close the issue (and update this
 file) when it ships. Detailed context lives in each GitHub issue.
 
-Last updated: Nov 24, 2026 · Live at https://os.brandonmicci.com
+Last updated: Nov 25, 2026 · Live at https://os.brandonmicci.com
 
 **Current plan:** the Nov 2026 audit and four-phase game plan
 (https://claude.ai/artifact/9qum9yf3PeqAtsXmd3DSZs). Phase 1 (lock down)
@@ -47,13 +47,14 @@ Tracked in **#32 — Post-deploy verification checklist**: statements pipeline,
 live debt overlay, SSO + MFA, os.brandonmicci.com bank linking, daily
 check-in, Health Overview, lab + InBody uploads, Labs tab.
 
-Automated coverage: `npm test` (Vitest, `tests/`, 182 tests in 14 files as
-of Nov 20) and `tsc --noEmit` run on every PR via GitHub Actions. It covers
+Automated coverage: `npm test` (Vitest, `tests/`, 285 tests in 19 files as
+of Nov 25) and `tsc --noEmit` run on every PR via GitHub Actions. It covers
 the logic behind #32 (debt overlay tags, statement → promo findings,
-SSO/MFA gate, check-in upsert, Overview, lab grouping + dates), plus runway, reconcile, cash flow plan, Master
-Plan, calculators and the import guard. Paycheck, HELOC, tax and
-subscription detection have **no tests** yet (build queue). What still
-needs a live click-through is listed in #32.
+SSO/MFA gate, check-in upsert, Overview, lab grouping + dates), plus runway,
+reconcile, cash flow plan, Master Plan, calculators, the import guard, and
+(since Nov 25) the paycheck calculator, 2026 brackets and FICA, HELOC math
+and drawdown plan, and subscription detection. What still needs a live
+click-through is listed in #32.
 
 ## 3 · Build queue
 Suggested order — top first. Audit items have no issue number yet.
@@ -61,8 +62,8 @@ Suggested order — top first. Audit items have no issue number yet.
 | # | Item | Area | Blocked on |
 |---|---|---|---|
 | audit | Phase 3: `/today` daily log (top 3 actions, evening check-in, streak), dashboard freshness dots, weekly KPIs from daily rows | platform | the "full MD" helps |
-| audit | Dashboard job feed and Job Search pulse read the old `job_pipeline` table; move them to `/pipeline` data | platform | — |
-| audit | Tests for paycheck, HELOC, tax and subscription detection (`recurring`), none today; also `txnAggregate` (burn, categories). CI runs tests + type check only: add lint, build, coverage | platform | — |
+| audit | Job Search pulse still reads the old `job_pipeline` table; move it to `/pipeline` data (the dashboard feed was replaced in #76) | platform | — |
+| audit | Tests for `txnAggregate` (burn, categories). CI runs tests + type check only: add lint, build, coverage | platform | — |
 | audit | Supabase cleanup migration: per-user RLS, merge duplicate policies, index foreign keys | platform | Brandon's approval to apply |
 | audit | Replace `xlsx` (no patched npm release); vitest 3 → 5 | platform | — |
 | audit | Encrypt Plaid access tokens (Vault) | platform | — |
@@ -83,6 +84,8 @@ Suggested order — top first. Audit items have no issue number yet.
 ## 4 · Shipped (recent)
 | PR | What |
 |---|---|
+| #78 | Runway counts hand-entered one-time events (`financial_settings.planned_cash_events`), first the $15K gift on Dec 15 |
+| #76 | Dashboard: Schwab role card replaces the job pipeline feed |
 | #74 | Schwab pay every other Friday: Cash Flow and 401(k) defaults follow the offer; paydays on business days (Jan 1 check lands Dec 31) |
 | #75 | Grok briefs replaced by a weekday Claude routine (Money, AI News, Markets); API-key runner built but switched off (`docs/BRIEFS_RUNNER.md`) |
 | #71–72 | Master Plan at `/finance/plan` on strategic plan v17 (plan vs live balances, cash ledger, card payoff tracker), reloaded from the fixed workbook. Replaced PR #67 (closed) |
